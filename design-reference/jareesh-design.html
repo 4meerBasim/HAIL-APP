@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<script src="./image-slot.js"></script>
+<style>
+body{margin:0;background:#ece5d6;font-family:'IBM Plex Sans Arabic',system-ui,sans-serif}
+a{color:#159d9b;text-decoration:none}a:hover{color:#0b5f5e}
+@keyframes jr-pulse{0%{box-shadow:0 0 0 0 rgba(21,157,155,0.45)}70%{box-shadow:0 0 0 16px rgba(21,157,155,0)}100%{box-shadow:0 0 0 0 rgba(21,157,155,0)}}
+@keyframes jr-dash{to{stroke-dashoffset:-24}}
+</style>
+</helmet>
+
+<div style="padding:36px 44px 60px;display:flex;flex-direction:column;gap:26px">
+  <div style="max-width:900px">
+    <div style="display:flex;align-items:center;gap:12px">
+      <div style="width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,#159d9b,#0b5f5e);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:19px">ج</div>
+      <div>
+        <div style="font-size:17px;font-weight:700;color:#152a29">جريش · Jareesh — تصميم التطبيق</div>
+        <div style="font-size:12px;color:#6b7a79">عربي أولاً (RTL) · قائمة من المطبخ العراقي · صحي / عادي · اشتراكات · وضع المؤسسات · شاشة إنجليزية للمقارنة</div>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:flex;flex-wrap:wrap;gap:36px;align-items:flex-start">
+
+  <!-- 01 SPLASH -->
+  <div style="display:flex;flex-direction:column;gap:10px">
+    <div style="display:flex;align-items:baseline;gap:8px"><span style="font:600 10.5px ui-monospace,Menlo,monospace;padding:3px 7px;background:#0b5f5e;color:#fff;border-radius:5px">01</span><span style="font-size:13px;font-weight:600;color:#152a29">البداية · اختيار نوع الحساب</span></div>
+    <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ true }}" hint-size="426px,900px">
+      <div dir="rtl" style="width:100%;height:100%;background:linear-gradient(170deg,#0b5f5e 0%,#159d9b 62%,#128a88 100%);position:relative;overflow:hidden;display:flex;flex-direction:column;font-family:'IBM Plex Sans Arabic',system-ui,sans-serif">
+        <div style="position:absolute;top:-90px;left:-90px;width:260px;height:260px;border-radius:50%;border:34px solid rgba(255,255,255,0.06)"></div>
+        <div style="position:absolute;top:140px;right:-70px;width:180px;height:180px;border-radius:50%;border:26px solid rgba(255,255,255,0.05)"></div>
+        <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding-top:40px">
+          <div style="width:88px;height:88px;border-radius:26px;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.25);display:flex;align-items:center;justify-content:center;font-size:44px;font-weight:700;color:#fff;backdrop-filter:blur(6px)">ج</div>
+          <div style="font-size:44px;font-weight:700;color:#fff;line-height:1.2">جريش</div>
+          <div style="font-size:12px;font-weight:600;letter-spacing:5px;color:rgba(255,255,255,0.75)">JAREESH</div>
+          <div style="font-size:15px;color:rgba(255,255,255,0.9);margin-top:6px">من المطبخ العراقي… إلى بابك</div>
+        </div>
+        <div style="background:#faf6ef;border-radius:28px 28px 0 0;padding:24px 20px 40px;display:flex;flex-direction:column;gap:12px">
+          <div style="font-size:17px;font-weight:700;color:#152a29">كيف تحب أن تطلب؟</div>
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <div style="display:flex;align-items:center;gap:14px;background:#fff;border:1.5px solid #159d9b;border-radius:18px;padding:14px 16px;box-shadow:0 4px 14px rgba(16,60,59,0.08);cursor:pointer">
+              <div style="width:44px;height:44px;border-radius:14px;background:#dff1f0;display:flex;align-items:center;justify-content:center;flex:none"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21c1.5-4 5-5.5 8-5.5s6.5 1.5 8 5.5" stroke="#159d9b" stroke-width="1.8" stroke-linecap="round"></path></svg></div>
+              <div style="flex:1"><div style="font-size:15px;font-weight:700;color:#152a29">أطلب لنفسي</div><div style="font-size:12px;color:#6b7a79">وجبات فردية واشتراكات يومية</div></div>
+              <div style="width:22px;height:22px;border-radius:50%;background:#159d9b;display:flex;align-items:center;justify-content:center;flex:none"><svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M5 12l5 5 9-10" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></path></svg></div>
+            </div>
+            <div style="display:flex;align-items:center;gap:14px;background:#fff;border:1.5px solid #ece5d6;border-radius:18px;padding:14px 16px;cursor:pointer">
+              <div style="width:44px;height:44px;border-radius:14px;background:#fdeedd;display:flex;align-items:center;justify-content:center;flex:none"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M4 21V5a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v16M15 9h4a1 1 0 0 1 1 1v11M4 21h16M8 8h3M8 12h3M8 16h3" stroke="#bf7418" stroke-width="1.8" stroke-linecap="round"></path></svg></div>
+              <div style="flex:1"><div style="font-size:15px;font-weight:700;color:#152a29">أطلب لمؤسسة / شركة</div><div style="font-size:12px;color:#6b7a79">طلبات كبيرة متكررة وفواتير شهرية</div></div>
+              <div style="width:22px;height:22px;border-radius:50%;border:1.5px solid #d8cfbd;flex:none"></div>
+            </div>
+          </div>
+          <div style="margin-top:6px;background:#159d9b;color:#fff;border-radius:16px;padding:15px;text-align:center;font-size:16px;font-weight:700;cursor:pointer;box-shadow:0 6px 16px rgba(21,157,155,0.35)">متابعة</div>
+        </div>
+      </div>
+    </x-import>
+  </div>
+
+  <!-- 02 HOME -->
+  <div style="display:flex;flex-direction:column;gap:10px">
+    <div style="display:flex;align-items:baseline;gap:8px"><span style="font:600 10.5px ui-monospace,Menlo,monospace;padding:3px 7px;background:#0b5f5e;color:#fff;border-radius:5px">02</span><span style="font-size:13px;font-weight:600;color:#152a29">الرئيسية</span></div>
+    <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ true }}" hint-size="426px,900px">
+      <div dir="rtl" style="width:100%;height:100%;background:#faf6ef;position:relative;overflow:hidden;display:flex;flex-direction:column;font-family:'IBM Plex Sans Arabic',system-ui,sans-serif">
+        <div style="background:linear-gradient(160deg,#0b5f5e,#128a88);padding:66px 20px 18px;border-radius:0 0 26px 26px;display:flex;flex-direction:column;gap:14px">
+          <div style="display:flex;align-items:center;gap:10px">
+            <div style="flex:1">
+              <div style="font-size:12px;color:rgba(255,255,255,0.7)">مساء الخير، سارة 👋</div>
+              <div style="display:flex;align-items:center;gap:5px;color:#fff;font-size:14px;font-weight:600"><svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M12 21s-7-5.5-7-11a7 7 0 1 1 14 0c0 5.5-7 11-7 11z" stroke="#f2a541" stroke-width="2"></path><circle cx="12" cy="10" r="2.5" fill="#f2a541"></circle></svg>بغداد · الكرادة</div>
+            </div>
+            <div style="display:flex;background:rgba(255,255,255,0.14);border-radius:999px;padding:3px;font-size:11px;font-weight:700">
+              <span style="background:#fff;color:#0b5f5e;border-radius:999px;padding:4px 10px">عربي</span><span style="color:rgba(255,255,255,0.8);padding:4px 10px">EN</span>
+            </div>
+            <div style="width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,0.14);display:flex;align-items:center;justify-content:center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M18 9a6 6 0 1 0-12 0c0 6-2 7-2 7h16s-2-1-2-7M10.3 20a2 2 0 0 0 3.4 0" stroke="#fff" stroke-width="1.8" stroke-linecap="round"></path></svg></div>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;background:rgba(255,255,255,0.96);border-radius:14px;padding:12px 14px">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="#8a9694" stroke-width="2"></circle><path d="M20 20l-3.5-3.5" stroke="#8a9694" stroke-width="2" stroke-linecap="round"></path></svg>
+            <span style="font-size:13px;color:#8a9694">دوّر على أكلتك… مسكوف، دولمة، قوزي</span>
+          </div>
+        </div>
+        <div style="flex:1;overflow:hidden;padding:16px 20px 0;display:flex;flex-direction:column;gap:16px">
+          <div style="position:relative;border-radius:20px;overflow:hidden;height:132px;flex:none;background:#0b5f5e">
+            <image-slot id="hero-home" shape="rect" placeholder="صورة سفرة عراقية للبانر" src="https://commons.wikimedia.org/wiki/Special:FilePath/Iraqi%20dinner%20spread.jpg?width=1200" credit="Wikimedia Commons" credit-href="https://commons.wikimedia.org/wiki/File:Iraqi_dinner_spread.jpg"></image-slot>
+            <div style="position:absolute;inset:0;background:linear-gradient(to left,rgba(8,64,63,0.88) 38%,rgba(8,64,63,0) 75%);pointer-events:none;display:flex;flex-direction:column;justify-content:center;gap:6px;padding:0 18px">
+              <div style="font-size:11px;font-weight:700;color:#f2a541;letter-spacing:0.5px">اشترك ووفّر</div>
+              <div style="font-size:19px;font-weight:700;color:#fff;line-height:1.35">وجبتك اليومية<br>بخصم حتى ٢٠٪</div>
+              <div style="background:#f2a541;color:#3d2a05;font-size:11.5px;font-weight:700;border-radius:999px;padding:5px 12px;width:fit-content;pointer-events:auto;cursor:pointer">ابني خطتك ←</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;flex:none">
+            <span style="background:#159d9b;color:#fff;font-size:12.5px;font-weight:700;border-radius:999px;padding:7px 14px">الكل</span>
+            <span style="background:#fff;color:#0f7d7b;font-size:12.5px;font-weight:600;border-radius:999px;padding:7px 14px;border:1px solid #d9efee;white-space:nowrap;flex:none">صحي 🌿</span>
+            <span style="background:#fff;color:#5b6664;font-size:12.5px;font-weight:600;border-radius:999px;padding:7px 14px;border:1px solid #ece5d6">عادي</span>
+            <span style="background:#fff;color:#5b6664;font-size:12.5px;font-weight:600;border-radius:999px;padding:7px 14px;border:1px solid #ece5d6">الأكثر طلباً</span>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:10px;flex:none">
+            <div style="display:flex;align-items:baseline;justify-content:space-between"><span style="font-size:15.5px;font-weight:700;color:#152a29">أطباق مميزة</span><a href="#" style="font-size:12px;font-weight:600">عرض الكل</a></div>
+            <div style="display:flex;gap:12px">
+              <div style="flex:1;background:#fff;border-radius:18px;overflow:hidden;box-shadow:0 4px 14px rgba(16,60,59,0.07)">
+                <div style="height:92px;position:relative"><image-slot id="feat-masgouf" shape="rect" placeholder="مسكوف" src="https://commons.wikimedia.org/wiki/Special:FilePath/Masgouf.jpg?width=900"></image-slot><span style="position:absolute;top:8px;right:8px;background:#dff1f0;color:#0f7d7b;font-size:10px;font-weight:700;border-radius:999px;padding:3px 8px">صحي</span></div>
+                <div style="padding:10px 12px 12px;display:flex;flex-direction:column;gap:3px"><span style="font-size:13px;font-weight:700;color:#152a29">مسكوف شبوط</span><span style="font-size:10.5px;color:#8a9694">٤٨٠ سعرة</span><span style="font-size:13px;font-weight:700;color:#159d9b">25,000 د.ع</span></div>
+              </div>
+              <div style="flex:1;background:#fff;border-radius:18px;overflow:hidden;box-shadow:0 4px 14px rgba(16,60,59,0.07)">
+                <div style="height:92px;position:relative"><image-slot id="feat-quzi" shape="rect" placeholder="قوزي" src="https://commons.wikimedia.org/wiki/Special:FilePath/Iraqi%20Quzi.jpg?width=600"></image-slot><span style="position:absolute;top:8px;right:8px;background:#fdeedd;color:#bf7418;font-size:10px;font-weight:700;border-radius:999px;padding:3px 8px">عادي</span></div>
+                <div style="padding:10px 12px 12px;display:flex;flex-direction:column;gap:3px"><span style="font-size:13px;font-weight:700;color:#152a29">قوزي على تمن</span><span style="font-size:10.5px;color:#8a9694">يكفي شخصين</span><span style="font-size:13px;font-weight:700;color:#159d9b">18,000 د.ع</span></div>
+              </div>
+              <div style="flex:1;background:#fff;border-radius:18px;overflow:hidden;box-shadow:0 4px 14px rgba(16,60,59,0.07)">
+                <div style="height:92px;position:relative"><image-slot id="feat-jireesh" shape="rect" placeholder="شوربة جريش" src="https://commons.wikimedia.org/wiki/Special:FilePath/Harees.JPG?width=600"></image-slot><span style="position:absolute;top:8px;right:8px;background:#dff1f0;color:#0f7d7b;font-size:10px;font-weight:700;border-radius:999px;padding:3px 8px">صحي</span></div>
+                <div style="padding:10px 12px 12px;display:flex;flex-direction:column;gap:3px"><span style="font-size:13px;font-weight:700;color:#152a29">شوربة جريش</span><span style="font-size:10.5px;color:#8a9694">٢٤٠ سعرة</span><span style="font-size:13px;font-weight:700;color:#159d9b">5,000 د.ع</span></div>
+              </div>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <span style="font-size:15.5px;font-weight:700;color:#152a29">الأكثر طلباً هذا الأسبوع</span>
+            <div style="display:flex;align-items:center;gap:12px;background:#fff;border-radius:16px;padding:10px 12px;box-shadow:0 4px 14px rgba(16,60,59,0.06)">
+              <div style="width:52px;height:52px;border-radius:12px;overflow:hidden;flex:none"><image-slot id="pop-dolma" shape="rect" placeholder="دولمة" src="https://commons.wikimedia.org/wiki/Special:FilePath/Iraqi%20Dolma-Mosul%2001.jpg?width=600"></image-slot></div>
+              <div style="flex:1"><div style="font-size:13.5px;font-weight:700;color:#152a29">دولمة عراقية</div><div style="font-size:11px;color:#8a9694">ورق عنب وخضار محشية بالتمن واللحم</div></div>
+              <span style="font-size:13px;font-weight:700;color:#159d9b">12,000 د.ع</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px;background:#fff;border-radius:16px;padding:10px 12px;box-shadow:0 4px 14px rgba(16,60,59,0.06)">
+              <div style="width:52px;height:52px;border-radius:12px;overflow:hidden;flex:none"><image-slot id="pop-tashreeb" shape="rect" placeholder="تشريب" src="https://commons.wikimedia.org/wiki/Special:FilePath/Tashreeb.JPG?width=600"></image-slot></div>
+              <div style="flex:1"><div style="font-size:13.5px;font-weight:700;color:#152a29">تشريب دجاج</div><div style="font-size:11px;color:#8a9694">خبز تنور مع مرق الحمص والدجاج</div></div>
+              <span style="font-size:13px;font-weight:700;color:#159d9b">9,000 د.ع</span>
+            </div>
+          </div>
+        </div>
+        <dc-import name="TabBar" active="{{ 0 }}" hint-size="100%,86px"></dc-import>
+      </div>
+    </x-import>
+  </div>
+
+  <!-- 03 MENU -->
+  <div style="display:flex;flex-direction:column;gap:10px">
+    <div style="display:flex;align-items:baseline;gap:8px"><span style="font:600 10.5px ui-monospace,Menlo,monospace;padding:3px 7px;background:#0b5f5e;color:#fff;border-radius:5px">03</span><span style="font-size:13px;font-weight:600;color:#152a29">القائمة · جرّب الفلاتر (تفاعلية)</span></div>
+    <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" hint-size="426px,900px">
+      <div dir="rtl" style="width:100%;height:100%;background:#faf6ef;position:relative;overflow:hidden;display:flex;flex-direction:column;font-family:'IBM Plex Sans Arabic',system-ui,sans-serif">
+        <div style="padding:66px 20px 0;display:flex;flex-direction:column;gap:12px;flex:none">
+          <div style="font-size:24px;font-weight:700;color:#152a29">القائمة</div>
+          <div style="display:flex;gap:8px">
+            <div style="flex:1;display:flex;align-items:center;gap:8px;background:#fff;border:1px solid #ece5d6;border-radius:13px;padding:10px 12px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="#8a9694" stroke-width="2"></circle><path d="M20 20l-3.5-3.5" stroke="#8a9694" stroke-width="2" stroke-linecap="round"></path></svg><span style="font-size:12.5px;color:#8a9694">ابحث في القائمة</span></div>
+            <div style="width:42px;height:42px;border-radius:13px;background:#0b5f5e;display:flex;align-items:center;justify-content:center"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M4 6h16M7 12h10M10 18h4" stroke="#fff" stroke-width="2" stroke-linecap="round"></path></svg></div>
+          </div>
+          <div style="display:flex;gap:7px">
+            <span style="display:flex;align-items:center;gap:4px;background:#fff;border:1px solid #ece5d6;border-radius:999px;padding:6px 11px;font-size:11.5px;font-weight:600;color:#5b6664">نظام غذائي ▾</span>
+            <span style="display:flex;align-items:center;gap:4px;background:#fff;border:1px solid #ece5d6;border-radius:999px;padding:6px 11px;font-size:11.5px;font-weight:600;color:#5b6664">الفئة ▾</span>
+            <span style="display:flex;align-items:center;gap:4px;background:#fff;border:1px solid #ece5d6;border-radius:999px;padding:6px 11px;font-size:11.5px;font-weight:600;color:#5b6664">السعر ▾</span>
+            <span style="display:flex;align-items:center;gap:4px;background:#fff;border:1px solid #ece5d6;border-radius:999px;padding:6px 11px;font-size:11.5px;font-weight:600;color:#5b6664">السعرات ▾</span>
+          </div>
+          <div style="display:flex;gap:8px">
+            <sc-for list="{{ menuCats }}" as="c" hint-placeholder-count="4">
+              <span onClick="{{ c.onClick }}" style="background:{{ c.bg }};color:{{ c.fg }};border:1px solid {{ c.bd }};font-size:12.5px;font-weight:700;border-radius:999px;padding:7px 14px;cursor:pointer;white-space:nowrap;flex:none">{{ c.l }}</span>
+            </sc-for>
+          </div>
+        </div>
+        <div style="flex:1;overflow:hidden;padding:14px 20px 0">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <sc-for list="{{ menuDishes }}" as="d" hint-placeholder-count="6">
+              <div style="background:#fff;border-radius:18px;overflow:hidden;box-shadow:0 4px 14px rgba(16,60,59,0.07)">
+                <div style="height:104px;position:relative"><image-slot id="m-{{ d.id }}" shape="rect" placeholder="{{ d.n }}" src="{{ d.img }}"></image-slot><span style="position:absolute;top:8px;right:8px;background:{{ d.bBg }};color:{{ d.bFg }};font-size:10px;font-weight:700;border-radius:999px;padding:3px 8px;pointer-events:none">{{ d.bT }}</span></div>
+                <div style="padding:10px 12px 12px;display:flex;flex-direction:column;gap:3px">
+                  <span style="font-size:13.5px;font-weight:700;color:#152a29">{{ d.n }}</span>
+                  <span style="font-size:10.5px;color:#8a9694">{{ d.sub }}</span>
+                  <div style="display:flex;align-items:center;justify-content:space-between;margin-top:3px">
+                    <span style="font-size:13.5px;font-weight:700;color:#159d9b">{{ d.p }} د.ع</span>
+                    <span style="width:26px;height:26px;border-radius:9px;background:#159d9b;color:#fff;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;cursor:pointer">+</span>
+                  </div>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+        <dc-import name="TabBar" active="{{ 1 }}" hint-size="100%,86px"></dc-import>
+      </div>
+    </x-import>
+  </div>
+
+  <!-- 04 DISH DETAIL -->
+  <div style="display:flex;flex-direction:column;gap:10px">
+    <div style="display:flex;align-items:baseline;gap:8px"><span style="font:600 10.5px ui-monospace,Menlo,monospace;padding:3px 7px;background:#0b5f5e;color:#fff;border-radius:5px">04</span><span style="font-size:13px;font-weight:600;color:#152a29">تفاصيل الطبق</span></div>
+    <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" hint-size="426px,900px">
+      <div dir="rtl" style="width:100%;height:100%;background:#faf6ef;position:relative;overflow:hidden;display:flex;flex-direction:column;font-family:'IBM Plex Sans Arabic',system-ui,sans-serif">
+        <div style="height:300px;position:relative;flex:none">
+          <image-slot id="detail-masgouf" shape="rect" placeholder="صورة مسكوف كبيرة" src="https://commons.wikimedia.org/wiki/Special:FilePath/Masgouf.jpg?width=900" credit="Wikimedia Commons" credit-href="https://commons.wikimedia.org/wiki/File:Masgouf.jpg"></image-slot>
+          <div style="position:absolute;top:62px;right:16px;width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,0.92);display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,0.12)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M9 5l7 7-7 7" stroke="#152a29" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"></path></svg></div>
+          <div style="position:absolute;top:62px;left:16px;width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,0.92);display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,0.12)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 20s-8-5-8-11a4.5 4.5 0 0 1 8-2.8A4.5 4.5 0 0 1 20 9c0 6-8 11-8 11z" stroke="#ef6f4c" stroke-width="2"></path></svg></div>
+        </div>
+        <div style="flex:1;background:#faf6ef;border-radius:26px 26px 0 0;margin-top:-24px;position:relative;padding:20px 20px 0;display:flex;flex-direction:column;gap:13px;overflow:hidden">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px">
+            <div style="display:flex;flex-direction:column;gap:5px">
+              <span style="background:#dff1f0;color:#0f7d7b;font-size:11px;font-weight:700;border-radius:999px;padding:4px 10px;width:fit-content;white-space:nowrap">🌿 صحي · ٤٨٠ سعرة</span>
+              <span style="font-size:22px;font-weight:700;color:#152a29">مسكوف شبوط بغدادي</span>
+            </div>
+            <span style="font-size:19px;font-weight:700;color:#159d9b;white-space:nowrap;margin-top:26px">25,000 د.ع</span>
+          </div>
+          <div style="font-size:13px;line-height:1.9;color:#5b6664;text-wrap:pretty">شبوط نهري طازج يُشقّ ويُتبّل بدبس الرمان والكركم، ويُشوى ببطء على نار الحطب على الطريقة البغدادية، ويقدَّم مع طرشي وبصل مشوي وخبز تنور حار.</div>
+          <div style="display:flex;gap:7px;flex-wrap:wrap">
+            <span style="background:#fff;border:1px solid #ece5d6;border-radius:999px;padding:5px 11px;font-size:11.5px;color:#5b6664">شبوط نهري</span>
+            <span style="background:#fff;border:1px solid #ece5d6;border-radius:999px;padding:5px 11px;font-size:11.5px;color:#5b6664">دبس رمان</span>
+            <span style="background:#fff;border:1px solid #ece5d6;border-radius:999px;padding:5px 11px;font-size:11.5px;color:#5b6664">طماطم وبصل</span>
+            <span style="background:#fff;border:1px solid #ece5d6;border-radius:999px;padding:5px 11px;font-size:11.5px;color:#5b6664">بهارات بغدادية</span>
+            <span style="background:#fff;border:1px solid #ece5d6;border-radius:999px;padding:5px 11px;font-size:11.5px;color:#5b6664">خبز تنور</span>
+          </div>
+          <div style="display:flex;gap:10px">
+            <div style="flex:1;background:#fff;border-radius:14px;padding:11px;text-align:center;box-shadow:0 3px 10px rgba(16,60,59,0.05)"><div style="font-size:16px;font-weight:700;color:#152a29">٤٨٠</div><div style="font-size:10.5px;color:#8a9694">سعرة</div></div>
+            <div style="flex:1;background:#fff;border-radius:14px;padding:11px;text-align:center;box-shadow:0 3px 10px rgba(16,60,59,0.05)"><div style="font-size:16px;font-weight:700;color:#159d9b">٤٢غ</div><div style="font-size:10.5px;color:#8a9694">بروتين</div></div>
+            <div style="flex:1;background:#fff;border-radius:14px;padding:11px;text-align:center;box-shadow:0 3px 10px rgba(16,60,59,0.05)"><div style="font-size:16px;font-weight:700;color:#152a29">١٨غ</div><div style="font-size:10.5px;color:#8a9694">كارب</div></div>
+            <div style="flex:1;background:#fff;border-radius:14px;padding:11px;text-align:center;box-shadow:0 3px 10px rgba(16,60,59,0.05)"><div style="font-size:16px;font-weight:700;color:#152a29">٢٢غ</div><div style="font-size:10.5px;color:#8a9694">دهون</div></div>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;margin-top:auto;padding-bottom:34px">
+            <div style="display:flex;align-items:center;gap:14px;background:#fff;border:1px solid #ece5d6;border-radius:999px;padding:9px 16px;font-size:16px;font-weight:700;color:#152a29"><span style="color:#159d9b;cursor:pointer">−</span><span>1</span><span style="color:#159d9b;cursor:pointer">+</span></div>
+            <div style="flex:1;background:#159d9b;color:#fff;border-radius:999px;padding:13px;text-align:center;font-size:14.5px;font-weight:700;cursor:pointer;box-shadow:0 6px 16px rgba(21,157,155,0.35)">أضف للسلة</div>
+            <div style="flex:1;background:#fff;color:#0b5f5e;border:1.5px solid #159d9b;border-radius:999px;padding:12px;text-align:center;font-size:14.5px;font-weight:700;cursor:pointer">أضف لاشتراكي</div>
+          </div>
+        </div>
+      </div>
+    </x-import>
+  </div>
+
+  <!-- 05 PLAN BUILDER -->
+  <div style="display:flex;flex-direction:column;gap:10px">
+    <div style="display:flex;align-items:baseline;gap:8px"><span style="font:600 10.5px ui-monospace,Menlo,monospace;padding:3px 7px;background:#f2a541;color:#3d2a05;border-radius:5px">05</span><span style="font-size:13px;font-weight:600;color:#152a29">الاشتراكات · باني الخطة (تفاعلي — جرّبه)</span></div>
+    <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" hint-size="426px,900px">
+      <div dir="rtl" style="width:100%;height:100%;background:#faf6ef;position:relative;overflow:hidden;display:flex;flex-direction:column;font-family:'IBM Plex Sans Arabic',system-ui,sans-serif">
+        <div style="padding:66px 20px 0;display:flex;flex-direction:column;gap:14px;flex:1;overflow:hidden">
+          <div><div style="font-size:24px;font-weight:700;color:#152a29">ابنِ خطتك</div><div style="font-size:12.5px;color:#6b7a79">اشترك ووفّر — السعر يتحدث مباشرة مع كل اختيار</div></div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <span style="font-size:13px;font-weight:700;color:#152a29">كم وجبة باليوم؟</span>
+            <div style="display:flex;gap:8px">
+              <sc-for list="{{ mealsOpts }}" as="o" hint-placeholder-count="4">
+                <div onClick="{{ o.onClick }}" style="flex:1;background:{{ o.bg }};color:{{ o.fg }};border:1.5px solid {{ o.bd }};border-radius:14px;padding:11px 0;text-align:center;font-size:15px;font-weight:700;cursor:pointer">{{ o.l }}</div>
+              </sc-for>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <span style="font-size:13px;font-weight:700;color:#152a29">المدة</span>
+            <div style="display:flex;gap:8px">
+              <sc-for list="{{ durOpts }}" as="o" hint-placeholder-count="3">
+                <div onClick="{{ o.onClick }}" style="flex:1;background:{{ o.bg }};color:{{ o.fg }};border:1.5px solid {{ o.bd }};border-radius:14px;padding:10px 0;text-align:center;cursor:pointer"><div style="font-size:14px;font-weight:700">{{ o.l }}</div><div style="font-size:10.5px;opacity:0.75">خصم {{ o.disc }}٪</div></div>
+              </sc-for>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <span style="font-size:13px;font-weight:700;color:#152a29">أيام التوصيل</span>
+            <div style="display:flex;gap:6px">
+              <sc-for list="{{ dayChips }}" as="d" hint-placeholder-count="7">
+                <div onClick="{{ d.onClick }}" style="flex:1;background:{{ d.bg }};color:{{ d.fg }};border:1.5px solid {{ d.bd }};border-radius:12px;padding:9px 0;text-align:center;font-size:11.5px;font-weight:700;cursor:pointer">{{ d.l }}</div>
+              </sc-for>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <span style="font-size:13px;font-weight:700;color:#152a29">أوقات الوجبات</span>
+            <div style="display:flex;gap:8px">
+              <sc-for list="{{ timeChips }}" as="t" hint-placeholder-count="3">
+                <div onClick="{{ t.onClick }}" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;background:{{ t.bg }};color:{{ t.fg }};border:1.5px solid {{ t.bd }};border-radius:14px;padding:10px 0;font-size:13px;font-weight:700;cursor:pointer">{{ t.icon }} {{ t.l }}</div>
+              </sc-for>
+            </div>
+          </div>
+          <div style="margin-top:auto;background:linear-gradient(150deg,#0b5f5e,#159d9b);border-radius:22px;padding:18px 20px;display:flex;flex-direction:column;gap:10px;margin-bottom:34px;box-shadow:0 10px 26px rgba(11,95,94,0.32)">
+            <div style="display:flex;align-items:center;justify-content:space-between">
+              <div style="font-size:12px;color:rgba(255,255,255,0.75)">{{ planSummary }}</div>
+              <span style="background:#f2a541;color:#3d2a05;font-size:11px;font-weight:700;border-radius:999px;padding:4px 10px">توفّر {{ savingsFmt }} د.ع</span>
+            </div>
+            <div style="display:flex;align-items:baseline;gap:6px"><span style="font-size:30px;font-weight:700;color:#fff">{{ totalFmt }}</span><span style="font-size:13px;color:rgba(255,255,255,0.8)">د.ع / {{ durLabel }}</span></div>
+            <div style="font-size:11.5px;color:rgba(255,255,255,0.75)">≈ {{ perMealFmt }} د.ع للوجبة بدل 6,000 عند الطلب المفرد</div>
+            <div style="background:#fff;color:#0b5f5e;border-radius:14px;padding:12px;text-align:center;font-size:14.5px;font-weight:700;cursor:pointer;margin-top:2px">اشترك الآن</div>
+          </div>
+        </div>
+      </div>
+    </x-import>
+  </div>
+
+  <!-- 06 CART -->
+  <div style="display:flex;flex-direction:column;gap:10px">
+    <div style="display:flex;align-items:baseline;gap:8px"><span style="font:600 10.5px ui-monospace,Menlo,monospace;padding:3px 7px;background:#0b5f5e;color:#fff;border-radius:5px">06</span><span style="font-size:13px;font-weight:600;color:#152a29">السلة والدفع</span></div>
+    <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" hint-size="426px,900px">
+      <div dir="rtl" style="width:100%;height:100%;background:#faf6ef;position:relative;overflow:hidden;display:flex;flex-direction:column;font-family:'IBM Plex Sans Arabic',system-ui,sans-serif">
+        <div style="padding:66px 20px 0;display:flex;flex-direction:column;gap:13px;flex:1;overflow:hidden">
+          <div style="font-size:24px;font-weight:700;color:#152a29">السلة</div>
+          <div style="display:flex;flex-direction:column;gap:9px">
+            <div style="display:flex;align-items:center;gap:12px;background:#fff;border-radius:16px;padding:10px 12px;box-shadow:0 4px 14px rgba(16,60,59,0.06)">
+              <div style="width:52px;height:52px;border-radius:12px;overflow:hidden;flex:none"><image-slot id="cart-dolma" shape="rect" placeholder="دولمة" src="https://commons.wikimedia.org/wiki/Special:FilePath/Iraqi%20Dolma.jpg?width=400"></image-slot></div>
+              <div style="flex:1"><div style="font-size:13.5px;font-weight:700;color:#152a29">دولمة عراقية</div><div style="font-size:12px;font-weight:700;color:#159d9b">12,000 د.ع</div></div>
+              <div style="display:flex;align-items:center;gap:10px;background:#f4efe4;border-radius:999px;padding:5px 12px;font-size:13.5px;font-weight:700;color:#152a29"><span style="color:#159d9b;cursor:pointer">−</span><span>1</span><span style="color:#159d9b;cursor:pointer">+</span></div>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px;background:#fff;border-radius:16px;padding:10px 12px;box-shadow:0 4px 14px rgba(16,60,59,0.06)">
+              <div style="width:52px;height:52px;border-radius:12px;overflow:hidden;flex:none"><image-slot id="cart-jireesh" shape="rect" placeholder="جريش" src="https://commons.wikimedia.org/wiki/Special:FilePath/Harees.JPG?width=600"></image-slot></div>
+              <div style="flex:1"><div style="font-size:13.5px;font-weight:700;color:#152a29">شوربة جريش</div><div style="font-size:12px;font-weight:700;color:#159d9b">5,000 د.ع</div></div>
+              <div style="display:flex;align-items:center;gap:10px;background:#f4efe4;border-radius:999px;padding:5px 12px;font-size:13.5px;font-weight:700;color:#152a29"><span style="color:#159d9b;cursor:pointer">−</span><span>2</span><span style="color:#159d9b;cursor:pointer">+</span></div>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px;background:#fff;border-radius:16px;padding:10px 12px;box-shadow:0 4px 14px rgba(16,60,59,0.06)">
+              <div style="width:52px;height:52px;border-radius:12px;overflow:hidden;flex:none"><image-slot id="cart-salad" shape="rect" placeholder="سلطة" src="https://commons.wikimedia.org/wiki/Special:FilePath/Fattoush%201.JPG?width=600"></image-slot></div>
+              <div style="flex:1"><div style="font-size:13.5px;font-weight:700;color:#152a29">سلطة جرجير ورمان</div><div style="font-size:12px;font-weight:700;color:#159d9b">4,000 د.ع</div></div>
+              <div style="display:flex;align-items:center;gap:10px;background:#f4efe4;border-radius:999px;padding:5px 12px;font-size:13.5px;font-weight:700;color:#152a29"><span style="color:#159d9b;cursor:pointer">−</span><span>1</span><span style="color:#159d9b;cursor:pointer">+</span></div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;background:#fff;border-radius:16px;padding:12px 14px;box-shadow:0 4px 14px rgba(16,60,59,0.06)">
+            <div style="width:38px;height:38px;border-radius:12px;background:#dff1f0;display:flex;align-items:center;justify-content:center;flex:none"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M12 21s-7-5.5-7-11a7 7 0 1 1 14 0c0 5.5-7 11-7 11z" stroke="#159d9b" stroke-width="2"></path><circle cx="12" cy="10" r="2.5" fill="#159d9b"></circle></svg></div>
+            <div style="flex:1"><div style="font-size:12.5px;font-weight:700;color:#152a29">التوصيل إلى: البيت</div><div style="font-size:11px;color:#8a9694">بغداد، الكرادة، شارع ٦٢، عمارة النخيل ط٣</div></div>
+            <a href="#" style="font-size:12px;font-weight:700">تغيير</a>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <span style="font-size:13.5px;font-weight:700;color:#152a29">طريقة الدفع</span>
+            <div style="display:flex;gap:9px">
+              <div style="flex:1;display:flex;align-items:center;gap:9px;background:#fff;border:1.5px solid #159d9b;border-radius:15px;padding:12px 13px;cursor:pointer">
+                <div style="width:19px;height:19px;border-radius:50%;border:6px solid #159d9b;flex:none"></div>
+                <div><div style="font-size:12.5px;font-weight:700;color:#152a29">الدفع الإلكتروني</div><div style="font-size:10.5px;color:#8a9694">بطاقة · زين كاش · قي كارد</div></div>
+              </div>
+              <div style="flex:1;display:flex;align-items:center;gap:9px;background:#fff;border:1.5px solid #ece5d6;border-radius:15px;padding:12px 13px;cursor:pointer">
+                <div style="width:19px;height:19px;border-radius:50%;border:1.5px solid #d8cfbd;flex:none"></div>
+                <div><div style="font-size:12.5px;font-weight:700;color:#152a29">نقداً عند الاستلام</div><div style="font-size:10.5px;color:#8a9694">ادفع للسائق كاش</div></div>
+              </div>
+            </div>
+          </div>
+          <div style="margin-top:auto;background:#fff;border-radius:20px 20px 0 0;box-shadow:0 -6px 20px rgba(16,60,59,0.07);padding:16px 18px 36px;margin-left:-20px;margin-right:-20px;display:flex;flex-direction:column;gap:7px">
+            <div style="display:flex;justify-content:space-between;font-size:12.5px;color:#5b6664"><span>المجموع</span><span>26,000 د.ع</span></div>
+            <div style="display:flex;justify-content:space-between;font-size:12.5px;color:#5b6664"><span>التوصيل</span><span>2,000 د.ع</span></div>
+            <div style="display:flex;justify-content:space-between;font-size:16px;font-weight:700;color:#152a29;border-top:1px dashed #ece5d6;padding-top:8px"><span>الإجمالي</span><span style="color:#159d9b">28,000 د.ع</span></div>
+            <div style="background:#159d9b;color:#fff;border-radius:999px;padding:13px;text-align:center;font-size:15px;font-weight:700;cursor:pointer;margin-top:4px;box-shadow:0 6px 16px rgba(21,157,155,0.35)">تأكيد الطلب</div>
+          </div>
+        </div>
+      </div>
+    </x-import>
+  </div>
+
+  <!-- 07 TRACKING -->
+  <div style="display:flex;flex-direction:column;gap:10px">
+    <div style="display:flex;align-items:baseline;gap:8px"><span style="font:600 10.5px ui-monospace,Menlo,monospace;padding:3px 7px;background:#0b5f5e;color:#fff;border-radius:5px">07</span><span style="font-size:13px;font-weight:600;color:#152a29">تتبع الطلب المباشر</span></div>
+    <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" hint-size="426px,900px">
+      <div dir="rtl" style="width:100%;height:100%;background:#e8ebe2;position:relative;overflow:hidden;display:flex;flex-direction:column;font-family:'IBM Plex Sans Arabic',system-ui,sans-serif">
+        <div style="position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,0.9) 2px,transparent 2px),linear-gradient(90deg,rgba(255,255,255,0.9) 2px,transparent 2px),linear-gradient(rgba(255,255,255,0.5) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.5) 1px,transparent 1px);background-size:110px 110px,110px 110px,28px 28px,28px 28px"></div>
+        <div style="position:absolute;top:120px;right:-30px;width:220px;height:150px;background:#dfe6d5;border-radius:40px;transform:rotate(-8deg)"></div>
+        <div style="position:absolute;top:330px;left:-40px;width:190px;height:120px;background:#dce9e8;border-radius:40px;transform:rotate(6deg)"></div>
+        <svg style="position:absolute;inset:0;width:100%;height:100%" viewBox="0 0 402 874" fill="none" preserveAspectRatio="none">
+          <path d="M330 180 C 300 260, 180 260, 150 340 S 90 470, 120 540" stroke="#159d9b" stroke-width="5" stroke-linecap="round" stroke-dasharray="2 14" style="animation:jr-dash 1.2s linear infinite"></path>
+          <circle cx="330" cy="180" r="9" fill="#0b5f5e"></circle>
+        </svg>
+        <div style="position:absolute;top:158px;right:52px;background:#0b5f5e;color:#fff;font-size:10.5px;font-weight:700;border-radius:8px;padding:4px 9px">مطعم جريش</div>
+        <div style="position:absolute;top:520px;right:258px;width:44px;height:44px;border-radius:50%;background:#159d9b;display:flex;align-items:center;justify-content:center;animation:jr-pulse 1.8s ease-out infinite;border:3px solid #fff"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M5 16l2-6h7l3 4h3v4h-2M5 16H3v-3M5 16a2 2 0 1 0 4 0m6 0a2 2 0 1 0 4 0m-10 0h6" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg></div>
+        <div style="position:absolute;top:568px;right:238px;background:#fff;color:#152a29;font-size:10.5px;font-weight:700;border-radius:8px;padding:4px 9px;box-shadow:0 3px 10px rgba(0,0,0,0.12)">كرار · ١٨ دقيقة</div>
+        <div style="position:absolute;top:62px;right:16px;width:38px;height:38px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,0.12)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M9 5l7 7-7 7" stroke="#152a29" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"></path></svg></div>
+        <div style="position:absolute;top:62px;left:16px;background:#fff;border-radius:999px;padding:9px 16px;display:flex;align-items:center;gap:7px;box-shadow:0 2px 8px rgba(0,0,0,0.12)"><span style="width:8px;height:8px;border-radius:50%;background:#2fae52;animation:jr-pulse 1.8s ease-out infinite"></span><span style="font-size:12px;font-weight:700;color:#152a29">مباشر</span></div>
+        <div style="margin-top:auto;background:#fff;border-radius:26px 26px 0 0;padding:20px 20px 40px;display:flex;flex-direction:column;gap:15px;position:relative;box-shadow:0 -10px 30px rgba(16,60,59,0.14)">
+          <div style="display:flex;align-items:center;justify-content:space-between">
+            <div><div style="font-size:17px;font-weight:700;color:#152a29">{{ trackingHeadline }}</div><div style="font-size:12px;color:#8a9694">طلب #٤٨٢١ · وجبة الغداء</div></div>
+            <div style="background:#dff1f0;border-radius:14px;padding:8px 14px;text-align:center"><div style="font-size:18px;font-weight:700;color:#0f7d7b">١٨</div><div style="font-size:10px;color:#0f7d7b">دقيقة</div></div>
+          </div>
+          <div style="display:flex;align-items:flex-start">
+            <sc-for list="{{ trackSteps }}" as="s" hint-placeholder-count="3">
+              <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;position:relative">
+                <div style="position:absolute;top:13px;right:50%;width:100%;height:3px;background:{{ s.lineBg }};z-index:0;display:{{ s.lineDisp }}"></div>
+                <div style="width:28px;height:28px;border-radius:50%;background:{{ s.dotBg }};border:2.5px solid {{ s.dotBd }};display:flex;align-items:center;justify-content:center;z-index:1;font-size:12px;color:#fff;font-weight:700">{{ s.mark }}</div>
+                <div style="font-size:11px;font-weight:{{ s.w }};color:{{ s.fg }}">{{ s.l }}</div>
+              </div>
+            </sc-for>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;background:#faf6ef;border-radius:16px;padding:11px 13px">
+            <div style="width:46px;height:46px;border-radius:50%;background:#0b5f5e;color:#fff;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:700;flex:none">ك</div>
+            <div style="flex:1"><div style="font-size:13.5px;font-weight:700;color:#152a29">كرار محمد</div><div style="font-size:11px;color:#8a9694">سائق جريش · دراجة كهربائية</div></div>
+            <div style="width:40px;height:40px;border-radius:50%;background:#dff1f0;display:flex;align-items:center;justify-content:center;cursor:pointer"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z" stroke="#0f7d7b" stroke-width="1.8" stroke-linejoin="round"></path></svg></div>
+            <div style="width:40px;height:40px;border-radius:50%;background:#dff1f0;display:flex;align-items:center;justify-content:center;cursor:pointer"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M21 12a8 8 0 0 1-11.6 7.2L4 21l1.8-5.4A8 8 0 1 1 21 12z" stroke="#0f7d7b" stroke-width="1.8" stroke-linejoin="round"></path></svg></div>
+          </div>
+        </div>
+      </div>
+    </x-import>
+  </div>
+
+  <!-- 08 ORDERS / SUBSCRIPTION MGMT -->
+  <div style="display:flex;flex-direction:column;gap:10px">
+    <div style="display:flex;align-items:baseline;gap:8px"><span style="font:600 10.5px ui-monospace,Menlo,monospace;padding:3px 7px;background:#0b5f5e;color:#fff;border-radius:5px">08</span><span style="font-size:13px;font-weight:600;color:#152a29">طلباتي / إدارة الاشتراك</span></div>
+    <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" hint-size="426px,900px">
+      <div dir="rtl" style="width:100%;height:100%;background:#faf6ef;position:relative;overflow:hidden;display:flex;flex-direction:column;font-family:'IBM Plex Sans Arabic',system-ui,sans-serif">
+        <div style="padding:66px 20px 0;display:flex;flex-direction:column;gap:13px;flex:1;overflow:hidden">
+          <div style="font-size:24px;font-weight:700;color:#152a29">طلباتي</div>
+          <div style="background:linear-gradient(150deg,#0b5f5e,#159d9b);border-radius:20px;padding:16px 18px;display:flex;flex-direction:column;gap:11px;box-shadow:0 8px 22px rgba(11,95,94,0.28)">
+            <div style="display:flex;align-items:center;justify-content:space-between">
+              <div><div style="font-size:15px;font-weight:700;color:#fff">خطة الغداء الصحية 🌿</div><div style="font-size:11.5px;color:rgba(255,255,255,0.75)">شهري · وجبتان يومياً · ٥ أيام بالأسبوع</div></div>
+              <span style="background:rgba(255,255,255,0.16);color:#fff;font-size:10.5px;font-weight:700;border-radius:999px;padding:4px 10px;border:1px solid rgba(255,255,255,0.3)">نشط</span>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:5px">
+              <div style="display:flex;justify-content:space-between;font-size:10.5px;color:rgba(255,255,255,0.8)"><span>متبقي ١٨ يوم</span><span>٤٤ / ٦٠ وجبة</span></div>
+              <div style="height:7px;background:rgba(255,255,255,0.2);border-radius:999px;overflow:hidden"><div style="width:73%;height:100%;background:#f2a541;border-radius:999px"></div></div>
+            </div>
+            <div style="display:flex;gap:8px">
+              <div style="flex:1;background:rgba(255,255,255,0.14);border:1px solid rgba(255,255,255,0.3);color:#fff;border-radius:12px;padding:9px;text-align:center;font-size:12.5px;font-weight:700;cursor:pointer">⏸ إيقاف مؤقت</div>
+              <div style="flex:1;background:#fff;color:#0b5f5e;border-radius:12px;padding:9px;text-align:center;font-size:12.5px;font-weight:700;cursor:pointer">تعديل الخطة</div>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:9px">
+            <span style="font-size:14.5px;font-weight:700;color:#152a29">وجباتك القادمة</span>
+            <div style="display:flex;align-items:center;gap:12px;background:#fff;border-radius:16px;padding:11px 13px;box-shadow:0 4px 14px rgba(16,60,59,0.06)">
+              <div style="width:44px;text-align:center;background:#dff1f0;border-radius:11px;padding:6px 0;flex:none"><div style="font-size:10px;color:#0f7d7b;font-weight:700">غداً</div><div style="font-size:14px;font-weight:700;color:#0b5f5e">أحد</div></div>
+              <div style="flex:1"><div style="font-size:13px;font-weight:700;color:#152a29">مسكوف شبوط + سلطة جرجير</div><div style="font-size:11px;color:#8a9694">الغداء · ١:٠٠ ظهراً</div></div>
+              <span style="font-size:11.5px;font-weight:700;color:#ef6f4c;cursor:pointer">تخطي اليوم</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px;background:#fff;border-radius:16px;padding:11px 13px;box-shadow:0 4px 14px rgba(16,60,59,0.06)">
+              <div style="width:44px;text-align:center;background:#f4efe4;border-radius:11px;padding:6px 0;flex:none"><div style="font-size:10px;color:#8a9694;font-weight:700">بعده</div><div style="font-size:14px;font-weight:700;color:#152a29">اثنين</div></div>
+              <div style="flex:1"><div style="font-size:13px;font-weight:700;color:#152a29">تمن وباقلاء + شوربة جريش</div><div style="font-size:11px;color:#8a9694">الغداء · ١:٠٠ ظهراً</div></div>
+              <span style="font-size:11.5px;font-weight:700;color:#ef6f4c;cursor:pointer">تخطي اليوم</span>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:9px">
+            <span style="font-size:14.5px;font-weight:700;color:#152a29">طلبات سابقة</span>
+            <div style="display:flex;align-items:center;gap:12px;background:#fff;border-radius:16px;padding:11px 13px;box-shadow:0 4px 14px rgba(16,60,59,0.06)">
+              <div style="flex:1"><div style="font-size:13px;font-weight:700;color:#152a29">دولمة عراقية + كليجة</div><div style="font-size:11px;color:#8a9694">الخميس الماضي · 15,000 د.ع</div></div>
+              <span style="background:#dff1f0;color:#0f7d7b;font-size:10.5px;font-weight:700;border-radius:999px;padding:4px 10px">تم التوصيل</span>
+              <a href="#" style="font-size:11.5px;font-weight:700">إعادة الطلب</a>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px;background:#fff;border-radius:16px;padding:11px 13px;box-shadow:0 4px 14px rgba(16,60,59,0.06)">
+              <div style="flex:1"><div style="font-size:13px;font-weight:700;color:#152a29">قوزي على تمن ×٢</div><div style="font-size:11px;color:#8a9694">الجمعة الماضية · 36,000 د.ع</div></div>
+              <span style="background:#dff1f0;color:#0f7d7b;font-size:10.5px;font-weight:700;border-radius:999px;padding:4px 10px">تم التوصيل</span>
+              <a href="#" style="font-size:11.5px;font-weight:700">إعادة الطلب</a>
+            </div>
+          </div>
+        </div>
+        <dc-import name="TabBar" active="{{ 3 }}" hint-size="100%,86px"></dc-import>
+      </div>
+    </x-import>
+  </div>
+
+  <!-- 09 INSTITUTION MODE -->
+  <div style="display:flex;flex-direction:column;gap:10px">
+    <div style="display:flex;align-items:baseline;gap:8px"><span style="font:600 10.5px ui-monospace,Menlo,monospace;padding:3px 7px;background:#f2a541;color:#3d2a05;border-radius:5px">09</span><span style="font-size:13px;font-weight:600;color:#152a29">وضع المؤسسات · لوحة يومية</span></div>
+    <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ true }}" hint-size="426px,900px">
+      <div dir="rtl" style="width:100%;height:100%;background:#faf6ef;position:relative;overflow:hidden;display:flex;flex-direction:column;font-family:'IBM Plex Sans Arabic',system-ui,sans-serif">
+        <div style="background:#0b3d3c;padding:66px 20px 18px;display:flex;flex-direction:column;gap:13px">
+          <div style="display:flex;align-items:center;gap:11px">
+            <div style="width:44px;height:44px;border-radius:13px;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.22);display:flex;align-items:center;justify-content:center"><svg width="21" height="21" viewBox="0 0 24 24" fill="none"><path d="M4 21V5a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v16M15 9h4a1 1 0 0 1 1 1v11M4 21h16M8 8h3M8 12h3M8 16h3" stroke="#f2a541" stroke-width="1.8" stroke-linecap="round"></path></svg></div>
+            <div style="flex:1"><div style="font-size:15px;font-weight:700;color:#fff">مستشفى بغداد التعليمي</div><div style="font-size:11px;color:rgba(255,255,255,0.65)">حساب مؤسسة · عقد سنوي</div></div>
+            <span style="background:#f2a541;color:#3d2a05;font-size:10.5px;font-weight:700;border-radius:999px;padding:5px 10px">وضع المؤسسات</span>
+          </div>
+          <div style="display:flex;gap:9px">
+            <div style="flex:1;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.14);border-radius:14px;padding:10px 12px"><div style="font-size:20px;font-weight:700;color:#fff">200</div><div style="font-size:10.5px;color:rgba(255,255,255,0.65)">وجبة / يوم</div></div>
+            <div style="flex:1;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.14);border-radius:14px;padding:10px 12px"><div style="font-size:20px;font-weight:700;color:#fff">6</div><div style="font-size:10.5px;color:rgba(255,255,255,0.65)">أيام / أسبوع</div></div>
+            <div style="flex:1;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.14);border-radius:14px;padding:10px 12px"><div style="font-size:20px;font-weight:700;color:#f2a541">4,800</div><div style="font-size:10.5px;color:rgba(255,255,255,0.65)">وجبة هذا الشهر</div></div>
+          </div>
+        </div>
+        <div style="flex:1;overflow:hidden;padding:16px 20px 0;display:flex;flex-direction:column;gap:13px">
+          <div style="background:#fff;border-radius:18px;padding:14px 16px;display:flex;flex-direction:column;gap:10px;box-shadow:0 4px 14px rgba(16,60,59,0.07)">
+            <div style="display:flex;align-items:center;justify-content:space-between"><span style="font-size:14px;font-weight:700;color:#152a29">توصيلة اليوم — الغداء</span><span style="background:#fdeedd;color:#bf7418;font-size:10.5px;font-weight:700;border-radius:999px;padding:4px 10px">قيد التوصيل</span></div>
+            <div style="display:flex;flex-direction:column;gap:5px">
+              <div style="display:flex;justify-content:space-between;font-size:11px;color:#8a9694"><span>تم تسليم ١٢٠ من ٢٠٠ وجبة</span><span>٦٠٪</span></div>
+              <div style="height:8px;background:#f4efe4;border-radius:999px;overflow:hidden"><div style="width:60%;height:100%;background:#159d9b;border-radius:999px"></div></div>
+            </div>
+            <div style="font-size:11.5px;color:#5b6664">120 صحي (تمن وباقلاء + سلطة) · 80 عادي (برياني عراقي) · 3 عربات تبريد</div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <span style="font-size:14px;font-weight:700;color:#152a29">عدد الوجبات اليومي</span>
+            <div style="display:flex;align-items:center;gap:12px;background:#fff;border-radius:16px;padding:12px 14px;box-shadow:0 4px 14px rgba(16,60,59,0.06)">
+              <div style="width:36px;height:36px;border-radius:11px;background:#dff1f0;color:#0f7d7b;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;cursor:pointer">−</div>
+              <div style="flex:1;text-align:center"><div style="font-size:22px;font-weight:700;color:#152a29">200</div><div style="font-size:10.5px;color:#8a9694">وجبة يومياً · التعديل قبل ٨ مساءً</div></div>
+              <div style="width:36px;height:36px;border-radius:11px;background:#159d9b;color:#fff;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;cursor:pointer">+</div>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <span style="font-size:14px;font-weight:700;color:#152a29">جدول الأسبوع</span>
+            <div style="display:flex;gap:6px">
+              <div style="flex:1;background:#159d9b;color:#fff;border-radius:12px;padding:8px 0;text-align:center"><div style="font-size:11px;font-weight:700">سبت</div><div style="font-size:9.5px;opacity:0.85">٢٠٠</div></div>
+              <div style="flex:1;background:#159d9b;color:#fff;border-radius:12px;padding:8px 0;text-align:center"><div style="font-size:11px;font-weight:700">أحد</div><div style="font-size:9.5px;opacity:0.85">٢٠٠</div></div>
+              <div style="flex:1;background:#159d9b;color:#fff;border-radius:12px;padding:8px 0;text-align:center"><div style="font-size:11px;font-weight:700">اثنين</div><div style="font-size:9.5px;opacity:0.85">٢٠٠</div></div>
+              <div style="flex:1;background:#159d9b;color:#fff;border-radius:12px;padding:8px 0;text-align:center"><div style="font-size:11px;font-weight:700">ثلاثاء</div><div style="font-size:9.5px;opacity:0.85">٢٠٠</div></div>
+              <div style="flex:1;background:#159d9b;color:#fff;border-radius:12px;padding:8px 0;text-align:center"><div style="font-size:11px;font-weight:700">أربعاء</div><div style="font-size:9.5px;opacity:0.85">٢٠٠</div></div>
+              <div style="flex:1;background:#159d9b;color:#fff;border-radius:12px;padding:8px 0;text-align:center"><div style="font-size:11px;font-weight:700">خميس</div><div style="font-size:9.5px;opacity:0.85">١٥٠</div></div>
+              <div style="flex:1;background:#fff;color:#c9c0ad;border:1px dashed #d8cfbd;border-radius:12px;padding:8px 0;text-align:center"><div style="font-size:11px;font-weight:700">جمعة</div><div style="font-size:9.5px">—</div></div>
+            </div>
+          </div>
+          <div style="display:flex;gap:9px;margin-top:auto;padding-bottom:100px">
+            <div style="flex:1.2;background:#159d9b;color:#fff;border-radius:14px;padding:13px;text-align:center;font-size:13.5px;font-weight:700;cursor:pointer;box-shadow:0 6px 16px rgba(21,157,155,0.3)">طلب عرض سعر</div>
+            <div style="flex:1;background:#fff;color:#0b5f5e;border:1.5px solid #d9efee;border-radius:14px;padding:13px;text-align:center;font-size:13.5px;font-weight:700;cursor:pointer">الفواتير 🧾</div>
+          </div>
+        </div>
+        <dc-import name="TabBar" active="{{ 0 }}" hint-size="100%,86px"></dc-import>
+      </div>
+    </x-import>
+  </div>
+
+  <!-- 10 PROFILE -->
+  <div style="display:flex;flex-direction:column;gap:10px">
+    <div style="display:flex;align-items:baseline;gap:8px"><span style="font:600 10.5px ui-monospace,Menlo,monospace;padding:3px 7px;background:#0b5f5e;color:#fff;border-radius:5px">10</span><span style="font-size:13px;font-weight:600;color:#152a29">الملف الشخصي</span></div>
+    <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" hint-size="426px,900px">
+      <div dir="rtl" style="width:100%;height:100%;background:#faf6ef;position:relative;overflow:hidden;display:flex;flex-direction:column;font-family:'IBM Plex Sans Arabic',system-ui,sans-serif">
+        <div style="padding:66px 20px 0;display:flex;flex-direction:column;gap:13px;flex:1;overflow:hidden">
+          <div style="display:flex;align-items:center;gap:14px">
+            <div style="width:64px;height:64px;border-radius:50%;overflow:hidden;flex:none;border:2.5px solid #159d9b"><image-slot id="avatar-sara" shape="circle" placeholder=""></image-slot></div>
+            <div style="flex:1"><div style="font-size:18px;font-weight:700;color:#152a29">سارة العبيدي</div><div style="font-size:11.5px;color:#8a9694">sara@example.com · ٠٧٧٠ ١٢٣ ٤٥٦٧</div><span style="display:inline-block;margin-top:4px;background:#dff1f0;color:#0f7d7b;font-size:10.5px;font-weight:700;border-radius:999px;padding:3px 9px;white-space:nowrap">🌿 مشتركة نشطة</span></div>
+            <a href="#" style="font-size:12px;font-weight:700">تعديل</a>
+          </div>
+          <div style="background:#fff;border-radius:18px;box-shadow:0 4px 14px rgba(16,60,59,0.06);overflow:hidden">
+            <div style="display:flex;align-items:center;gap:12px;padding:13px 15px;border-bottom:1px solid #f4efe4"><div style="width:34px;height:34px;border-radius:10px;background:#dff1f0;display:flex;align-items:center;justify-content:center;flex:none"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 21s-7-5.5-7-11a7 7 0 1 1 14 0c0 5.5-7 11-7 11z" stroke="#159d9b" stroke-width="1.8"></path></svg></div><span style="flex:1;font-size:13.5px;font-weight:600;color:#152a29">العناوين المحفوظة</span><span style="font-size:11px;color:#8a9694">البيت · العمل</span><svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="#c9c0ad" stroke-width="2.4" stroke-linecap="round"></path></svg></div>
+            <div style="display:flex;align-items:center;gap:12px;padding:13px 15px;border-bottom:1px solid #f4efe4"><div style="width:34px;height:34px;border-radius:10px;background:#fdeedd;display:flex;align-items:center;justify-content:center;flex:none"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="14" rx="2.5" stroke="#bf7418" stroke-width="1.8"></rect><path d="M3 10h18" stroke="#bf7418" stroke-width="1.8"></path></svg></div><span style="flex:1;font-size:13.5px;font-weight:600;color:#152a29">طرق الدفع</span><span style="font-size:11px;color:#8a9694">زين كاش · بطاقة</span><svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="#c9c0ad" stroke-width="2.4" stroke-linecap="round"></path></svg></div>
+            <div style="display:flex;align-items:center;gap:12px;padding:13px 15px;border-bottom:1px solid #f4efe4"><div style="width:34px;height:34px;border-radius:10px;background:#dff1f0;display:flex;align-items:center;justify-content:center;flex:none"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M7 3v3M17 3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z" stroke="#159d9b" stroke-width="1.8" stroke-linecap="round"></path></svg></div><span style="flex:1;font-size:13.5px;font-weight:600;color:#152a29">اشتراكي</span><span style="background:#dff1f0;color:#0f7d7b;font-size:10px;font-weight:700;border-radius:999px;padding:3px 8px">نشط</span><svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="#c9c0ad" stroke-width="2.4" stroke-linecap="round"></path></svg></div>
+            <div style="display:flex;align-items:center;gap:12px;padding:13px 15px"><div style="width:34px;height:34px;border-radius:10px;background:#f4efe4;display:flex;align-items:center;justify-content:center;flex:none"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6" stroke="#5b6664" stroke-width="1.8" stroke-linecap="round"></path></svg></div><span style="flex:1;font-size:13.5px;font-weight:600;color:#152a29">سجل الطلبات</span><svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="#c9c0ad" stroke-width="2.4" stroke-linecap="round"></path></svg></div>
+          </div>
+          <div style="background:#fff;border-radius:18px;box-shadow:0 4px 14px rgba(16,60,59,0.06);overflow:hidden">
+            <div style="display:flex;align-items:center;gap:12px;padding:13px 15px;border-bottom:1px solid #f4efe4"><div style="width:34px;height:34px;border-radius:10px;background:#f4efe4;display:flex;align-items:center;justify-content:center;flex:none;font-size:13px;font-weight:700;color:#5b6664">ع</div><span style="flex:1;font-size:13.5px;font-weight:600;color:#152a29">اللغة</span><div style="display:flex;background:#f4efe4;border-radius:999px;padding:3px;font-size:11px;font-weight:700"><span style="background:#159d9b;color:#fff;border-radius:999px;padding:4px 12px">عربي</span><span style="color:#8a9694;padding:4px 12px">EN</span></div></div>
+            <div style="display:flex;align-items:center;gap:12px;padding:13px 15px;border-bottom:1px solid #f4efe4"><div style="width:34px;height:34px;border-radius:10px;background:#f4efe4;display:flex;align-items:center;justify-content:center;flex:none"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M18 9a6 6 0 1 0-12 0c0 6-2 7-2 7h16s-2-1-2-7M10.3 20a2 2 0 0 0 3.4 0" stroke="#5b6664" stroke-width="1.8" stroke-linecap="round"></path></svg></div><span style="flex:1;font-size:13.5px;font-weight:600;color:#152a29">الإشعارات</span><div style="width:42px;height:25px;border-radius:999px;background:#159d9b;position:relative"><div style="position:absolute;top:2.5px;left:2.5px;width:20px;height:20px;border-radius:50%;background:#fff"></div></div></div>
+            <div style="display:flex;align-items:center;gap:12px;padding:13px 15px"><div style="width:34px;height:34px;border-radius:10px;background:#f4efe4;display:flex;align-items:center;justify-content:center;flex:none"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="#5b6664" stroke-width="1.8"></circle><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.8.35-1 .9-1 1.7M12 16.5v.5" stroke="#5b6664" stroke-width="1.8" stroke-linecap="round"></path></svg></div><span style="flex:1;font-size:13.5px;font-weight:600;color:#152a29">الدعم والمساعدة</span><svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="#c9c0ad" stroke-width="2.4" stroke-linecap="round"></path></svg></div>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;background:#0b3d3c;border-radius:18px;padding:13px 15px">
+            <div style="width:34px;height:34px;border-radius:10px;background:rgba(255,255,255,0.12);display:flex;align-items:center;justify-content:center;flex:none"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M4 21V5a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v16M15 9h4a1 1 0 0 1 1 1v11M4 21h16" stroke="#f2a541" stroke-width="1.8" stroke-linecap="round"></path></svg></div>
+            <div style="flex:1"><div style="font-size:12.5px;font-weight:700;color:#fff">تمثل مؤسسة أو شركة؟</div><div style="font-size:10.5px;color:rgba(255,255,255,0.65)">بدّل إلى وضع المؤسسات لطلبات كبيرة يومية</div></div>
+            <span style="background:#f2a541;color:#3d2a05;font-size:11px;font-weight:700;border-radius:999px;padding:6px 12px;cursor:pointer">تبديل</span>
+          </div>
+        </div>
+        <dc-import name="TabBar" active="{{ 4 }}" hint-size="100%,86px"></dc-import>
+      </div>
+    </x-import>
+  </div>
+
+  <!-- 11 ENGLISH HOME (LTR) -->
+  <sc-if value="{{ showEnglish }}" hint-placeholder-val="{{ true }}">
+  <div style="display:flex;flex-direction:column;gap:10px">
+    <div style="display:flex;align-items:baseline;gap:8px"><span style="font:600 10.5px ui-monospace,Menlo,monospace;padding:3px 7px;background:#0b5f5e;color:#fff;border-radius:5px">11</span><span style="font-size:13px;font-weight:600;color:#152a29">English · LTR mirror of Home</span></div>
+    <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ true }}" hint-size="426px,900px">
+      <div dir="ltr" style="width:100%;height:100%;background:#faf6ef;position:relative;overflow:hidden;display:flex;flex-direction:column;font-family:'IBM Plex Sans Arabic',system-ui,sans-serif">
+        <div style="background:linear-gradient(160deg,#0b5f5e,#128a88);padding:66px 20px 18px;border-radius:0 0 26px 26px;display:flex;flex-direction:column;gap:14px">
+          <div style="display:flex;align-items:center;gap:10px">
+            <div style="flex:1">
+              <div style="font-size:12px;color:rgba(255,255,255,0.7)">Good evening, Sara 👋</div>
+              <div style="display:flex;align-items:center;gap:5px;color:#fff;font-size:14px;font-weight:600"><svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M12 21s-7-5.5-7-11a7 7 0 1 1 14 0c0 5.5-7 11-7 11z" stroke="#f2a541" stroke-width="2"></path><circle cx="12" cy="10" r="2.5" fill="#f2a541"></circle></svg>Baghdad · Karrada</div>
+            </div>
+            <div style="display:flex;background:rgba(255,255,255,0.14);border-radius:999px;padding:3px;font-size:11px;font-weight:700">
+              <span style="color:rgba(255,255,255,0.8);padding:4px 10px">عربي</span><span style="background:#fff;color:#0b5f5e;border-radius:999px;padding:4px 10px">EN</span>
+            </div>
+            <div style="width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,0.14);display:flex;align-items:center;justify-content:center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M18 9a6 6 0 1 0-12 0c0 6-2 7-2 7h16s-2-1-2-7M10.3 20a2 2 0 0 0 3.4 0" stroke="#fff" stroke-width="1.8" stroke-linecap="round"></path></svg></div>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;background:rgba(255,255,255,0.96);border-radius:14px;padding:12px 14px">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="#8a9694" stroke-width="2"></circle><path d="M20 20l-3.5-3.5" stroke="#8a9694" stroke-width="2" stroke-linecap="round"></path></svg>
+            <span style="font-size:13px;color:#8a9694">Search masgouf, dolma, quzi…</span>
+          </div>
+        </div>
+        <div style="flex:1;overflow:hidden;padding:16px 20px 0;display:flex;flex-direction:column;gap:16px">
+          <div style="position:relative;border-radius:20px;overflow:hidden;height:132px;flex:none;background:#0b5f5e">
+            <image-slot id="hero-home-en" shape="rect" placeholder="Iraqi feast banner photo" src="https://commons.wikimedia.org/wiki/Special:FilePath/Iraqi%20dinner%20spread.jpg?width=1200" credit="Wikimedia Commons" credit-href="https://commons.wikimedia.org/wiki/File:Iraqi_dinner_spread.jpg"></image-slot>
+            <div style="position:absolute;inset:0;background:linear-gradient(to right,rgba(8,64,63,0.88) 38%,rgba(8,64,63,0) 75%);pointer-events:none;display:flex;flex-direction:column;justify-content:center;gap:6px;padding:0 18px">
+              <div style="font-size:11px;font-weight:700;color:#f2a541;letter-spacing:0.5px">SUBSCRIBE &amp; SAVE</div>
+              <div style="font-size:19px;font-weight:700;color:#fff;line-height:1.35">Your daily meal,<br>up to 20% off</div>
+              <div style="background:#f2a541;color:#3d2a05;font-size:11.5px;font-weight:700;border-radius:999px;padding:5px 12px;width:fit-content;pointer-events:auto;cursor:pointer">Build your plan →</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;flex:none">
+            <span style="background:#159d9b;color:#fff;font-size:12.5px;font-weight:700;border-radius:999px;padding:7px 14px">All</span>
+            <span style="background:#fff;color:#0f7d7b;font-size:12.5px;font-weight:600;border-radius:999px;padding:7px 14px;border:1px solid #d9efee;white-space:nowrap;flex:none">Healthy 🌿</span>
+            <span style="background:#fff;color:#5b6664;font-size:12.5px;font-weight:600;border-radius:999px;padding:7px 14px;border:1px solid #ece5d6">Regular</span>
+            <span style="background:#fff;color:#5b6664;font-size:12.5px;font-weight:600;border-radius:999px;padding:7px 14px;border:1px solid #ece5d6">Most ordered</span>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:10px;flex:none">
+            <div style="display:flex;align-items:baseline;justify-content:space-between"><span style="font-size:15.5px;font-weight:700;color:#152a29">Featured dishes</span><a href="#" style="font-size:12px;font-weight:600">See all</a></div>
+            <div style="display:flex;gap:12px">
+              <div style="flex:1;background:#fff;border-radius:18px;overflow:hidden;box-shadow:0 4px 14px rgba(16,60,59,0.07)">
+                <div style="height:92px;position:relative"><image-slot id="en-masgouf" shape="rect" placeholder="Masgouf" src="https://commons.wikimedia.org/wiki/Special:FilePath/Masgouf.jpg?width=900"></image-slot><span style="position:absolute;top:8px;left:8px;background:#dff1f0;color:#0f7d7b;font-size:10px;font-weight:700;border-radius:999px;padding:3px 8px">Healthy</span></div>
+                <div style="padding:10px 12px 12px;display:flex;flex-direction:column;gap:3px"><span style="font-size:13px;font-weight:700;color:#152a29">Masgouf carp</span><span style="font-size:10.5px;color:#8a9694">480 kcal</span><span style="font-size:13px;font-weight:700;color:#159d9b">IQD 25,000</span></div>
+              </div>
+              <div style="flex:1;background:#fff;border-radius:18px;overflow:hidden;box-shadow:0 4px 14px rgba(16,60,59,0.07)">
+                <div style="height:92px;position:relative"><image-slot id="en-quzi" shape="rect" placeholder="Quzi" src="https://commons.wikimedia.org/wiki/Special:FilePath/Iraqi%20Quzi.jpg?width=600"></image-slot><span style="position:absolute;top:8px;left:8px;background:#fdeedd;color:#bf7418;font-size:10px;font-weight:700;border-radius:999px;padding:3px 8px">Regular</span></div>
+                <div style="padding:10px 12px 12px;display:flex;flex-direction:column;gap:3px"><span style="font-size:13px;font-weight:700;color:#152a29">Quzi over rice</span><span style="font-size:10.5px;color:#8a9694">Serves two</span><span style="font-size:13px;font-weight:700;color:#159d9b">IQD 18,000</span></div>
+              </div>
+              <div style="flex:1;background:#fff;border-radius:18px;overflow:hidden;box-shadow:0 4px 14px rgba(16,60,59,0.07)">
+                <div style="height:92px;position:relative"><image-slot id="en-jireesh" shape="rect" placeholder="Jareesh soup" src="https://commons.wikimedia.org/wiki/Special:FilePath/Harees.JPG?width=600"></image-slot><span style="position:absolute;top:8px;left:8px;background:#dff1f0;color:#0f7d7b;font-size:10px;font-weight:700;border-radius:999px;padding:3px 8px">Healthy</span></div>
+                <div style="padding:10px 12px 12px;display:flex;flex-direction:column;gap:3px"><span style="font-size:13px;font-weight:700;color:#152a29">Jareesh soup</span><span style="font-size:10.5px;color:#8a9694">240 kcal</span><span style="font-size:13px;font-weight:700;color:#159d9b">IQD 5,000</span></div>
+              </div>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <span style="font-size:15.5px;font-weight:700;color:#152a29">Most ordered this week</span>
+            <div style="display:flex;align-items:center;gap:12px;background:#fff;border-radius:16px;padding:10px 12px;box-shadow:0 4px 14px rgba(16,60,59,0.06)">
+              <div style="width:52px;height:52px;border-radius:12px;overflow:hidden;flex:none"><image-slot id="en-dolma" shape="rect" placeholder="Dolma" src="https://commons.wikimedia.org/wiki/Special:FilePath/Iraqi%20Dolma.jpg?width=400"></image-slot></div>
+              <div style="flex:1"><div style="font-size:13.5px;font-weight:700;color:#152a29">Iraqi dolma</div><div style="font-size:11px;color:#8a9694">Vine leaves &amp; vegetables stuffed with rice and lamb</div></div>
+              <span style="font-size:13px;font-weight:700;color:#159d9b">IQD 12,000</span>
+            </div>
+          </div>
+        </div>
+        <dc-import name="TabBar" active="{{ 0 }}" lang="en" hint-size="100%,86px"></dc-import>
+      </div>
+    </x-import>
+  </div>
+  </sc-if>
+
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;trackingStatus&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;ontheway&quot;,&quot;options&quot;:[&quot;preparing&quot;,&quot;ontheway&quot;,&quot;delivered&quot;],&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;تتبع الطلب&quot;},&quot;showEnglish&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;اللغة&quot;}}">
+class Component extends DCLogic {
+  state = { cat: 'all', meals: 2, dur: 'monthly', days: { 0: true, 1: true, 2: true, 3: true, 4: true, 5: false, 6: false }, times: { 0: false, 1: true, 2: true } };
+
+  renderVals() {
+    const S = this.state;
+    const fmt = n => Math.round(n).toLocaleString('en-US');
+    const W = 'https://commons.wikimedia.org/wiki/Special:FilePath/';
+    const IMG = {
+      masgouf: W + 'Masgouf.jpg?width=600', quzi: W + 'Iraqi%20Quzi.jpg?width=600',
+      dolma: W + 'Iraqi%20Dolma-Mosul%2001.jpg?width=600', biryani: W + 'Hyderabadi%20Chicken%20Biryani.jpg?width=600',
+      tashreeb: W + 'Tashreeb.JPG?width=600', kubba: W + 'Iraqi%20Kuba.jpg?width=600',
+      bagilla: W + 'Rice%20and%20beans.jpg?width=600', bamia: W + 'Bamia-Ocras%20tomate%20(cropped).JPG?width=600',
+      jireesh: W + 'Harees.JPG?width=600', shish: W + 'Iraqi%20Mixed%20Grill%20Platter%20with%20Traditional%20Accompaniments.jpg?width=600',
+      salad: W + 'Fattoush%201.JPG?width=600', kleicha: W + 'Iraqi%20Dates%20Kleicha.jpg?width=600'
+    };
+    const dishes = [
+      { id: 'masgouf', n: 'مسكوف شبوط بغدادي', sub: 'مشوي على الحطب · ٤٨٠ سعرة', p: '25,000', cat: 'h', pop: 1 },
+      { id: 'quzi', n: 'قوزي على تمن', sub: 'لحم غنم مع تمن بالزعفران', p: '18,000', cat: 'r', pop: 1 },
+      { id: 'dolma', n: 'دولمة عراقية', sub: 'ورق عنب وخضار محشية', p: '12,000', cat: 'r', pop: 1 },
+      { id: 'biryani', n: 'برياني عراقي', sub: 'مع دجاج ونثريات', p: '10,000', cat: 'r', pop: 1 },
+      { id: 'tashreeb', n: 'تشريب دجاج', sub: 'خبز تنور ومرق حمص', p: '9,000', cat: 'r', pop: 1 },
+      { id: 'kubba', n: 'كبة الموصل', sub: 'محشية لحم وصنوبر', p: '8,000', cat: 'r' },
+      { id: 'bagilla', n: 'تمن وباقلاء', sub: 'بالشبنت ودهن حر · ٥٢٠ سعرة', p: '8,000', cat: 'h' },
+      { id: 'bamia', n: 'مرق بامية بلحم الغنم', sub: 'مع تمن عنبر', p: '9,000', cat: 'r' },
+      { id: 'jireesh', n: 'شوربة جريش', sub: 'حبوب قمح جريشة · ٢٤٠ سعرة', p: '5,000', cat: 'h', pop: 1 },
+      { id: 'shish', n: 'شيش طاووق صحي', sub: 'مع خضار مشوية · ٣٩٠ سعرة', p: '11,000', cat: 'h' },
+      { id: 'salad', n: 'سلطة جرجير ورمان', sub: 'دبس رمان وجوز · ١٨٠ سعرة', p: '4,000', cat: 'h' },
+      { id: 'kleicha', n: 'كليجة بالتمر', sub: 'حلوى العيد · ٦ قطع', p: '3,000', cat: 'r' }
+    ];
+    const cats = [{ k: 'all', l: 'الكل' }, { k: 'h', l: 'صحي 🌿' }, { k: 'r', l: 'عادي' }, { k: 'pop', l: 'الأكثر طلباً' }];
+    const menuCats = cats.map(c => {
+      const on = S.cat === c.k;
+      return { l: c.l, bg: on ? '#159d9b' : '#fff', fg: on ? '#fff' : '#5b6664', bd: on ? '#159d9b' : '#ece5d6', onClick: () => this.setState({ cat: c.k }) };
+    });
+    const menuDishes = dishes.filter(d => S.cat === 'all' || (S.cat === 'pop' ? d.pop : d.cat === S.cat)).map(d => ({
+      ...d,
+      img: IMG[d.id] || '',
+      bT: d.cat === 'h' ? 'صحي' : 'عادي',
+      bBg: d.cat === 'h' ? '#dff1f0' : '#fdeedd',
+      bFg: d.cat === 'h' ? '#0f7d7b' : '#bf7418'
+    }));
+
+    // plan builder
+    const seg = (on) => on ? { bg: '#159d9b', fg: '#fff', bd: '#159d9b' } : { bg: '#fff', fg: '#5b6664', bd: '#ece5d6' };
+    const mealsOpts = [{ l: '١', v: 1 }, { l: '٢', v: 2 }, { l: '٣', v: 3 }, { l: '+٤', v: 4 }].map(o => ({ ...o, ...seg(S.meals === o.v), onClick: () => this.setState({ meals: o.v }) }));
+    const durs = [{ k: 'weekly', l: 'أسبوعي', disc: '١٠', d: 0.10, weeks: 1, per: 'أسبوع' }, { k: 'monthly', l: 'شهري', disc: '١٨', d: 0.18, weeks: 4, per: 'شهر' }, { k: 'yearly', l: 'سنوي', disc: '٢٥', d: 0.25, weeks: 52, per: 'سنة' }];
+    const durOpts = durs.map(o => ({ ...o, ...seg(S.dur === o.k), onClick: () => this.setState({ dur: o.k }) }));
+    const dayNames = ['سبت', 'أحد', 'اثنين', 'ثلاثاء', 'أربعاء', 'خميس', 'جمعة'];
+    const dayChips = dayNames.map((l, i) => ({ l, ...seg(!!S.days[i]), onClick: () => this.setState(s => ({ days: { ...s.days, [i]: !s.days[i] } })) }));
+    const timeNames = [{ l: 'فطور', icon: '☀️' }, { l: 'غداء', icon: '🍽️' }, { l: 'عشاء', icon: '🌙' }];
+    const timeChips = timeNames.map((t, i) => ({ ...t, ...seg(!!S.times[i]), onClick: () => this.setState(s => ({ times: { ...s.times, [i]: !s.times[i] } })) }));
+    const dur = durs.find(d => d.k === S.dur);
+    const daysCount = Object.values(S.days).filter(Boolean).length;
+    const gross = S.meals * daysCount * dur.weeks * 6000;
+    const total = gross * (1 - dur.d);
+    const perMeal = S.meals * daysCount * dur.weeks ? total / (S.meals * daysCount * dur.weeks) : 0;
+    const arNum = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧'];
+
+    // tracking
+    const status = this.props.trackingStatus ?? 'ontheway';
+    const idx = { preparing: 0, ontheway: 1, delivered: 2 }[status] ?? 1;
+    const stepNames = ['قيد التحضير', 'في الطريق', 'تم التوصيل'];
+    const trackSteps = stepNames.map((l, i) => {
+      const done = i < idx, active = i === idx;
+      return {
+        l, mark: done ? '✓' : (active ? '●' : ''),
+        dotBg: done || active ? '#159d9b' : '#fff',
+        dotBd: done || active ? '#159d9b' : '#e0d8c6',
+        fg: done || active ? '#0b5f5e' : '#b3ab99',
+        w: active ? 700 : 500,
+        lineDisp: i === 0 ? 'none' : 'block',
+        lineBg: i <= idx ? '#159d9b' : '#eee7d8'
+      };
+    });
+    const headlines = { preparing: 'مطبخنا يحضّر طلبك', ontheway: 'كرار في الطريق إليك', delivered: 'وصل طلبك — بالعافية!' };
+
+    return {
+      showEnglish: this.props.showEnglish ?? true,
+      menuCats, menuDishes,
+      mealsOpts, durOpts, dayChips, timeChips,
+      totalFmt: fmt(total), savingsFmt: fmt(gross - total), perMealFmt: fmt(perMeal),
+      durLabel: dur.per,
+      planSummary: (arNum[S.meals] || '٤+') + ' وجبات × ' + (arNum[daysCount] || daysCount) + ' أيام أسبوعياً',
+      trackSteps, trackingHeadline: headlines[status]
+    };
+  }
+}
+</script>
+</body>
+</html>
+

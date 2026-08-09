@@ -7,7 +7,12 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.testapp.test19",
+      "appleTeamId": "7MDQTVCL39",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -20,6 +25,16 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-font",
+      "expo-asset",
+      "expo-splash-screen"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "967d54f2-0f8f-4920-86db-4c132b7c413f"
+      }
     }
   }
 }
