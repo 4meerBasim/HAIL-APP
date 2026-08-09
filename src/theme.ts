@@ -126,11 +126,15 @@ export const shadow: Record<'card' | 'teal' | 'raised' | 'sheet', ViewStyle> = {
   },
 };
 
+// Cairo is the brand's UI/Arabic face; headings on the site run at 800.
+// Playfair Display 800 is reserved for the "Jareesh" wordmark only.
 export const fonts = {
-  regular: 'IBMPlexSansArabic_400Regular',
-  medium: 'IBMPlexSansArabic_500Medium',
-  semibold: 'IBMPlexSansArabic_600SemiBold',
-  bold: 'IBMPlexSansArabic_700Bold',
+  regular: 'Cairo_400Regular',
+  medium: 'Cairo_500Medium',
+  semibold: 'Cairo_600SemiBold',
+  bold: 'Cairo_700Bold',
+  heavy: 'Cairo_800ExtraBold',
+  wordmark: 'PlayfairDisplay_800ExtraBold',
 } as const;
 
 // Shared type scale. Screens compose these instead of hand-picking font sizes so
