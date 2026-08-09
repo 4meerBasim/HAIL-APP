@@ -17,6 +17,7 @@ import { PlayfairDisplay_800ExtraBold } from '@expo-google-fonts/playfair-displa
 import { LanguageProvider } from './src/i18n/LanguageContext';
 import { AuthProvider } from './src/state/AuthContext';
 import { CartProvider } from './src/state/CartContext';
+import { PlanProvider } from './src/state/PlanContext';
 import RootNavigator from './src/navigation/RootNavigator';
 
 SplashScreen.preventAutoHideAsync();
@@ -46,12 +47,14 @@ export default function App() {
       <LanguageProvider>
         <AuthProvider>
           <CartProvider>
-            <SafeAreaProvider>
-              <NavigationContainer>
-                <StatusBar style="dark" />
-                <RootNavigator />
-              </NavigationContainer>
-            </SafeAreaProvider>
+            <PlanProvider>
+              <SafeAreaProvider>
+                <NavigationContainer>
+                  <StatusBar style="dark" />
+                  <RootNavigator />
+                </NavigationContainer>
+              </SafeAreaProvider>
+            </PlanProvider>
           </CartProvider>
         </AuthProvider>
       </LanguageProvider>

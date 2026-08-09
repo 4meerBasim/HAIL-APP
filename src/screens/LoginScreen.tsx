@@ -40,9 +40,17 @@ export default function LoginScreen({ navigation }: RootStackScreenProps<'Login'
     setError(false);
   };
 
+  // Reached from the checkout gate, sign-in returns the customer to the screen
+  // that sent them here (their half-built plan is still on it); reached on cold
+  // start, it is the root and hands over to the tabs.
+  const proceed = () => {
+    if (navigation.canGoBack()) navigation.goBack();
+    else navigation.replace('Tabs');
+  };
+
   const onVerify = () => {
     if (verifyOtp(code)) {
-      navigation.replace('Tabs');
+      proceed();
     } else {
       setError(true);
     }
@@ -50,7 +58,7 @@ export default function LoginScreen({ navigation }: RootStackScreenProps<'Login'
 
   const onGuest = () => {
     continueAsGuest();
-    navigation.replace('Tabs');
+    proceed();
   };
 
   return (

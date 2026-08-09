@@ -4,6 +4,7 @@ import Text from './AppText';
 import { colors, fonts, radius, shadow } from '../theme';
 import { useLanguage } from '../i18n/LanguageContext';
 import { Dish, formatPrice } from '../data/menu';
+import PricePill from './PricePill';
 import Tag from './Tag';
 
 export interface DishCardProps {
@@ -33,7 +34,7 @@ export default function DishCard({ dish, onPress, onAdd, showAdd = false, style 
           {sub}
         </Text>
         <View style={styles.priceRow}>
-          <Text style={styles.price}>{formatPrice(dish.price, lang)}</Text>
+          <PricePill value={formatPrice(dish.price, lang)} size="sm" />
           {showAdd ? (
             <TouchableOpacity
               activeOpacity={0.8}
@@ -92,11 +93,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginTop: 3,
-  },
-  price: {
-    fontFamily: fonts.bold,
-    fontSize: 13.5,
-    color: colors.teal,
   },
   addBtn: {
     width: 26,

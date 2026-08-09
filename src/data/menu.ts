@@ -1,3 +1,6 @@
+import type { ColorToken } from '../theme';
+import type { IconName } from '../components/icons';
+
 export type Category = 'h' | 'r';
 
 export interface Dish {
@@ -32,8 +35,107 @@ export const heroImage = `${WIKI}Iraqi%20dinner%20spread.jpg?width=1200`;
 
 export const getDish = (id: string): Dish | undefined => dishes.find((d) => d.id === id);
 
-// The three dishes the kitchen puts forward on Home when no category filter is on.
-export const featuredIds: string[] = ['masgouf', 'quzi', 'jireesh'];
+// ── Diet boxes ──────────────────────────────────────────────────────────────
+// Curated, goal-based meal-plan boxes — the app's headline subscription product.
+// Each box is a pre-composed rotation the user subscribes to and can then
+// fine-tune in the plan builder. Accent tokens resolve against `colors` in theme.
+// Macro figures are shown so customers can compare boxes; nothing edits them.
+export type BoxGoal = 'balanced' | 'lean' | 'protein' | 'keto' | 'diabetic';
+
+export interface DietBox {
+  id: BoxGoal;
+  icon: IconName;
+  accent: ColorToken; // primary accent color token
+  tint: ColorToken; // soft tint background token
+  kcal: number; // daily calories, across the box's three meal times
+  protein: number; // daily protein (g)
+  carbs: number; // daily carbs (g)
+  fat: number; // daily fat (g)
+  perMeal: number; // headline subscription price for one meal of the box
+  dishes: string[]; // dish ids that make up the box rotation
+  image: string;
+  popular?: boolean;
+}
+
+export const dietBoxes: DietBox[] = [
+  {
+    id: 'balanced',
+    icon: 'bowl',
+    accent: 'teal',
+    tint: 'healthyBg',
+    kcal: 1800,
+    protein: 90,
+    carbs: 247,
+    fat: 50,
+    perMeal: 6000,
+    dishes: ['bagilla', 'jireesh', 'shish', 'salad', 'tashreeb', 'bamia'],
+    image: img('Rice%20and%20beans.jpg'),
+    popular: true,
+  },
+  {
+    id: 'lean',
+    icon: 'flame',
+    accent: 'green',
+    tint: 'greenBg',
+    kcal: 1300,
+    protein: 85,
+    carbs: 159,
+    fat: 36,
+    perMeal: 5500,
+    dishes: ['salad', 'jireesh', 'shish', 'bamia', 'bagilla'],
+    image: img('Fattoush%201.JPG'),
+    popular: true,
+  },
+  {
+    id: 'protein',
+    icon: 'dumbbell',
+    accent: 'amber',
+    tint: 'regularBg',
+    kcal: 2200,
+    protein: 150,
+    carbs: 262,
+    fat: 61,
+    perMeal: 7500,
+    dishes: ['shish', 'masgouf', 'tashreeb', 'quzi', 'kubba', 'biryani'],
+    image: img('Iraqi%20Mixed%20Grill%20Platter%20with%20Traditional%20Accompaniments.jpg'),
+  },
+  {
+    id: 'keto',
+    icon: 'avocado',
+    accent: 'violet',
+    tint: 'violetBg',
+    kcal: 1600,
+    protein: 110,
+    carbs: 30,
+    fat: 116,
+    perMeal: 8000,
+    dishes: ['shish', 'masgouf', 'kubba', 'bamia'],
+    image: img('Masgouf.jpg'),
+  },
+  {
+    id: 'diabetic',
+    icon: 'stethoscope',
+    accent: 'tealText',
+    tint: 'healthyBg',
+    kcal: 1700,
+    protein: 95,
+    carbs: 224,
+    fat: 47,
+    perMeal: 6000,
+    dishes: ['jireesh', 'bagilla', 'salad', 'bamia', 'shish'],
+    image: img('Harees.JPG'),
+  },
+];
+
+export const getBox = (id: string): DietBox | undefined => dietBoxes.find((b) => b.id === id);
+
+// A box's advertised daily macros as a plain Macros value (display only).
+export const boxDaily = (box: DietBox): Macros => ({
+  calories: box.kcal,
+  protein: box.protein,
+  carbs: box.carbs,
+  fat: box.fat,
+});
 
 export interface Macros {
   calories: number;
@@ -155,6 +257,85 @@ export const parsePrice = (price: string): number => {
 // The bare currency mark for the active language ('د.ع' / 'IQD'), reusing formatPrice.
 export const currencyMark = (lang: 'ar' | 'en'): string => formatPrice('', lang).trim();
 
+// ── Subscription pricing ────────────────────────────────────────────────────
+// One meal on a subscription costs BASE_PER_MEAL when the rotation sits on the
+// menu average; a box overrides that with its own headline rate. Swapping in
+// pricier or cheaper dishes moves the rate through `basketIndex`, so the number
+// always tracks what the customer actually chose.
+export const BASE_PER_MEAL = 6000;
+
+export const menuAveragePrice =
+  dishes.reduce((sum, d) => sum + parsePrice(d.price), 0) / dishes.length;
+
+// A basket's à-la-carte average as a multiple of the menu average. Empty = 1.
+export const basketIndex = (dishIds: string[]): number => {
+  if (dishIds.length === 0) return 1;
+  const total = dishIds.reduce((sum, id) => sum + parsePrice(getDish(id)?.price ?? '0'), 0);
+  return total / dishIds.length / menuAveragePrice;
+};
+
+// Duration is always a raw number of days; the presets are just shortcuts and
+// the discount is a pure function of that number, so a custom 23-day plan is
+// priced on exactly the same curve as the "month" preset.
+export interface DurationPreset {
+  key: 'week' | 'twoWeeks' | 'month';
+  days: number;
+}
+
+export const durationPresets: DurationPreset[] = [
+  { key: 'week', days: 7 },
+  { key: 'twoWeeks', days: 14 },
+  { key: 'month', days: 30 },
+];
+
+export const MIN_DAYS = 3;
+export const MAX_DAYS = 90;
+export const DEFAULT_DAY_COUNT = 30;
+
+const discountTiers: { minDays: number; disc: number }[] = [
+  { minDays: 90, disc: 0.22 },
+  { minDays: 30, disc: 0.18 },
+  { minDays: 14, disc: 0.1 },
+  { minDays: 7, disc: 0.05 },
+  { minDays: 0, disc: 0 },
+];
+
+export const MAX_DISCOUNT = discountTiers[0].disc;
+
+export const discountForDays = (days: number): number =>
+  discountTiers.find((t) => days >= t.minDays)?.disc ?? 0;
+
+// The shortest span that would earn a bigger discount than `days`, for the
+// "commit longer" saver. Returns `days` unchanged once the top tier is reached.
+export const nextDiscountDays = (days: number): number =>
+  [...discountTiers]
+    .map((t) => t.minDays)
+    .reverse()
+    .find((m) => m > days) ?? days;
+
+// i18n keys for the 7 weekday short labels, in Sat-to-Fri order.
+export const dayKeys = [
+  'day.sat',
+  'day.sun',
+  'day.mon',
+  'day.tue',
+  'day.wed',
+  'day.thu',
+  'day.fri',
+] as const;
+
+export const DEFAULT_DAYS: number[] = [0, 1, 2, 3, 4];
+
+// i18n keys for the 3 meal times, in breakfast-to-dinner order. How many the
+// customer picks IS the meals-per-day count.
+export const timeKeys = ['time.breakfast', 'time.lunch', 'time.dinner'] as const;
+
+export const timeIcons: IconName[] = ['sun', 'utensils', 'moon'];
+
+export const DEFAULT_TIMES: number[] = [1, 2];
+
+export const ALL_TIMES: number[] = timeKeys.map((_, i) => i);
+
 export type TrackingStatus = 'preparing' | 'ontheway' | 'delivered';
 
 export const trackingStepIndex: Record<TrackingStatus, number> = {
@@ -183,6 +364,27 @@ export const trackingDriver = {
   name: 'كرار محمد',
   role: 'سائق جريش · دراجة كهربائية',
 } as const;
+
+// ── Schedule exceptions ─────────────────────────────────────────────────────
+// A subscription runs on its selected weekdays, minus any one-off dates the
+// customer skips, plus any deliveries they've pushed to a later date.
+export type ExceptionKind = 'skip' | 'postpone';
+
+export interface ScheduleException {
+  id: string;
+  kind: ExceptionKind;
+  dayIndex: number; // day offset from plan start
+  movedTo?: number; // for 'postpone', the day offset it was moved to
+}
+
+export const MAX_POSTPONE_DAYS = 7;
+
+// Levers offered at checkout to bring the price down. All four are measured
+// against the weekly cost, the one number every lever moves in the same
+// direction: committing longer adds days but unlocks a bigger discount.
+export type SaverKey = 'fewerMeals' | 'fewerDays' | 'swapCheaper' | 'longerTerm';
+
+export const saverKeys: SaverKey[] = ['fewerMeals', 'fewerDays', 'swapCheaper', 'longerTerm'];
 
 // ── Order history ───────────────────────────────────────────────────────────
 // One order is in flight (it opens Tracking); the rest are delivered receipts a

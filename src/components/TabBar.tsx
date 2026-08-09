@@ -8,7 +8,7 @@ import Icon from './Icon';
 import { icons } from './icons';
 
 const TAB_META: Record<string, { icon: string; labelKey: string }> = {
-  Home: { icon: icons.home, labelKey: 'nav.home' },
+  Plans: { icon: icons.box, labelKey: 'nav.plans' },
   Menu: { icon: icons.grid, labelKey: 'nav.menu' },
   Orders: { icon: icons.receipt, labelKey: 'nav.orders' },
   Profile: { icon: icons.user, labelKey: 'nav.profile' },
