@@ -1,24 +1,34 @@
 import { ViewStyle } from 'react-native';
 
+// Palette lifted from the live Jareesh menu site, which publishes its own
+// tokens as CSS custom properties (--jr-teal, --jr-gold, --jr-cream …).
+// Token names are unchanged so every screen picks the brand up automatically;
+// only the values moved. Gold replaces the old amber accent.
 export const colors = {
-  teal: '#159d9b',
-  tealDark: '#0b5f5e',
-  tealDarker: '#0b3d3c',
-  tealMid: '#128a88',
-  tealText: '#0f7d7b',
-  amber: '#f2a541',
-  amberText: '#3d2a05',
-  amberIcon: '#bf7418',
-  cream: '#faf6ef',
-  sand: '#ece5d6',
-  sandChip: '#f4efe4',
-  healthyBg: '#dff1f0',
-  healthyBorder: '#d9efee',
-  regularBg: '#fdeedd',
-  ink: '#152a29',
-  body: '#5b6664',
-  muted: '#6b7a79',
-  muted2: '#8a9694',
+  teal: '#16a89a', // --jr-teal
+  tealDark: '#0e8478', // --jr-teal-dark
+  tealDarker: '#0a5f56',
+  tealMid: '#12968a',
+  tealText: '#0e8478',
+  gold: '#d6a23e', // --jr-gold
+  goldLight: '#e7c77e', // --jr-gold-light
+  goldText: '#9a6f17', // gold dark enough to read as text on goldTint
+  goldTint: 'rgba(214,162,62,0.18)', // price/category pill fill
+  goldBorder: 'rgba(214,162,62,0.55)', // price/category pill border
+  amber: '#d6a23e',
+  amberText: '#4a3708',
+  amberIcon: '#9a6f17',
+  cream: '#f8f3da', // --jr-cream-soft, the page background
+  card: '#fffdf2', // --jr-card, card surface (warmer than pure white)
+  sand: '#e7debb', // --jr-line
+  sandChip: '#f4eec9', // --jr-cream
+  healthyBg: '#ddf1ee',
+  healthyBorder: '#cfe9e5',
+  regularBg: '#f6ecd2',
+  ink: '#2a2c2e', // --jr-charcoal
+  body: '#6b6559',
+  muted: '#8a8472', // --jr-muted
+  muted2: '#a49d89',
   faint: '#b3ab99',
   faint2: '#c9c0ad',
   faint3: '#d8cfbd',
