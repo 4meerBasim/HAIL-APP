@@ -15,7 +15,6 @@ import {
   ingredientKeys as dishIngredientKeys,
 } from '../data/menu';
 import { useCart } from '../state/CartContext';
-import { usePlan } from '../state/PlanContext';
 import type { RootStackScreenProps } from '../navigation/RootNavigator';
 
 const DEFAULT_DISH_ID = 'masgouf';
@@ -23,7 +22,6 @@ const DEFAULT_DISH_ID = 'masgouf';
 export default function DishDetailScreen({ route, navigation }: RootStackScreenProps<'DishDetail'>) {
   const { t, lang, isRTL } = useLanguage();
   const { addItem } = useCart();
-  const { plan, toggleDish } = usePlan();
   const insets = useSafeAreaInsets();
   const [qty, setQty] = useState(1);
   const [fav, setFav] = useState(false);
@@ -167,18 +165,6 @@ export default function DishDetailScreen({ route, navigation }: RootStackScreenP
             accessibilityRole="button"
           >
             <Text style={styles.ctaPrimaryText}>{t('detail.addToCart')}</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            activeOpacity={0.85}
-            onPress={() => {
-              if (!plan.dishIds.includes(dish.id)) toggleDish(dish.id);
-              navigation.navigate('MealCustomize', { dishId: dish.id });
-            }}
-            style={[styles.cta, styles.ctaSecondary]}
-            accessibilityRole="button"
-          >
-            <Text style={styles.ctaSecondaryText}>{t('detail.addToPlan')}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -338,16 +324,5 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bold,
     fontSize: 14.5,
     color: colors.white,
-  },
-  ctaSecondary: {
-    backgroundColor: colors.white,
-    borderWidth: 1.5,
-    borderColor: colors.teal,
-    paddingVertical: 12,
-  },
-  ctaSecondaryText: {
-    fontFamily: fonts.bold,
-    fontSize: 14.5,
-    color: colors.tealDark,
   },
 });

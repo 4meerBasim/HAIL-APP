@@ -42,7 +42,7 @@ export default function LoginScreen({ navigation }: RootStackScreenProps<'Login'
 
   const onVerify = () => {
     if (verifyOtp(code)) {
-      navigation.replace('Onboarding');
+      navigation.replace('Tabs');
     } else {
       setError(true);
     }

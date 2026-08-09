@@ -1,17 +1,7 @@
-import React, {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-} from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { Macros } from '../data/menu';
-import { type BodyProfile, dailyTargets } from '../data/nutrition';
 
 const SESSION_KEY = '@jareesh/session';
-const PROFILE_KEY = '@jareesh/profile';
 
 export interface User {
   phone: string;
@@ -23,13 +13,10 @@ export type AuthStatus = 'loading' | 'guest' | 'authed';
 interface AuthValue {
   status: AuthStatus;
   user: User | null;
-  profile: BodyProfile | null;
-  targets: Macros | null;
   pendingPhone: string | null;
   requestOtp: (phone: string) => void;
   verifyOtp: (code: string) => boolean;
   continueAsGuest: () => void;
-  saveProfile: (profile: BodyProfile) => void;
   signOut: () => void;
 }
 
@@ -41,23 +28,17 @@ const AuthContext = createContext<AuthValue | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [status, setStatus] = useState<AuthStatus>('loading');
   const [user, setUser] = useState<User | null>(null);
-  const [profile, setProfileState] = useState<BodyProfile | null>(null);
   const [pendingPhone, setPendingPhone] = useState<string | null>(null);
 
   useEffect(() => {
     let alive = true;
     void (async () => {
       try {
-        const [rawSession, rawProfile] = await AsyncStorage.multiGet([SESSION_KEY, PROFILE_KEY]);
+        const raw = await AsyncStorage.getItem(SESSION_KEY);
         if (!alive) return;
-        const saved = rawSession[1] ? (JSON.parse(rawSession[1]) as User) : null;
-        if (saved?.phone) {
-          setUser(saved);
-          setStatus('authed');
-        } else {
-          setStatus('guest');
-        }
-        if (rawProfile[1]) setProfileState(JSON.parse(rawProfile[1]) as BodyProfile);
+        const saved = raw ? (JSON.parse(raw) as User) : null;
+        setUser(saved?.phone ? saved : null);
+        setStatus(saved?.phone ? 'authed' : 'guest');
       } catch {
         if (alive) setStatus('guest');
       }
@@ -89,45 +70,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setPendingPhone(null);
   }, []);
 
-  const saveProfile = useCallback((next: BodyProfile) => {
-    setProfileState(next);
-    void AsyncStorage.setItem(PROFILE_KEY, JSON.stringify(next));
-  }, []);
-
   const signOut = useCallback(() => {
     setUser(null);
-    setProfileState(null);
     setStatus('guest');
-    void AsyncStorage.multiRemove([SESSION_KEY, PROFILE_KEY]);
+    void AsyncStorage.removeItem(SESSION_KEY);
   }, []);
-
-  const targets = useMemo(() => (profile ? dailyTargets(profile) : null), [profile]);
 
   const value = useMemo(
     () => ({
       status,
       user,
-      profile,
-      targets,
       pendingPhone,
       requestOtp,
       verifyOtp,
       continueAsGuest,
-      saveProfile,
       signOut,
     }),
-    [
-      status,
-      user,
-      profile,
-      targets,
-      pendingPhone,
-      requestOtp,
-      verifyOtp,
-      continueAsGuest,
-      saveProfile,
-      signOut,
-    ],
+    [status, user, pendingPhone, requestOtp, verifyOtp, continueAsGuest, signOut],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

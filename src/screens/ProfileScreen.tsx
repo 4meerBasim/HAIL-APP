@@ -6,12 +6,10 @@ import Icon from '../components/Icon';
 import { type IconName, icons } from '../components/icons';
 import Card from '../components/Card';
 import Button from '../components/Button';
-import MacroRow from '../components/MacroRow';
 import SectionHeader from '../components/SectionHeader';
 import { colors, fonts, radius, spacing, type } from '../theme';
 import { type Lang, useLanguage } from '../i18n/LanguageContext';
 import { useAuth } from '../state/AuthContext';
-import { toArabicDigits } from '../i18n/digits';
 import type { TabScreenProps } from '../navigation/RootNavigator';
 
 interface Row {
@@ -35,7 +33,7 @@ const LANGS: Lang[] = ['ar', 'en'];
 
 export default function ProfileScreen({ navigation }: TabScreenProps<'Profile'>) {
   const { t, lang, isRTL, setLang } = useLanguage();
-  const { status, user, profile, targets, signOut } = useAuth();
+  const { status, user, signOut } = useAuth();
   const authed = status === 'authed';
   const chevron = isRTL ? icons.chevronLeft : icons.chevronRight;
 
@@ -51,7 +49,10 @@ export default function ProfileScreen({ navigation }: TabScreenProps<'Profile'>)
         <View style={[styles.tile, { backgroundColor: row.tint }]}>
           <Icon path={icons[row.icon]} size={18} color={row.color} strokeWidth={1.9} />
         </View>
-        <Text style={styles.rowLabel}>{t(`profile.${row.key}`)}</Text>
+        <View style={styles.rowText}>
+          <Text style={styles.rowLabel}>{t(`profile.${row.key}`)}</Text>
+          <Text style={styles.rowSub}>{t(`profile.${row.key}.sub`)}</Text>
+        </View>
         <Icon path={chevron} size={15} color={colors.faint2} strokeWidth={2.2} />
       </TouchableOpacity>
     </View>
@@ -72,68 +73,11 @@ export default function ProfileScreen({ navigation }: TabScreenProps<'Profile'>)
           <Text style={styles.name} numberOfLines={1}>
             {authed ? user?.phone : t('profile.guest')}
           </Text>
-          {profile ? (
-            <Text style={styles.identitySub} numberOfLines={1}>
-              {`${t(`goal.${profile.goal}`)} · ${t(`activity.${profile.activity}`)}`}
-            </Text>
-          ) : null}
+          <Text style={styles.identitySub} numberOfLines={1}>
+            {authed ? t('profile.member') : t('profile.guest.sub')}
+          </Text>
         </View>
-        {profile ? (
-          <TouchableOpacity
-            activeOpacity={0.7}
-            onPress={() => navigation.navigate('Onboarding')}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            accessibilityRole="button"
-            accessibilityLabel={t('common.edit')}
-          >
-            <Text style={styles.editLink}>{t('common.edit')}</Text>
-          </TouchableOpacity>
-        ) : null}
       </View>
-
-      {profile && targets ? (
-        <Card
-          background={colors.healthyBg}
-          onPress={() => navigation.navigate('Onboarding')}
-          accessibilityLabel={t('plans.yourTarget')}
-          style={styles.body}
-        >
-          <View style={styles.bodyStats}>
-            <View style={styles.stat}>
-              <Icon path={icons.scale} size={18} color={colors.tealText} strokeWidth={1.8} />
-              <Text style={styles.statValue}>
-                {`${toArabicDigits(profile.weightKg, lang)} ${t('unit.kg')}`}
-              </Text>
-            </View>
-            <View style={styles.statDivider} />
-            <View style={styles.stat}>
-              <Icon path={icons.ruler} size={18} color={colors.tealText} strokeWidth={1.8} />
-              <Text style={styles.statValue}>
-                {`${toArabicDigits(profile.heightCm, lang)} ${t('unit.cm')}`}
-              </Text>
-            </View>
-            <View style={styles.statDivider} />
-            <View style={styles.stat}>
-              <Icon path={icons.cake} size={18} color={colors.tealText} strokeWidth={1.8} />
-              <Text style={styles.statValue}>
-                {`${toArabicDigits(profile.age, lang)} ${t('unit.years')}`}
-              </Text>
-            </View>
-          </View>
-          <MacroRow macros={targets} />
-        </Card>
-      ) : (
-        <Card
-          onPress={() => navigation.navigate(authed ? 'Onboarding' : 'Login')}
-          style={styles.prompt}
-        >
-          <View style={[styles.tile, { backgroundColor: colors.healthyBg }]}>
-            <Icon path={icons.ruler} size={18} color={colors.teal} strokeWidth={1.9} />
-          </View>
-          <Text style={styles.rowLabel}>{t('plans.setupProfile')}</Text>
-          <Icon path={chevron} size={15} color={colors.faint2} strokeWidth={2.2} />
-        </Card>
-      )}
 
       <View style={styles.section}>
         <SectionHeader title={t('profile.account')} />
@@ -159,7 +103,7 @@ export default function ProfileScreen({ navigation }: TabScreenProps<'Profile'>)
                   <TouchableOpacity
                     key={l}
                     activeOpacity={0.8}
-                    onPress={() => setLang(l)}
+                    onPress={() => void setLang(l)}
                     accessibilityRole="button"
                     accessibilityState={{ selected: on }}
                     accessibilityLabel={t(`lang.${l}`)}
@@ -232,37 +176,6 @@ const styles = StyleSheet.create({
     ...type.caption,
     color: colors.muted2,
   },
-  editLink: {
-    fontFamily: fonts.semibold,
-    fontSize: 12,
-    color: colors.teal,
-  },
-  body: {
-    gap: spacing.xxl,
-  },
-  bodyStats: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  stat: {
-    flex: 1,
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  statDivider: {
-    width: 1,
-    height: 26,
-    backgroundColor: colors.healthyBorder,
-  },
-  statValue: {
-    ...type.captionStrong,
-    color: colors.tealText,
-  },
-  prompt: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xl,
-  },
   section: {
     gap: spacing.xl,
   },
@@ -283,10 +196,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  rowText: {
+    flex: 1,
+    gap: 1,
+  },
   rowLabel: {
     ...type.title,
     color: colors.ink,
     flex: 1,
+  },
+  rowSub: {
+    ...type.caption,
+    color: colors.muted2,
   },
   divider: {
     height: 1,

@@ -16,7 +16,6 @@ import {
 import { PlayfairDisplay_800ExtraBold } from '@expo-google-fonts/playfair-display';
 import { LanguageProvider } from './src/i18n/LanguageContext';
 import { AuthProvider } from './src/state/AuthContext';
-import { PlanProvider } from './src/state/PlanContext';
 import { CartProvider } from './src/state/CartContext';
 import RootNavigator from './src/navigation/RootNavigator';
 
@@ -46,16 +45,14 @@ export default function App() {
     <GestureHandlerRootView style={{ flex: 1 }} onLayout={onLayoutRootView}>
       <LanguageProvider>
         <AuthProvider>
-          <PlanProvider>
-            <CartProvider>
-              <SafeAreaProvider>
-                <NavigationContainer>
-                  <StatusBar style="dark" />
-                  <RootNavigator />
-                </NavigationContainer>
-              </SafeAreaProvider>
-            </CartProvider>
-          </PlanProvider>
+          <CartProvider>
+            <SafeAreaProvider>
+              <NavigationContainer>
+                <StatusBar style="dark" />
+                <RootNavigator />
+              </NavigationContainer>
+            </SafeAreaProvider>
+          </CartProvider>
         </AuthProvider>
       </LanguageProvider>
     </GestureHandlerRootView>
