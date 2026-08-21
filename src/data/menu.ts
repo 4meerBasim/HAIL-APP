@@ -1,7 +1,15 @@
+import type { ImageSourcePropType } from 'react-native';
 import type { ColorToken } from '../theme';
 import type { IconName } from '../components/icons';
 
 export type Category = 'h' | 'r';
+
+// What part of the meal a dish is, mirroring how the restaurant's own menu is
+// sectioned. `cat` above is the diet split (healthy / regular) and answers a
+// different question, so the two filter independently.
+export type Course = 'main' | 'starter' | 'side' | 'dessert';
+
+export const courseKeys: Course[] = ['main', 'starter', 'side', 'dessert'];
 
 export interface Dish {
   id: string;
@@ -9,31 +17,94 @@ export interface Dish {
   sub: string;
   price: string;
   cat: Category;
+  course: Course;
   pop: boolean;
-  image: string;
+  image: ImageSourcePropType;
 }
 
-const WIKI = 'https://commons.wikimedia.org/wiki/Special:FilePath/';
-const img = (file: string): string => `${WIKI}${file}?width=600`;
+// Catering trays still come off the restaurant's live menu (menu.jareesh.com),
+// keyed by the upload id their CDN serves.
+const SHOT = 'https://menu.jareesh.com/uploads/restorants/';
+const img = (id: string): string => `${SHOT}${id}_large.jpg`;
 
-export const dishes: Dish[] = [
-  { id: 'masgouf', name: 'مسكوف شبوط بغدادي', sub: 'مشوي على الحطب · ٤٨٠ سعرة', price: '25,000', cat: 'h', pop: true, image: img('Masgouf.jpg') },
-  { id: 'quzi', name: 'قوزي على تمن', sub: 'لحم غنم مع تمن بالزعفران', price: '18,000', cat: 'r', pop: true, image: img('Iraqi%20Quzi.jpg') },
-  { id: 'dolma', name: 'دولمة عراقية', sub: 'ورق عنب وخضار محشية', price: '12,000', cat: 'r', pop: true, image: img('Iraqi%20Dolma-Mosul%2001.jpg') },
-  { id: 'biryani', name: 'برياني عراقي', sub: 'مع دجاج ونثريات', price: '10,000', cat: 'r', pop: true, image: img('Hyderabadi%20Chicken%20Biryani.jpg') },
-  { id: 'tashreeb', name: 'تشريب دجاج', sub: 'خبز تنور ومرق حمص', price: '9,000', cat: 'r', pop: true, image: img('Tashreeb.JPG') },
-  { id: 'kubba', name: 'كبة الموصل', sub: 'محشية لحم وصنوبر', price: '8,000', cat: 'r', pop: false, image: img('Iraqi%20Kuba.jpg') },
-  { id: 'bagilla', name: 'تمن وباقلاء', sub: 'بالشبنت ودهن حر · ٥٢٠ سعرة', price: '8,000', cat: 'h', pop: false, image: img('Rice%20and%20beans.jpg') },
-  { id: 'bamia', name: 'مرق بامية بلحم الغنم', sub: 'مع تمن عنبر', price: '9,000', cat: 'r', pop: false, image: img('Bamia-Ocras%20tomate%20(cropped).JPG') },
-  { id: 'jireesh', name: 'شوربة جريش', sub: 'حبوب قمح جريشة · ٢٤٠ سعرة', price: '5,000', cat: 'h', pop: true, image: img('Harees.JPG') },
-  { id: 'shish', name: 'شيش طاووق صحي', sub: 'مع خضار مشوية · ٣٩٠ سعرة', price: '11,000', cat: 'h', pop: false, image: img('Iraqi%20Mixed%20Grill%20Platter%20with%20Traditional%20Accompaniments.jpg') },
-  { id: 'salad', name: 'سلطة جرجير ورمان', sub: 'دبس رمان وجوز · ١٨٠ سعرة', price: '4,000', cat: 'h', pop: false, image: img('Fattoush%201.JPG') },
-  { id: 'kleicha', name: 'كليجة بالتمر', sub: 'حلوى العيد · ٦ قطع', price: '3,000', cat: 'r', pop: false, image: img('Iraqi%20Dates%20Kleicha.jpg') },
+// The 21 offers exactly as the restaurant prints them on its own offer sheets:
+// their wording, their component lists, their IQD prices, and the photograph
+// from each sheet cropped out and bundled — so a card sells the plate it is
+// actually a picture of. `name` is the headline dish and `sub` is the rest of
+// what comes in the box, which is how the sheet itself splits the line.
+//
+// Two spellings are corrected against the print: بركر → برغر and
+// "اللحمة الفرومة" → "اللحم المفروم". Everything else is verbatim.
+const OFFER_PHOTOS: ImageSourcePropType[] = [
+  require('../../assets/offers/offer-01.jpg'),
+  require('../../assets/offers/offer-02.jpg'),
+  require('../../assets/offers/offer-03.jpg'),
+  require('../../assets/offers/offer-04.jpg'),
+  require('../../assets/offers/offer-05.jpg'),
+  require('../../assets/offers/offer-06.jpg'),
+  require('../../assets/offers/offer-07.jpg'),
+  require('../../assets/offers/offer-08.jpg'),
+  require('../../assets/offers/offer-09.jpg'),
+  require('../../assets/offers/offer-10.jpg'),
+  require('../../assets/offers/offer-11.jpg'),
+  require('../../assets/offers/offer-12.jpg'),
+  require('../../assets/offers/offer-13.jpg'),
+  require('../../assets/offers/offer-14.jpg'),
+  require('../../assets/offers/offer-15.jpg'),
+  require('../../assets/offers/offer-16.jpg'),
+  require('../../assets/offers/offer-17.jpg'),
+  require('../../assets/offers/offer-18.jpg'),
+  require('../../assets/offers/offer-19.jpg'),
+  require('../../assets/offers/offer-20.jpg'),
+  require('../../assets/offers/offer-21.jpg'),
 ];
 
-export const heroImage = `${WIKI}Iraqi%20dinner%20spread.jpg?width=1200`;
+// Sheet numbers are 1-based, so offers read the way they are printed.
+const offer = (n: number): ImageSourcePropType => OFFER_PHOTOS[n - 1];
+
+export const dishes: Dish[] = [
+  { id: 'pasta', name: 'باستا بني فورنو', sub: 'خضار سوتيه + نوع مقبلات + مشروب غازي', price: '7,500', cat: 'r', course: 'main', pop: false, image: offer(1) },
+  { id: 'biryani', name: 'رز برياني مع فخذ دجاج', sub: 'نوعان مرق + طرشي + خبز + لبن', price: '11,000', cat: 'r', course: 'main', pop: true, image: offer(2) },
+  { id: 'chicken-steak', name: 'ستيك دجاج بالمشروم', sub: 'تمن أبيض 300 غم + نوع مقبلات + خضار سوتيه + عصير طبيعي', price: '10,000', cat: 'h', course: 'main', pop: false, image: offer(3) },
+  { id: 'burger', name: 'سندويش برغر', sub: 'بطاطا مقلية + نوع مقبلات + مشروب غازي', price: '7,500', cat: 'r', course: 'main', pop: false, image: offer(4) },
+  { id: 'dolma', name: 'طبق دولمة لشخصين', sub: 'طرشي وخضار + خبز + لبن', price: '6,000', cat: 'h', course: 'main', pop: true, image: offer(5) },
+  { id: 'fajita', name: 'ملفوف باذنجان وفاهيتا دجاج', sub: 'خبز + عصير طبيعي', price: '12,000', cat: 'r', course: 'main', pop: false, image: offer(6) },
+  { id: 'noodles', name: 'طبق نودلز', sub: 'خضار سوتيه', price: '5,000', cat: 'h', course: 'main', pop: false, image: offer(7) },
+  { id: 'fish', name: 'قطعة سمك', sub: 'تمن أحمر 400 غم + طرشي وخضار + خبز + لبن', price: '10,000', cat: 'h', course: 'main', pop: false, image: offer(8) },
+  { id: 'maqluba-chicken', name: 'مقلوبة دجاج', sub: 'طرشي + خضار + خبز + لبن', price: '7,500', cat: 'r', course: 'main', pop: true, image: offer(9) },
+  { id: 'mahshi', name: 'ملفوف باذنجان', sub: 'تمن أبيض 400 غم + طرشي وخضار + خبز + لبن', price: '7,500', cat: 'r', course: 'main', pop: false, image: offer(10) },
+  { id: 'chicken-fillet', name: 'شرحات دجاج مطفاية', sub: 'تمن أبيض 300 غم + نوع مقبلات + خضار سوتيه + عصير طبيعي', price: '10,000', cat: 'h', course: 'main', pop: false, image: offer(11) },
+  { id: 'lasagna', name: 'لزانيا لحم', sub: 'نوع مقبلات', price: '7,000', cat: 'r', course: 'main', pop: false, image: offer(12) },
+  { id: 'rice-stews', name: 'تمن أبيض ونوعان مرق', sub: 'تمن 400 غم + طرشي وخضار + خبز + لبن', price: '5,000', cat: 'r', course: 'main', pop: false, image: offer(13) },
+  { id: 'tashreeb', name: 'تشريب دجاج', sub: 'تمن باقلاء 400 غم + طرشي وخضار + خبز + لبن', price: '8,500', cat: 'r', course: 'main', pop: true, image: offer(14) },
+  { id: 'half-chicken', name: 'طبق دجاج — نصف دجاجة', sub: 'تمن 600 غم + نوعان مرق + طرشي وخضار + خبز + نوعان لبن', price: '13,000', cat: 'r', course: 'main', pop: true, image: offer(15) },
+  { id: 'maqluba-lamb', name: 'مقلوبة لحم', sub: 'طرشي وخضار + خبز + لبن', price: '7,500', cat: 'r', course: 'main', pop: false, image: offer(16) },
+  { id: 'qalya', name: 'قلية عراقية', sub: 'تمن أبيض 400 غم + طرشي وخضار + خبز + لبن', price: '8,000', cat: 'r', course: 'main', pop: false, image: offer(17) },
+  { id: 'quzi', name: 'قوزي لحم', sub: 'قطعة لحم 250 غم + تمن أبيض 400 غم + نوعان مرق + طرشي وخضار + خبز + لبن', price: '15,000', cat: 'r', course: 'main', pop: true, image: offer(18) },
+  { id: 'liver', name: 'طبق كبدة', sub: 'نوع مقبلات + طرشي وخضار + خبز + عصير طبيعي', price: '8,500', cat: 'r', course: 'main', pop: false, image: offer(19) },
+  { id: 'carrot-rice', name: 'تمن جزر باللحم المفروم', sub: 'تمن 400 غم + نوع مرق + طرشي وخضار + خبز + لبن', price: '6,000', cat: 'r', course: 'main', pop: false, image: offer(20) },
+  { id: 'meatballs', name: 'مرق كرات لحم وبطاطا', sub: 'رز أبيض + طرشي + خبز + لبن', price: '7,500', cat: 'r', course: 'main', pop: false, image: offer(21) },
+];
+
+export const heroImage = offer(18);
+
+// The offer sheets list what is in the box as a run of "+" separated parts.
+// That list is the ingredient chips on the detail screen — no parallel table to
+// keep in step with the menu, and it translates with the rest of the copy.
+export const dishParts = (sub: string): string[] =>
+  sub
+    .split('+')
+    .map((part) => part.trim())
+    .filter(Boolean);
 
 export const getDish = (id: string): Dish | undefined => dishes.find((d) => d.id === id);
+
+// Courses the menu actually carries. Every offer sheet sells a complete meal, so
+// today this is a single entry — and a filter row of four tabs where three are
+// permanently empty is worse than no filter row at all. Screens check the length
+// before drawing one, which also means the row comes back on its own the day the
+// menu grows a starter or a dessert.
+export const menuCourses: Course[] = courseKeys.filter((c) => dishes.some((d) => d.course === c));
 
 // ── Diet boxes ──────────────────────────────────────────────────────────────
 // Curated, goal-based meal-plan boxes — the app's headline subscription product.
@@ -51,9 +122,9 @@ export interface DietBox {
   protein: number; // daily protein (g)
   carbs: number; // daily carbs (g)
   fat: number; // daily fat (g)
-  perMeal: number; // headline subscription price for one meal of the box
-  dishes: string[]; // dish ids that make up the box rotation
-  image: string;
+  dishes: string[]; // dish ids that make up the box rotation — what it costs
+  // is derived from these by `boxTotal` / `boxPerMeal`, never stored
+  image: ImageSourcePropType;
   popular?: boolean;
 }
 
@@ -67,9 +138,8 @@ export const dietBoxes: DietBox[] = [
     protein: 90,
     carbs: 247,
     fat: 50,
-    perMeal: 6000,
-    dishes: ['bagilla', 'jireesh', 'shish', 'salad', 'tashreeb', 'bamia'],
-    image: img('Rice%20and%20beans.jpg'),
+    dishes: ['rice-stews', 'tashreeb', 'maqluba-chicken', 'biryani', 'carrot-rice', 'dolma'],
+    image: offer(13),
     popular: true,
   },
   {
@@ -81,9 +151,8 @@ export const dietBoxes: DietBox[] = [
     protein: 85,
     carbs: 159,
     fat: 36,
-    perMeal: 5500,
-    dishes: ['salad', 'jireesh', 'shish', 'bamia', 'bagilla'],
-    image: img('Fattoush%201.JPG'),
+    dishes: ['noodles', 'chicken-steak', 'fish', 'chicken-fillet', 'dolma'],
+    image: offer(7),
     popular: true,
   },
   {
@@ -95,9 +164,8 @@ export const dietBoxes: DietBox[] = [
     protein: 150,
     carbs: 262,
     fat: 61,
-    perMeal: 7500,
-    dishes: ['shish', 'masgouf', 'tashreeb', 'quzi', 'kubba', 'biryani'],
-    image: img('Iraqi%20Mixed%20Grill%20Platter%20with%20Traditional%20Accompaniments.jpg'),
+    dishes: ['half-chicken', 'quzi', 'chicken-steak', 'liver', 'maqluba-lamb', 'biryani'],
+    image: offer(15),
   },
   {
     id: 'keto',
@@ -108,9 +176,8 @@ export const dietBoxes: DietBox[] = [
     protein: 110,
     carbs: 30,
     fat: 116,
-    perMeal: 8000,
-    dishes: ['shish', 'masgouf', 'kubba', 'bamia'],
-    image: img('Masgouf.jpg'),
+    dishes: ['fish', 'chicken-steak', 'chicken-fillet', 'liver'],
+    image: offer(8),
   },
   {
     id: 'diabetic',
@@ -121,9 +188,8 @@ export const dietBoxes: DietBox[] = [
     protein: 95,
     carbs: 224,
     fat: 47,
-    perMeal: 6000,
-    dishes: ['jireesh', 'bagilla', 'salad', 'bamia', 'shish'],
-    image: img('Harees.JPG'),
+    dishes: ['chicken-fillet', 'fish', 'noodles', 'dolma', 'chicken-steak'],
+    image: offer(11),
   },
 ];
 
@@ -144,103 +210,90 @@ export interface Macros {
   fat: number;
 }
 
-// Per-dish nutrition shown on the dish-detail macros row.
+// Per-offer nutrition shown on the dish-detail macros row. These count the
+// whole box the sheet sells — rice, stew, pickles, bread and the drink — not
+// the headline plate on its own, which is why every figure reads as a full meal.
 export const macros: Record<string, Macros> = {
-  masgouf: { calories: 480, protein: 42, carbs: 18, fat: 22 },
-  quzi: { calories: 820, protein: 45, carbs: 78, fat: 34 },
-  dolma: { calories: 560, protein: 16, carbs: 62, fat: 28 },
-  biryani: { calories: 720, protein: 38, carbs: 82, fat: 26 },
-  tashreeb: { calories: 650, protein: 40, carbs: 66, fat: 24 },
-  kubba: { calories: 480, protein: 22, carbs: 46, fat: 24 },
-  bagilla: { calories: 520, protein: 18, carbs: 74, fat: 16 },
-  bamia: { calories: 430, protein: 28, carbs: 34, fat: 20 },
-  jireesh: { calories: 240, protein: 14, carbs: 32, fat: 6 },
-  shish: { calories: 390, protein: 46, carbs: 12, fat: 16 },
-  salad: { calories: 180, protein: 5, carbs: 16, fat: 11 },
-  kleicha: { calories: 360, protein: 5, carbs: 58, fat: 13 },
+  pasta: { calories: 1080, protein: 44, carbs: 128, fat: 40 },
+  biryani: { calories: 1240, protein: 58, carbs: 152, fat: 42 },
+  'chicken-steak': { calories: 980, protein: 56, carbs: 108, fat: 32 },
+  burger: { calories: 1150, protein: 42, carbs: 130, fat: 50 },
+  dolma: { calories: 860, protein: 26, carbs: 104, fat: 36 },
+  fajita: { calories: 1120, protein: 52, carbs: 118, fat: 44 },
+  noodles: { calories: 620, protein: 20, carbs: 88, fat: 20 },
+  fish: { calories: 1040, protein: 54, carbs: 122, fat: 32 },
+  'maqluba-chicken': { calories: 990, protein: 46, carbs: 118, fat: 34 },
+  mahshi: { calories: 950, protein: 34, carbs: 126, fat: 32 },
+  'chicken-fillet': { calories: 940, protein: 55, carbs: 104, fat: 30 },
+  lasagna: { calories: 880, protein: 40, carbs: 82, fat: 42 },
+  'rice-stews': { calories: 880, protein: 28, carbs: 130, fat: 26 },
+  tashreeb: { calories: 1060, protein: 48, carbs: 132, fat: 34 },
+  'half-chicken': { calories: 1420, protein: 72, carbs: 168, fat: 48 },
+  'maqluba-lamb': { calories: 1080, protein: 48, carbs: 120, fat: 44 },
+  qalya: { calories: 1010, protein: 46, carbs: 122, fat: 36 },
+  quzi: { calories: 1320, protein: 62, carbs: 146, fat: 52 },
+  liver: { calories: 940, protein: 50, carbs: 96, fat: 36 },
+  'carrot-rice': { calories: 960, protein: 38, carbs: 124, fat: 32 },
+  meatballs: { calories: 1010, protein: 42, carbs: 124, fat: 36 },
 };
 
-// Per-dish ingredient chips, referenced by i18n key (detail.ing.*).
-export const ingredientKeys: Record<string, string[]> = {
-  masgouf: [
-    'detail.ing.carp',
-    'detail.ing.molasses',
-    'detail.ing.tomatoOnion',
-    'detail.ing.spices',
-    'detail.ing.bread',
-  ],
-  quzi: [
-    'detail.ing.lamb',
-    'detail.ing.rice',
-    'detail.ing.saffron',
-    'detail.ing.pineNuts',
-    'detail.ing.spices',
-  ],
-  dolma: [
-    'detail.ing.vineLeaves',
-    'detail.ing.rice',
-    'detail.ing.tomatoOnion',
-    'detail.ing.molasses',
-    'detail.ing.spices',
-  ],
-  biryani: [
-    'detail.ing.rice',
-    'detail.ing.chicken',
-    'detail.ing.saffron',
-    'detail.ing.pineNuts',
-    'detail.ing.spices',
-  ],
-  tashreeb: [
-    'detail.ing.chicken',
-    'detail.ing.bread',
-    'detail.ing.chickpeas',
-    'detail.ing.tomatoOnion',
-    'detail.ing.spices',
-  ],
-  kubba: [
-    'detail.ing.bulgur',
-    'detail.ing.lamb',
-    'detail.ing.pineNuts',
-    'detail.ing.spices',
-  ],
-  bagilla: [
-    'detail.ing.rice',
-    'detail.ing.broadBeans',
-    'detail.ing.dill',
-    'detail.ing.ghee',
-  ],
-  bamia: [
-    'detail.ing.okra',
-    'detail.ing.lamb',
-    'detail.ing.tomatoOnion',
-    'detail.ing.rice',
-    'detail.ing.spices',
-  ],
-  jireesh: [
-    'detail.ing.crackedWheat',
-    'detail.ing.chicken',
-    'detail.ing.ghee',
-    'detail.ing.spices',
-  ],
-  shish: [
-    'detail.ing.chicken',
-    'detail.ing.yogurt',
-    'detail.ing.garlic',
-    'detail.ing.spices',
-  ],
-  salad: [
-    'detail.ing.arugula',
-    'detail.ing.pomegranate',
-    'detail.ing.walnuts',
-    'detail.ing.molasses',
-  ],
-  kleicha: [
-    'detail.ing.dates',
-    'detail.ing.flour',
-    'detail.ing.cardamom',
-    'detail.ing.ghee',
-  ],
+// ── Event catering ──────────────────────────────────────────────────────────
+// Party trays as the restaurant actually sells them: same four صواني, same
+// prices, same photos. `serves` is how many guests one tray covers, which is
+// what turns a headcount into a suggested order.
+export type OccasionKey = 'wake' | 'wedding' | 'graduation' | 'corporate';
+
+export const occasionKeys: OccasionKey[] = ['wake', 'wedding', 'graduation', 'corporate'];
+
+export interface CateringTray {
+  id: string;
+  price: number;
+  serves: number;
+  image: string;
+}
+
+export const cateringTrays: CateringTray[] = [
+  { id: 'chicken', price: 24000, serves: 4, image: img('786f82c4-900b-4335-967c-ffe6c224ee8c') },
+  { id: 'ribs', price: 45000, serves: 6, image: img('d57fa68e-b364-4cbe-9fae-abe341afb2e4') },
+  { id: 'shoulder', price: 45000, serves: 6, image: img('37ffc869-84b5-4c96-9646-2d9bd760b31f') },
+  { id: 'mixed', price: 55000, serves: 8, image: img('a1a748a8-89df-4418-a145-555c580bdfdf') },
+];
+
+export const cateringHero = img('74cef388-7e9e-4828-8074-2328f790baea');
+
+export const MIN_GUESTS = 10;
+export const MAX_GUESTS = 500;
+export const GUEST_STEP = 10;
+
+export const getTray = (id: string): CateringTray | undefined =>
+  cateringTrays.find((tr) => tr.id === id);
+
+// Fills the headcount from the largest tray down, so a suggestion is a couple of
+// big trays rather than a dozen small ones.
+export const suggestTrays = (guests: number): Record<string, number> => {
+  const out: Record<string, number> = {};
+  let left = guests;
+  const bySize = [...cateringTrays].sort((a, b) => b.serves - a.serves);
+  for (const tray of bySize) {
+    if (left <= 0) break;
+    const isSmallest = tray === bySize[bySize.length - 1];
+    const n = isSmallest ? Math.ceil(left / tray.serves) : Math.floor(left / tray.serves);
+    if (n > 0) {
+      out[tray.id] = n;
+      left -= n * tray.serves;
+    }
+  }
+  return out;
 };
+
+// ── Support contact ─────────────────────────────────────────────────────────
+// The website is the restaurant's live menu host and is verified. The phone
+// line is a PLACEHOLDER — swap both numbers for the real support line before
+// release, or the call and WhatsApp rows dial nowhere. E.164, no spaces, so
+// `tel:` and `wa.me` can both take them as-is.
+export const SUPPORT_PHONE = '+9647700000000';
+export const SUPPORT_WHATSAPP = '9647700000000';
+export const SUPPORT_SITE = 'https://menu.jareesh.com';
 
 export const formatPrice = (price: string, lang: 'ar' | 'en'): string =>
   lang === 'ar' ? `${price} د.ع` : `IQD ${price}`;
@@ -257,22 +310,38 @@ export const parsePrice = (price: string): number => {
 // The bare currency mark for the active language ('د.ع' / 'IQD'), reusing formatPrice.
 export const currencyMark = (lang: 'ar' | 'en'): string => formatPrice('', lang).trim();
 
+// ── Money ───────────────────────────────────────────────────────────────────
+// Every figure the app works out for itself — a subscription rate, a plan
+// total, a saving — lands on a 250 dinar step. Nobody quotes 6,293 for a meal:
+// a price that looks calculated rather than set reads as a mistake even when
+// the arithmetic behind it is right. The menu's own prices are already round,
+// so this only ever bites on derived numbers.
+export const MONEY_STEP = 250;
+
+export const roundMoney = (amount: number): number =>
+  Math.max(0, Math.round(amount / MONEY_STEP) * MONEY_STEP);
+
 // ── Subscription pricing ────────────────────────────────────────────────────
-// One meal on a subscription costs BASE_PER_MEAL when the rotation sits on the
-// menu average; a box overrides that with its own headline rate. Swapping in
-// pricier or cheaper dishes moves the rate through `basketIndex`, so the number
-// always tracks what the customer actually chose.
-export const BASE_PER_MEAL = 6000;
+// One rule, applied to every dish and every box: a meal on a subscription is
+// its à-la-carte price less this, with the duration discount on top of that.
+// The rate used to be anchored to a per-box headline number divided by a basket
+// index, which meant a box could advertise 7,500 a meal while the meals listed
+// inside it added up to something else entirely. Deriving both from the same
+// per-dish figure is what makes the total under the button equal the meals
+// above it, and it is a rule you can say out loud to a customer.
+export const SUBSCRIPTION_SAVING = 0.15;
 
-export const menuAveragePrice =
-  dishes.reduce((sum, d) => sum + parsePrice(d.price), 0) / dishes.length;
+export const subscriptionPrice = (dishId: string): number =>
+  roundMoney(parsePrice(getDish(dishId)?.price ?? '0') * (1 - SUBSCRIPTION_SAVING));
 
-// A basket's à-la-carte average as a multiple of the menu average. Empty = 1.
-export const basketIndex = (dishIds: string[]): number => {
-  if (dishIds.length === 0) return 1;
-  const total = dishIds.reduce((sum, id) => sum + parsePrice(getDish(id)?.price ?? '0'), 0);
-  return total / dishIds.length / menuAveragePrice;
-};
+// What one rotation of a box costs, and what that works out to per meal.
+// Derived, never stored — a stored headline is a number that goes stale the
+// first time the rotation changes.
+export const boxTotal = (box: DietBox): number =>
+  box.dishes.reduce((sum, id) => sum + subscriptionPrice(id), 0);
+
+export const boxPerMeal = (box: DietBox): number =>
+  box.dishes.length > 0 ? roundMoney(boxTotal(box) / box.dishes.length) : 0;
 
 // Duration is always a raw number of days; the presets are just shortcuts and
 // the discount is a pure function of that number, so a custom 23-day plan is
@@ -292,9 +361,11 @@ export const MIN_DAYS = 3;
 export const MAX_DAYS = 90;
 export const DEFAULT_DAY_COUNT = 30;
 
+// Three tiers, topping out at 15%. A month is the longest commitment that is
+// worth paying for — beyond it the customer earns nothing extra, so 90 days is
+// no longer its own tier and falls into the 30-day one.
 const discountTiers: { minDays: number; disc: number }[] = [
-  { minDays: 90, disc: 0.22 },
-  { minDays: 30, disc: 0.18 },
+  { minDays: 30, disc: 0.15 },
   { minDays: 14, disc: 0.1 },
   { minDays: 7, disc: 0.05 },
   { minDays: 0, disc: 0 },
@@ -326,15 +397,30 @@ export const dayKeys = [
 
 export const DEFAULT_DAYS: number[] = [0, 1, 2, 3, 4];
 
-// i18n keys for the 3 meal times, in breakfast-to-dinner order. How many the
-// customer picks IS the meals-per-day count.
-export const timeKeys = ['time.breakfast', 'time.lunch', 'time.dinner'] as const;
+// A slot is one eating occasion in the daily rotation. The three built-ins carry
+// an i18n key; anything the customer adds carries a literal `name` they typed,
+// so it is shown verbatim in whatever language they wrote it in.
+export interface MealSlot {
+  id: string;
+  labelKey?: string;
+  name?: string;
+  icon: IconName;
+}
 
-export const timeIcons: IconName[] = ['sun', 'utensils', 'moon'];
+export const builtInSlots: MealSlot[] = [
+  { id: 'breakfast', labelKey: 'time.breakfast', icon: 'sun' },
+  { id: 'lunch', labelKey: 'time.lunch', icon: 'utensils' },
+  { id: 'dinner', labelKey: 'time.dinner', icon: 'moon' },
+];
 
-export const DEFAULT_TIMES: number[] = [1, 2];
+export const CUSTOM_SLOT_ICON: IconName = 'clock';
+export const MAX_SLOTS = 6;
 
-export const ALL_TIMES: number[] = timeKeys.map((_, i) => i);
+export const slotLabel = (slot: MealSlot, t: (k: string, f?: string) => string): string =>
+  slot.name ?? (slot.labelKey ? t(slot.labelKey) : slot.id);
+
+// Every plan opens with all three meal times, breakfast included.
+export const defaultSlots = (): MealSlot[] => builtInSlots.map((s) => ({ ...s }));
 
 export type TrackingStatus = 'preparing' | 'ontheway' | 'delivered';
 
@@ -355,10 +441,35 @@ export const trackingHeadlines: Record<TrackingStatus, string> = {
 export const DEFAULT_TRACKING: TrackingStatus = 'ontheway';
 
 export const trackingOrder = {
-  number: '٤٨٢١',
+  number: '4821',
   meal: 'وجبة الغداء',
-  minutes: '١٨',
+  minutes: '18',
 } as const;
+
+// Demo geography for the live-tracking map, Karrada to Jadriyah in Baghdad.
+// Fixed waypoints rather than a routing service: the tracked order is sample
+// data, and a real route would need a directions API and a key for a screen
+// that is not yet wired to a backend. Swap `trackingRoute` for the polyline
+// from that API when one exists — nothing else on the screen has to change.
+export const trackingRestaurant = { lat: 33.3062, lng: 44.4152 } as const;
+export const trackingDestination = { lat: 33.2794, lng: 44.3872 } as const;
+
+export const trackingRoute: [number, number][] = [
+  [33.3062, 44.4152],
+  [33.3018, 44.4131],
+  [33.2971, 44.4088],
+  [33.2926, 44.4031],
+  [33.2884, 44.3979],
+  [33.2843, 44.3931],
+  [33.2794, 44.3872],
+];
+
+// How far along `trackingRoute` the driver sits in each state, 0–1.
+export const trackingProgress: Record<TrackingStatus, number> = {
+  preparing: 0,
+  ontheway: 0.55,
+  delivered: 1,
+};
 
 export const trackingDriver = {
   name: 'كرار محمد',
@@ -387,9 +498,10 @@ export type SaverKey = 'fewerMeals' | 'fewerDays' | 'swapCheaper' | 'longerTerm'
 export const saverKeys: SaverKey[] = ['fewerMeals', 'fewerDays', 'swapCheaper', 'longerTerm'];
 
 // ── Order history ───────────────────────────────────────────────────────────
-// One order is in flight (it opens Tracking); the rest are delivered receipts a
-// customer can reorder from. Lines reference dish ids so names, images and
-// prices always come from `dishes` — an order never carries its own copy.
+// There is no seed list: an order only exists once the customer confirms a
+// cart, and `OrdersContext` owns them from there. Lines reference dish ids so
+// names, images and prices always come from `dishes` — an order never carries
+// its own copy.
 export type OrderStatus = 'active' | 'delivered';
 
 export interface OrderLine {
@@ -400,46 +512,33 @@ export interface OrderLine {
 export interface Order {
   id: string;
   status: OrderStatus;
-  whenKey: string; // i18n key for the relative date shown on the receipt
+  placedAt: number; // epoch ms — the receipt's relative date is derived from this
   lines: OrderLine[];
 }
 
-export const orders: Order[] = [
-  {
-    id: '4821',
-    status: 'active',
-    whenKey: 'orders.when.today',
-    lines: [
-      { dishId: 'masgouf', qty: 1 },
-      { dishId: 'salad', qty: 1 },
-    ],
-  },
-  {
-    id: '4802',
-    status: 'delivered',
-    whenKey: 'orders.when.lastThu',
-    lines: [
-      { dishId: 'dolma', qty: 1 },
-      { dishId: 'kleicha', qty: 1 },
-    ],
-  },
-  {
-    id: '4771',
-    status: 'delivered',
-    whenKey: 'orders.when.lastFri',
-    lines: [{ dishId: 'quzi', qty: 2 }],
-  },
-  {
-    id: '4736',
-    status: 'delivered',
-    whenKey: 'orders.when.lastWeek',
-    lines: [
-      { dishId: 'tashreeb', qty: 1 },
-      { dishId: 'bagilla', qty: 1 },
-      { dishId: 'jireesh', qty: 1 },
-    ],
-  },
-];
+// Order numbers start where the branch's paper book left off, so the first one
+// a customer places doesn't read as #1.
+const FIRST_ORDER_ID = 4821;
+
+export const nextOrderId = (existing: Order[]): string =>
+  String(
+    existing.reduce((max, order) => Math.max(max, Number(order.id) || 0), FIRST_ORDER_ID - 1) + 1,
+  );
+
+// Calendar days apart, not 24-hour chunks: an order placed last night is
+// "yesterday" at breakfast, not "today" until the clock catches up.
+const startOfDay = (ms: number): number => {
+  const d = new Date(ms);
+  d.setHours(0, 0, 0, 0);
+  return d.getTime();
+};
+
+export const daysSince = (placedAt: number, now: number = Date.now()): number =>
+  Math.max(0, Math.round((startOfDay(now) - startOfDay(placedAt)) / 86_400_000));
+
+// Flat fee, charged once per order. Lives here rather than in CartScreen so a
+// receipt adds up the same way the checkout that produced it did.
+export const DELIVERY_FEE = 2000;
 
 export const orderTotal = (order: Order): number =>
   order.lines.reduce((sum, line) => {
@@ -449,3 +548,11 @@ export const orderTotal = (order: Order): number =>
 
 export const orderItemCount = (order: Order): number =>
   order.lines.reduce((sum, line) => sum + line.qty, 0);
+
+// What the customer actually paid — the number a receipt should lead with.
+export const orderGrandTotal = (order: Order): number => orderTotal(order) + DELIVERY_FEE;
+
+export const orderLineTotal = (line: OrderLine): number => {
+  const dish = getDish(line.dishId);
+  return dish ? parsePrice(dish.price) * line.qty : 0;
+};
