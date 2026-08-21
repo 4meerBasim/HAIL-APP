@@ -34,10 +34,10 @@ export default function MealRow({ meal, onPress, onRemove, style }: MealRowProps
       disabled={!onPress}
       accessibilityRole="button"
       accessibilityLabel={name}
-      style={[styles.row, shadow.card, style]}
+      style={[styles.row, shadow.lifted, style]}
     >
       <View style={styles.top}>
-        {dish ? <Image source={{ uri: dish.image }} style={styles.thumb} /> : null}
+        {dish ? <Image source={dish.image} style={styles.thumb} /> : null}
 
         <View style={styles.text}>
           <Text style={styles.name} numberOfLines={1}>
@@ -48,7 +48,6 @@ export default function MealRow({ meal, onPress, onRemove, style }: MealRowProps
               {sub}
             </Text>
           ) : null}
-          <PricePill value={formatPrice(groupNumber(meal.price), lang)} size="sm" />
         </View>
 
         {onRemove ? (
@@ -66,17 +65,21 @@ export default function MealRow({ meal, onPress, onRemove, style }: MealRowProps
       </View>
 
       <MacroRow macros={meal.macros} size="sm" />
+
+      <PricePill value={formatPrice(groupNumber(meal.price), lang)} size="sm" />
     </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
   row: {
-    backgroundColor: colors.white,
-    borderRadius: radius.card,
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.lg,
-    gap: spacing.lg,
+    backgroundColor: colors.card,
+    borderRadius: radius.xxl,
+    borderWidth: 1,
+    borderColor: colors.sand,
+    paddingHorizontal: spacing.xxl,
+    paddingVertical: spacing.xl,
+    gap: spacing.xl,
   },
   top: {
     flexDirection: 'row',
@@ -84,10 +87,10 @@ const styles = StyleSheet.create({
     gap: spacing.xl,
   },
   thumb: {
-    width: 56,
-    height: 56,
-    borderRadius: radius.sm,
-    backgroundColor: colors.sand,
+    width: 64,
+    height: 64,
+    borderRadius: radius.md,
+    backgroundColor: colors.tile,
   },
   text: {
     flex: 1,
@@ -95,13 +98,13 @@ const styles = StyleSheet.create({
   },
   name: {
     ...type.title,
-    fontSize: 13.5,
+    fontSize: 15.5,
     fontFamily: fonts.bold,
     color: colors.ink,
   },
   sub: {
     ...type.caption,
-    fontSize: 11,
+    fontSize: 12.5,
     color: colors.muted2,
   },
   remove: {

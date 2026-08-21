@@ -1,11 +1,12 @@
 import React from 'react';
-import { StyleProp, StyleSheet, TouchableOpacity, View, ViewStyle } from 'react-native';
+import { StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 import Text from './AppText';
 import Icon from './Icon';
+import PressScale from './PressScale';
 import { type IconPath, icons } from './icons';
-import { colors, fonts, radius, spacing, type } from '../theme';
+import { colors, fonts, radius, shadow, spacing, type } from '../theme';
 import { useLanguage } from '../i18n/LanguageContext';
-import { toArabicDigits } from '../i18n/digits';
+import { formatNumber } from '../i18n/digits';
 
 const HIT = { top: 8, bottom: 8, left: 8, right: 8 };
 
@@ -36,7 +37,7 @@ export default function Stepper({
   iconColor = colors.muted,
   style,
 }: StepperProps) {
-  const { t, lang } = useLanguage();
+  const { t } = useLanguage();
 
   return (
     <View style={[styles.row, style]}>
@@ -46,12 +47,11 @@ export default function Stepper({
       </View>
 
       <View style={styles.controls}>
-        <TouchableOpacity
-          activeOpacity={0.7}
+        <PressScale
           disabled={!canDecrement}
           onPress={onDecrement}
+          scaleTo={0.88}
           hitSlop={HIT}
-          accessibilityRole="button"
           accessibilityLabel={`${t('common.decrease')} ${label ?? ''}`.trim()}
           accessibilityState={{ disabled: !canDecrement }}
           style={[styles.btn, !canDecrement && styles.btnOff]}
@@ -62,19 +62,18 @@ export default function Stepper({
             color={canDecrement ? accent : colors.faint2}
             strokeWidth={2.6}
           />
-        </TouchableOpacity>
+        </PressScale>
 
         <View style={styles.readout}>
-          <Text style={styles.value}>{toArabicDigits(value, lang)}</Text>
+          <Text style={styles.value}>{formatNumber(value)}</Text>
           {suffix ? <Text style={styles.suffix}>{suffix}</Text> : null}
         </View>
 
-        <TouchableOpacity
-          activeOpacity={0.7}
+        <PressScale
           disabled={!canIncrement}
           onPress={onIncrement}
+          scaleTo={0.88}
           hitSlop={HIT}
-          accessibilityRole="button"
           accessibilityLabel={`${t('common.increase')} ${label ?? ''}`.trim()}
           accessibilityState={{ disabled: !canIncrement }}
           style={[styles.btn, !canIncrement && styles.btnOff]}
@@ -85,7 +84,7 @@ export default function Stepper({
             color={canIncrement ? accent : colors.faint2}
             strokeWidth={2.6}
           />
-        </TouchableOpacity>
+        </PressScale>
       </View>
     </View>
   );
@@ -114,17 +113,18 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   btn: {
-    width: 34,
-    height: 34,
+    width: 38,
+    height: 38,
     borderRadius: radius.pill,
-    borderWidth: 1.5,
-    borderColor: colors.sand,
     backgroundColor: colors.white,
     alignItems: 'center',
     justifyContent: 'center',
+    ...shadow.card,
   },
   btnOff: {
     backgroundColor: colors.sandChip,
+    shadowOpacity: 0,
+    elevation: 0,
   },
   readout: {
     minWidth: 66,
@@ -135,13 +135,13 @@ const styles = StyleSheet.create({
   },
   value: {
     fontFamily: fonts.bold,
-    fontSize: 17,
+    fontSize: 18,
     color: colors.ink,
     textAlign: 'center',
   },
   suffix: {
     fontFamily: fonts.medium,
-    fontSize: 11,
+    fontSize: 12.5,
     color: colors.muted,
   },
 });

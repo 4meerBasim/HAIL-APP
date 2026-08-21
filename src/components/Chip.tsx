@@ -1,6 +1,7 @@
 import React from 'react';
-import { StyleProp, StyleSheet, TouchableOpacity, ViewStyle } from 'react-native';
+import { StyleProp, StyleSheet, ViewStyle } from 'react-native';
 import Text from './AppText';
+import PressScale from './PressScale';
 import { colors, fonts, radius } from '../theme';
 
 export type ChipShape = 'pill' | 'rounded';
@@ -28,15 +29,14 @@ export default function Chip({
   full = false,
   style,
 }: ChipProps) {
-  const bg = selected ? accent : colors.white;
+  const bg = selected ? accent : colors.card;
   const border = selected ? accent : colors.sand;
   const fg = selected ? colors.white : restColor;
 
   return (
-    <TouchableOpacity
-      activeOpacity={0.85}
+    <PressScale
       onPress={onPress}
-      accessibilityRole="button"
+      scaleTo={0.95}
       accessibilityState={{ selected }}
       style={[
         styles.chip,
@@ -61,26 +61,26 @@ export default function Chip({
       {sublabel ? (
         <Text style={[styles.sublabel, { color: fg }]}>{sublabel}</Text>
       ) : null}
-    </TouchableOpacity>
+    </PressScale>
   );
 }
 
 const styles = StyleSheet.create({
   chip: {
-    borderWidth: 1.5,
-    paddingVertical: 9,
-    paddingHorizontal: 14,
+    borderWidth: 1,
+    paddingVertical: 11,
+    paddingHorizontal: 18,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 2,
   },
   label: {
-    fontSize: 13,
+    fontSize: 15,
     textAlign: 'center',
   },
   sublabel: {
     fontFamily: fonts.regular,
-    fontSize: 10.5,
+    fontSize: 12.5,
     opacity: 0.8,
     textAlign: 'center',
   },

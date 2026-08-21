@@ -16,7 +16,7 @@ export default function Card({
   children,
   onPress,
   padding = 14,
-  background = colors.white,
+  background = colors.card,
   raised = false,
   style,
   accessibilityLabel,
@@ -45,7 +45,12 @@ export default function Card({
 }
 
 const styles = StyleSheet.create({
+  // The hairline is not decoration — a white card on warm paper needs an edge as
+  // well as a shadow, or it dissolves the moment the shadow is clipped by a
+  // parent with overflow hidden.
   card: {
-    borderRadius: radius.lg,
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    borderColor: colors.sand,
   },
 });

@@ -59,7 +59,7 @@ const styles = StyleSheet.create({
   },
   action: {
     fontFamily: fonts.semibold,
-    fontSize: 12,
-    color: colors.teal,
+    fontSize: 14.5,
+    color: colors.tealText,
   },
 });
