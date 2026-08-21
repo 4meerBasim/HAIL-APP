@@ -1,30 +1,40 @@
-import React, { useEffect } from 'react';
-import { Image, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import React, { useEffect, useState } from 'react';
+import { ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Text from '../components/AppText';
 import Screen from '../components/Screen';
 import Icon from '../components/Icon';
 import { icons } from '../components/icons';
 import Card from '../components/Card';
+import Chip from '../components/Chip';
+import Hero from '../components/Hero';
 import Button from '../components/Button';
 import MealRow from '../components/MealRow';
 import MacroRow from '../components/MacroRow';
 import PricePill from '../components/PricePill';
-import { colors, radius, scrim, shadow, spacing, type } from '../theme';
+import { colors, radius, shadow, spacing, type } from '../theme';
 import { useLanguage } from '../i18n/LanguageContext';
-import { toArabicDigits } from '../i18n/digits';
-import { usePlan } from '../state/PlanContext';
-import { type BoxGoal, boxDaily, formatPrice, getBox, groupNumber } from '../data/menu';
+import { formatNumber } from '../i18n/digits';
+import { cycleNoteKey, rotationDays, usePlan } from '../state/PlanContext';
+import {
+  type BoxGoal,
+  boxDaily,
+  boxPerMeal,
+  boxTotal,
+  formatPrice,
+  getBox,
+  groupNumber,
+  slotLabel,
+} from '../data/menu';
 import type { RootStackScreenProps } from '../navigation/RootNavigator';
 
-const SCRIM = [scrim.heroFade, scrim.hero] as const;
 
 export default function BoxDetailScreen({ route, navigation }: RootStackScreenProps<'BoxDetail'>) {
   const { id } = route.params;
   const { t, lang, isRTL } = useLanguage();
   const insets = useSafeAreaInsets();
   const { plan, meals, pricing, dailyMacros, startFromBox } = usePlan();
+  const [day, setDay] = useState(0);
 
   const box = getBox(id);
 
@@ -35,7 +45,7 @@ export default function BoxDetailScreen({ route, navigation }: RootStackScreenPr
 
   if (!box) {
     return (
-      <Screen>
+      <Screen texture>
         <View />
       </Screen>
     );
@@ -45,14 +55,21 @@ export default function BoxDetailScreen({ route, navigation }: RootStackScreenPr
   const name = t(`box.${box.id}.name`);
   const seeded = plan.boxId === box.id && plan.dishIds.length > 0;
   const daily = seeded ? dailyMacros : boxDaily(box);
-  const perMeal = seeded ? pricing.perMeal : box.perMeal;
+  // The headline is the sum of the very meals listed above it, so the footer can
+  // be checked against the list by eye. Once the plan is seeded from this box
+  // both sides are the same figures anyway; tuning the rotation moves both.
+  const mealCount = seeded ? meals.length : box.dishes.length;
+  const total = seeded ? meals.reduce((sum, m) => sum + m.price, 0) : boxTotal(box);
+  const perMeal = seeded ? pricing.perMeal : boxPerMeal(box);
+  // The rotation broken into days, shown one day at a time: six cards in a row
+  // is a pile of dishes, three under a day tab is a schedule.
+  const days = rotationDays(plan, meals);
+  const activeDay = Math.min(day, Math.max(0, days.length - 1));
+  const cycleNote = t(cycleNoteKey(days.length)).replace('{n}', formatNumber(days.length));
 
   return (
-    <Screen scroll={false} edges={['bottom', 'left', 'right']}>
-      <View style={styles.hero}>
-        <Image source={{ uri: box.image }} style={StyleSheet.absoluteFill} resizeMode="cover" />
-        <LinearGradient colors={SCRIM} locations={[0.3, 1]} style={StyleSheet.absoluteFill} />
-
+    <Screen scroll={false} edges={['bottom', 'left', 'right']} texture>
+      <Hero source={box.image} scrim style={styles.hero}>
         <TouchableOpacity
           activeOpacity={0.85}
           onPress={() => navigation.goBack()}
@@ -82,7 +99,7 @@ export default function BoxDetailScreen({ route, navigation }: RootStackScreenPr
             </Text>
           </View>
         </View>
-      </View>
+      </Hero>
 
       <View style={styles.sheet}>
         <ScrollView
@@ -94,27 +111,57 @@ export default function BoxDetailScreen({ route, navigation }: RootStackScreenPr
 
           <View style={styles.group}>
             <Text style={styles.groupLabel}>{t('planMacros.perDay')}</Text>
-            <Card padding={spacing.xl} style={styles.macroCard}>
-              <View style={styles.kcalRow}>
-                <Text style={[styles.kcal, { color: accent }]}>
-                  {toArabicDigits(daily.calories, lang)}
-                </Text>
-                <Text style={styles.kcalUnit}>{t('plan.kcalDay')}</Text>
-              </View>
+            <Card padding={spacing.xl}>
               <MacroRow macros={daily} />
             </Card>
           </View>
 
           <View style={styles.group}>
             <Text style={styles.groupLabel}>{t('box.detail.inside')}</Text>
+
+            {days.length > 1 ? (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.dayTabs}
+              >
+                {days.map((_, i) => (
+                  <Chip
+                    key={`day-${i}`}
+                    label={t('rotation.day').replace('{n}', formatNumber(i + 1))}
+                    selected={i === activeDay}
+                    onPress={() => setDay(i)}
+                    accent={accent}
+                  />
+                ))}
+              </ScrollView>
+            ) : null}
+
+            {days.length > 0 ? <Text style={styles.cycle}>{cycleNote}</Text> : null}
+
             <View style={styles.meals}>
-              {meals.map((meal) => (
-                <MealRow
-                  key={meal.dishId}
-                  meal={meal}
-                  onPress={() => navigation.navigate('DishDetail', { id: meal.dishId })}
-                />
-              ))}
+              {(days[activeDay] ?? []).map((meal, slotIndex) => {
+                const slot = plan.mealSlots[slotIndex];
+                return (
+                  <View key={meal.dishId} style={styles.slot}>
+                    {slot ? (
+                      <View style={styles.slotHead}>
+                        <Icon
+                          path={icons[slot.icon]}
+                          size={13}
+                          color={colors.muted2}
+                          strokeWidth={2}
+                        />
+                        <Text style={styles.slotLabel}>{slotLabel(slot, t)}</Text>
+                      </View>
+                    ) : null}
+                    <MealRow
+                      meal={meal}
+                      onPress={() => navigation.navigate('DishDetail', { id: meal.dishId })}
+                    />
+                  </View>
+                );
+              })}
             </View>
           </View>
 
@@ -143,20 +190,22 @@ export default function BoxDetailScreen({ route, navigation }: RootStackScreenPr
 
         <View style={styles.footer}>
           <View style={styles.priceRow}>
-            <Text style={styles.priceLabel}>{t('box.detail.from')}</Text>
-            <PricePill
-              value={formatPrice(groupNumber(perMeal), lang)}
-              note={t('box.detail.perMeal')}
-            />
+            <View style={styles.priceText}>
+              <Text style={styles.priceLabel}>{t('box.detail.total')}</Text>
+              <Text style={styles.priceMeta} numberOfLines={2}>
+                {`${formatNumber(mealCount)} ${t('plan.mealsUnit')} · ${t(
+                  'boxes.avgPerMeal',
+                ).replace('{p}', formatPrice(groupNumber(perMeal), lang))}`}
+              </Text>
+            </View>
+            <PricePill value={formatPrice(groupNumber(total), lang)} />
           </View>
           <Button
             label={t('box.detail.subscribe')}
             variant="primary"
             size="lg"
             full
-            color={accent}
             onPress={() => navigation.navigate('Subscribe')}
-            style={shadow.teal}
           />
         </View>
       </View>
@@ -166,8 +215,8 @@ export default function BoxDetailScreen({ route, navigation }: RootStackScreenPr
 
 const styles = StyleSheet.create({
   hero: {
-    height: 270,
-    flexShrink: 0,
+    // Height is the photo's own, set by Hero — only the fallback colour is
+    // ours, for the moment before the image decodes.
     backgroundColor: colors.tealDark,
   },
   backBtn: {
@@ -176,7 +225,7 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: radius.pill,
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     alignItems: 'center',
     justifyContent: 'center',
     ...shadow.card,
@@ -228,8 +277,6 @@ const styles = StyleSheet.create({
   },
   desc: {
     ...type.body,
-    fontSize: 13,
-    lineHeight: 24,
     color: colors.body,
   },
   group: {
@@ -239,23 +286,30 @@ const styles = StyleSheet.create({
     ...type.bodyStrong,
     color: colors.ink,
   },
-  macroCard: {
-    gap: spacing.xl,
-  },
-  kcalRow: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: spacing.sm,
-  },
-  kcal: {
-    ...type.h1,
-  },
-  kcalUnit: {
-    ...type.caption,
-    color: colors.muted2,
-  },
   meals: {
     gap: spacing.lg,
+  },
+  dayTabs: {
+    gap: spacing.md,
+    alignItems: 'center',
+    paddingTop: spacing.xs,
+  },
+  cycle: {
+    ...type.caption,
+    color: colors.muted2,
+    paddingBottom: spacing.xs,
+  },
+  slot: {
+    gap: spacing.sm,
+  },
+  slotHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  slotLabel: {
+    ...type.captionStrong,
+    color: colors.muted2,
   },
   tune: {
     flexDirection: 'row',
@@ -270,7 +324,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: radius.sm,
-    backgroundColor: colors.healthyBg,
+    backgroundColor: colors.tile,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -299,8 +353,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: spacing.xl,
+  },
+  priceText: {
+    flex: 1,
+    gap: 1,
   },
   priceLabel: {
+    ...type.bodyStrong,
+    color: colors.ink,
+  },
+  priceMeta: {
     ...type.caption,
     color: colors.muted,
   },

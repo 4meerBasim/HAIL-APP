@@ -1,5 +1,5 @@
-import React, { useMemo } from 'react';
-import { ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import React, { useMemo, useRef } from 'react';
+import { Animated, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Text from '../components/AppText';
 import Screen from '../components/Screen';
@@ -10,8 +10,13 @@ import Button from '../components/Button';
 import Chip from '../components/Chip';
 import Stepper from '../components/Stepper';
 import MacroRow from '../components/MacroRow';
+import PressScale from '../components/PressScale';
+import PatternFill from '../components/PatternFill';
+import Reveal from '../components/Reveal';
+import { useCountUp, usePop, usePulse, useToggle } from '../animation';
 import { colors, fonts, overlay, radius, shadow, spacing, type } from '../theme';
 import { useLanguage } from '../i18n/LanguageContext';
+import UpcomingMeals from '../components/UpcomingMeals';
 import { usePlan, saverSaving } from '../state/PlanContext';
 import { useAuth } from '../state/AuthContext';
 import {
@@ -25,10 +30,8 @@ import {
   formatPrice,
   groupNumber,
   saverKeys,
-  timeIcons,
-  timeKeys,
 } from '../data/menu';
-import { toArabicDigits } from '../i18n/digits';
+import { formatNumber } from '../i18n/digits';
 import type { RootStackScreenProps } from '../navigation/RootNavigator';
 
 const PLAN_GRADIENT = [colors.tealDark, colors.teal] as const;
@@ -40,28 +43,91 @@ const SAVER_ICON: Record<SaverKey, { path: IconPath; color: string; tint: string
   longerTerm: { path: icons.hourglass, color: colors.greenDark, tint: colors.greenBg },
 };
 
+// Selected state crossfades a filled layer over the resting tile rather than
+// swapping backgroundColor, which the native driver can't tween. The fill is
+// inset negatively so it covers the resting border instead of sitting inside it.
+function DayTile({ label, on, onPress }: { label: string; on: boolean; onPress: () => void }) {
+  const anim = useToggle(on);
+  const fill = {
+    opacity: anim,
+    transform: [{ scale: anim.interpolate({ inputRange: [0, 1], outputRange: [0.8, 1] }) }],
+  };
+
+  return (
+    <PressScale
+      onPress={onPress}
+      scaleTo={0.92}
+      style={styles.day}
+      accessibilityState={{ selected: on }}
+      accessibilityLabel={label}
+    >
+      <Animated.View style={[styles.dayFill, fill]} />
+      <Text style={styles.dayText}>{label}</Text>
+      <Animated.View style={[styles.tileOverlay, { opacity: anim }]} pointerEvents="none">
+        <Text style={[styles.dayText, styles.dayTextOn]}>{label}</Text>
+      </Animated.View>
+    </PressScale>
+  );
+}
+
+function SavedPill({ label }: { label: string }) {
+  const pop = usePop();
+  return (
+    <Animated.View style={[styles.savedPill, pop]}>
+      <Text style={styles.savedText}>{label}</Text>
+    </Animated.View>
+  );
+}
+
 export default function SubscribeScreen({ navigation }: RootStackScreenProps<'Subscribe'>) {
-  const { t, lang } = useLanguage();
+  const { t, lang, isRTL } = useLanguage();
   const { status } = useAuth();
   const {
     plan,
+    meals,
     pricing,
     dailyMacros,
-    toggleMealTime,
     setDayCount,
     toggleWeekday,
     applySaver,
     confirm,
   } = usePlan();
 
+  const chevron = isRTL ? icons.chevronLeft : icons.chevronRight;
+  const scrollY = useRef(new Animated.Value(0)).current;
+
+  // Savers that can actually pay out lead, so the grid opens with what's worth
+  // tapping instead of four tiles the user has to read to rule out.
   const savings = useMemo(
-    () => saverKeys.map((key) => ({ key, amount: saverSaving(plan, key) })),
+    () =>
+      saverKeys
+        .map((key) => ({ key, amount: saverSaving(plan, key) }))
+        .sort((a, b) => b.amount - a.amount),
     [plan],
   );
 
+  const bestPreset = useMemo(
+    () =>
+      durationPresets.reduce((best, p) =>
+        discountForDays(p.days) > discountForDays(best.days) ? p : best,
+      ),
+    [],
+  );
+
   const mark = currencyMark(lang);
-  const planSummary = `${toArabicDigits(pricing.mealsPerDay, lang)} ${t('plan.mealsUnit')} × ${toArabicDigits(plan.weekdays.length, lang)} ${t('plan.daysWeekly')}`;
-  const comparison = t('plan.instead').replace('{p}', formatPrice(groupNumber(pricing.perMeal), lang));
+  const planSummary = `${formatNumber(pricing.mealsPerDay)} ${t('plan.mealsUnit')} × ${formatNumber(plan.weekdays.length)} ${t('plan.daysWeekly')}`;
+
+  // mealCount is activeDays × mealsPerDay, so a zero total is always one of two
+  // empty pickers. Naming which one beats a dead button with no explanation.
+  const blocked = pricing.mealCount === 0;
+
+  const shownTotal = useCountUp(pricing.total);
+  const totalPulse = usePulse(pricing.total);
+  const headerLine = scrollY.interpolate({
+    inputRange: [0, 14],
+    outputRange: [0, 1],
+    extrapolate: 'clamp',
+  });
 
   const onConfirm = () => {
     if (status !== 'authed') {
@@ -76,7 +142,7 @@ export default function SubscribeScreen({ navigation }: RootStackScreenProps<'Su
   };
 
   return (
-    <Screen scroll={false}>
+    <Screen scroll={false} texture>
       <View style={styles.header}>
         <TouchableOpacity
           activeOpacity={0.7}
@@ -88,27 +154,42 @@ export default function SubscribeScreen({ navigation }: RootStackScreenProps<'Su
         >
           <Icon path={icons.close} size={16} color={colors.ink} strokeWidth={2.4} />
         </TouchableOpacity>
-        <Text style={styles.title}>{t('subscribe.title')}</Text>
+        <View style={styles.headerText}>
+          <Text style={styles.title}>{t('subscribe.title')}</Text>
+        </View>
+        <Animated.View style={[styles.headerLine, { opacity: headerLine }]} pointerEvents="none" />
       </View>
 
-      <ScrollView
+      <Animated.ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        scrollEventThrottle={16}
+        onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
+          useNativeDriver: true,
+        })}
       >
-        <View style={styles.group}>
+        <Reveal index={0} style={styles.group}>
           <Text style={styles.groupLabel}>{t('subscribe.duration')}</Text>
           <View style={styles.presetRow}>
             {durationPresets.map((p) => (
-              <Chip
-                key={p.key}
-                label={`${toArabicDigits(p.days, lang)} ${t('unit.days')}`}
-                sublabel={`${t('plan.discount')} ${toArabicDigits(Math.round(discountForDays(p.days) * 100), lang)}${t('common.percent')}`}
-                selected={plan.dayCount === p.days}
-                onPress={() => setDayCount(p.days)}
-                shape="rounded"
-                full
-              />
+              <View key={p.key} style={styles.presetWrap}>
+                <Chip
+                  label={`${formatNumber(p.days)} ${t('unit.days')}`}
+                  sublabel={`${t('plan.discount')} ${formatNumber(Math.round(discountForDays(p.days) * 100))}${t('common.percent')}`}
+                  selected={plan.dayCount === p.days}
+                  onPress={() => setDayCount(p.days)}
+                  shape="rounded"
+                  full
+                />
+                {p.key === bestPreset.key ? (
+                  <View style={styles.bestWrap} pointerEvents="none">
+                    <View style={styles.bestBadge}>
+                      <Text style={styles.bestText}>{t('subscribe.bestValue')}</Text>
+                    </View>
+                  </View>
+                ) : null}
+              </View>
             ))}
           </View>
           <Card padding={spacing.xxl} style={styles.stepperCard}>
@@ -123,82 +204,71 @@ export default function SubscribeScreen({ navigation }: RootStackScreenProps<'Su
               canIncrement={plan.dayCount < MAX_DAYS}
             />
             <Text style={styles.stepperNote}>
-              {`${t('plan.discount')} ${toArabicDigits(Math.round(pricing.discount * 100), lang)}${t('common.percent')} · ${toArabicDigits(pricing.activeDays, lang)} ${t('subscribe.deliveryDays')}`}
+              {`${t('plan.discount')} ${formatNumber(Math.round(pricing.discount * 100))}${t('common.percent')} · ${formatNumber(pricing.activeDays)} ${t('subscribe.deliveryDays')}`}
             </Text>
           </Card>
-        </View>
+        </Reveal>
 
-        <View style={styles.group}>
-          <Text style={styles.groupLabel}>{t('plan.days')}</Text>
+        <Reveal index={1} style={styles.group}>
+          <View style={styles.groupHead}>
+            <Text style={styles.groupLabel}>{t('plan.days')}</Text>
+            <Text style={[styles.groupHint, plan.weekdays.length === 0 && styles.groupHintWarn]}>
+              {`${formatNumber(plan.weekdays.length)} ${t('unit.days')}`}
+            </Text>
+          </View>
           <View style={styles.weekRow}>
-            {dayKeys.map((key, i) => {
-              const on = plan.weekdays.includes(i);
-              return (
-                <TouchableOpacity
-                  key={key}
-                  activeOpacity={0.85}
-                  onPress={() => toggleWeekday(i)}
-                  accessibilityRole="button"
-                  accessibilityLabel={t(key)}
-                  accessibilityState={{ selected: on }}
-                  style={[styles.day, on ? styles.dayOn : styles.dayOff]}
-                >
-                  <Text style={[styles.dayText, on && styles.dayTextOn]}>{t(key)}</Text>
-                </TouchableOpacity>
-              );
-            })}
+            {dayKeys.map((key, i) => (
+              <DayTile
+                key={key}
+                label={t(key)}
+                on={plan.weekdays.includes(i)}
+                onPress={() => toggleWeekday(i)}
+              />
+            ))}
           </View>
-        </View>
+        </Reveal>
 
-        <View style={styles.group}>
-          <Text style={styles.groupLabel}>{t('plan.mealsQ')}</Text>
-          <View style={styles.timeRow}>
-            {timeKeys.map((key, i) => {
-              const on = plan.mealTimes.includes(i);
-              return (
-                <TouchableOpacity
-                  key={key}
-                  activeOpacity={0.85}
-                  onPress={() => toggleMealTime(i)}
-                  accessibilityRole="button"
-                  accessibilityLabel={t(key)}
-                  accessibilityState={{ selected: on }}
-                  style={[styles.time, on ? styles.timeOn : styles.timeOff]}
-                >
-                  <Icon
-                    path={icons[timeIcons[i]]}
-                    size={17}
-                    color={on ? colors.white : colors.muted}
-                    strokeWidth={1.9}
-                  />
-                  <Text style={[styles.timeText, on && styles.timeTextOn]}>{t(key)}</Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </View>
+        {meals.length > 0 ? (
+          <Reveal index={2} style={styles.group}>
+            <View style={styles.groupHead}>
+              <Text style={styles.groupLabel}>{t('builder.yourMeals')}</Text>
+              <PressScale
+                onPress={() => navigation.navigate('PlanMenu')}
+                scaleTo={0.94}
+                accessibilityLabel={t('planMenu.show')}
+                style={styles.showMenuBtn}
+              >
+                <Text style={styles.showMenuText}>{t('planMenu.show')}</Text>
+                <Icon path={chevron} size={13} color={colors.tealText} strokeWidth={2.4} />
+              </PressScale>
+            </View>
+            <UpcomingMeals
+              plan={plan}
+              meals={meals}
+              onPressMeal={(id) => navigation.navigate('DishDetail', { id })}
+            />
+          </Reveal>
+        ) : null}
 
         {pricing.mealCount > 0 ? (
-          <View style={styles.group}>
+          <Reveal index={3} style={styles.group}>
             <Text style={styles.groupLabel}>{t('planMacros.perDay')}</Text>
             <Card padding={spacing.xl}>
               <MacroRow macros={dailyMacros} />
             </Card>
-          </View>
+          </Reveal>
         ) : null}
 
-        <View style={styles.group}>
+        <Reveal index={4} style={styles.group}>
           <Text style={styles.groupLabel}>{t('subscribe.savers')}</Text>
           <View style={styles.saverGrid}>
             {savings.map(({ key, amount }) => {
               const off = amount <= 0;
               return (
-                <TouchableOpacity
+                <PressScale
                   key={key}
-                  activeOpacity={0.85}
                   disabled={off}
                   onPress={() => applySaver(key)}
-                  accessibilityRole="button"
                   accessibilityLabel={t(`saver.${key}`)}
                   accessibilityState={{ disabled: off }}
                   style={[styles.saver, shadow.card, off && styles.saverOff]}
@@ -219,57 +289,63 @@ export default function SubscribeScreen({ navigation }: RootStackScreenProps<'Su
                       {off ? t('common.dash') : `−${groupNumber(amount)} ${mark} · ${t('unit.perWeek')}`}
                     </Text>
                   </View>
-                </TouchableOpacity>
+                </PressScale>
               );
             })}
           </View>
-        </View>
-      </ScrollView>
+        </Reveal>
+      </Animated.ScrollView>
 
-      <View style={styles.footer}>
+      <Reveal index={5} style={styles.footer}>
         <LinearGradient
           colors={PLAN_GRADIENT}
           start={{ x: 0.15, y: 0 }}
           end={{ x: 0.85, y: 1 }}
           style={[styles.summary, shadow.raised]}
         >
+          <PatternFill radius={radius.xxl} />
           <View style={styles.summaryHead}>
             <Text style={styles.summaryMeta} numberOfLines={1}>
               {planSummary}
             </Text>
             {pricing.saved > 0 ? (
-              <View style={styles.savedPill}>
-                <Text style={styles.savedText}>
-                  {`${t('plan.save')} ${formatPrice(groupNumber(pricing.saved), lang)}`}
-                </Text>
-              </View>
+              <SavedPill
+                label={`${t('plan.save')} ${formatPrice(groupNumber(pricing.saved), lang)}`}
+              />
             ) : null}
           </View>
 
-          <View style={styles.totalRow}>
-            <Text style={styles.total}>{groupNumber(pricing.total)}</Text>
+          <Animated.View style={[styles.totalRow, { transform: [{ scale: totalPulse }] }]}>
+            <Text style={styles.total}>{groupNumber(shownTotal)}</Text>
             <Text style={styles.totalUnit}>
-              {`${mark} / ${toArabicDigits(plan.dayCount, lang)} ${t('unit.days')}`}
+              {`${mark} / ${formatNumber(plan.dayCount)} ${t('unit.days')}`}
             </Text>
-          </View>
+          </Animated.View>
 
-          {pricing.mealCount > 0 ? (
+          {blocked ? (
+            <View style={styles.hintRow}>
+              <Icon path={icons.calendar} size={13} color={colors.goldLight} strokeWidth={2.2} />
+              <Text style={styles.hint} numberOfLines={1}>
+                {t('subscribe.needDays')}
+              </Text>
+            </View>
+          ) : (
             <Text style={styles.compare}>
-              {`${formatPrice(groupNumber(pricing.perWeek), lang)} ${t('unit.perWeek')} · ${comparison}`}
+              {`${formatPrice(groupNumber(pricing.perWeek), lang)} ${t('unit.perWeek')}`}
             </Text>
-          ) : null}
+          )}
 
           <Button
             label={t('subscribe.confirm')}
-            variant="light"
+            variant="primary"
             size="lg"
             full
-            disabled={pricing.mealCount === 0}
+            disabled={blocked}
             onPress={onConfirm}
             style={styles.cta}
           />
         </LinearGradient>
-      </View>
+      </Reveal>
     </Screen>
   );
 }
@@ -283,11 +359,23 @@ const styles = StyleSheet.create({
     paddingTop: spacing.md,
     paddingBottom: spacing.xxl,
   },
+  headerText: {
+    flex: 1,
+    gap: 1,
+  },
+  headerLine: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 1,
+    backgroundColor: colors.sand,
+  },
   backBtn: {
     width: 36,
     height: 36,
     borderRadius: radius.pill,
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     alignItems: 'center',
     justifyContent: 'center',
     ...shadow.card,
@@ -295,7 +383,6 @@ const styles = StyleSheet.create({
   title: {
     ...type.h1,
     color: colors.ink,
-    flex: 1,
   },
   scroll: {
     flex: 1,
@@ -308,13 +395,50 @@ const styles = StyleSheet.create({
   group: {
     gap: spacing.md,
   },
+  groupHead: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+  },
   groupLabel: {
     ...type.bodyStrong,
     color: colors.ink,
   },
+  groupHint: {
+    ...type.caption,
+    color: colors.muted2,
+    flexShrink: 1,
+  },
+  groupHintWarn: {
+    fontFamily: fonts.bold,
+    color: colors.coral,
+  },
   presetRow: {
     flexDirection: 'row',
     gap: spacing.md,
+    marginTop: spacing.md,
+  },
+  presetWrap: {
+    flex: 1,
+  },
+  bestWrap: {
+    position: 'absolute',
+    top: -8,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+  },
+  bestBadge: {
+    backgroundColor: colors.gold,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 2,
+  },
+  bestText: {
+    fontFamily: fonts.bold,
+    fontSize: 9.5,
+    color: colors.white,
   },
   stepperCard: {
     gap: spacing.lg,
@@ -331,22 +455,34 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRadius: radius.sm,
     borderWidth: 1.5,
+    borderColor: colors.sand,
+    backgroundColor: colors.card,
     paddingVertical: 9,
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 40,
+    minHeight: 42,
   },
-  dayOn: {
-    borderColor: colors.teal,
+  dayFill: {
+    position: 'absolute',
+    top: -1.5,
+    left: -1.5,
+    right: -1.5,
+    bottom: -1.5,
+    borderRadius: radius.sm + 1.5,
     backgroundColor: colors.teal,
   },
-  dayOff: {
-    borderColor: colors.sand,
-    backgroundColor: colors.white,
+  tileOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   dayText: {
     fontFamily: fonts.semibold,
-    fontSize: 11,
+    fontSize: 12.5,
     color: colors.muted,
     textAlign: 'center',
   },
@@ -354,36 +490,18 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bold,
     color: colors.white,
   },
-  timeRow: {
-    flexDirection: 'row',
-    gap: spacing.md,
-  },
-  time: {
-    flex: 1,
+  showMenuBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-    borderRadius: radius.md,
-    borderWidth: 1.5,
-    paddingVertical: spacing.xl,
+    gap: spacing.xs,
+    borderRadius: radius.pill,
+    backgroundColor: colors.card,
+    paddingHorizontal: spacing.xxl,
+    paddingVertical: spacing.md,
   },
-  timeOn: {
-    borderColor: colors.teal,
-    backgroundColor: colors.teal,
-  },
-  timeOff: {
-    borderColor: colors.sand,
-    backgroundColor: colors.white,
-  },
-  timeText: {
-    fontFamily: fonts.semibold,
-    fontSize: 12,
-    color: colors.body,
-  },
-  timeTextOn: {
-    fontFamily: fonts.bold,
-    color: colors.white,
+  showMenuText: {
+    ...type.captionStrong,
+    color: colors.tealText,
   },
   saverGrid: {
     flexDirection: 'row',
@@ -396,7 +514,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.lg,
     borderRadius: radius.md,
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     paddingVertical: spacing.xl,
     paddingHorizontal: spacing.xl,
   },
@@ -458,13 +576,14 @@ const styles = StyleSheet.create({
   },
   savedText: {
     fontFamily: fonts.bold,
-    fontSize: 11,
+    fontSize: 12.5,
     color: colors.amberText,
   },
   totalRow: {
     flexDirection: 'row',
     alignItems: 'baseline',
     gap: spacing.sm,
+    alignSelf: 'flex-start',
   },
   total: {
     ...type.money,
@@ -477,6 +596,17 @@ const styles = StyleSheet.create({
   compare: {
     ...type.caption,
     color: overlay.white75,
+  },
+  hintRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  hint: {
+    ...type.caption,
+    fontFamily: fonts.bold,
+    color: colors.goldLight,
+    flexShrink: 1,
   },
   cta: {
     borderRadius: radius.md,
