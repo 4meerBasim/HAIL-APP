@@ -10,6 +10,8 @@ export interface TagProps {
   style?: StyleProp<ViewStyle>;
 }
 
+// The offer photographs are shot on pale studio paper, so a pale chip laid over
+// one has nothing to sit against — the border is what gives it an edge there.
 export default function Tag({ variant, style }: TagProps) {
   const { t } = useLanguage();
   const isHealthy = variant === 'h';
@@ -18,7 +20,7 @@ export default function Tag({ variant, style }: TagProps) {
   const label = isHealthy ? t('tag.healthy') : t('tag.regular');
 
   return (
-    <View style={[styles.tag, { backgroundColor }, style]}>
+    <View style={[styles.tag, { backgroundColor, borderColor: color }, style]}>
       <Text style={[styles.label, { color }]}>{label}</Text>
     </View>
   );
@@ -27,12 +29,13 @@ export default function Tag({ variant, style }: TagProps) {
 const styles = StyleSheet.create({
   tag: {
     borderRadius: radius.pill,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
     alignSelf: 'flex-start',
   },
   label: {
     fontFamily: fonts.bold,
-    fontSize: 10,
+    fontSize: 12.5,
   },
 });

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Image, StyleProp, StyleSheet, TouchableOpacity, View, ViewStyle } from 'react-native';
 import Text from './AppText';
-import { colors, fonts, radius, shadow } from '../theme';
+import { colors, fonts, radius, shadow, spacing } from '../theme';
 import { useLanguage } from '../i18n/LanguageContext';
 import { Dish, formatPrice } from '../data/menu';
 import PricePill from './PricePill';
@@ -15,22 +15,32 @@ export interface DishCardProps {
   style?: StyleProp<ViewStyle>;
 }
 
+// Depth comes from three things at once, because a shadow alone on a card the
+// same colour as the page does nothing: the card is white against the warm page,
+// the photo is inset inside it with its own rounding rather than bleeding to the
+// card edge, and the shadow is a real one. Inset beats full-bleed here because
+// the offer photographs are shot on pale paper — bled to the edge they merge
+// into the card, framed they read as a picture sitting on it.
 export default function DishCard({ dish, onPress, onAdd, showAdd = false, style }: DishCardProps) {
   const { t, lang } = useLanguage();
   const name = lang === 'ar' ? dish.name : t(`dish.${dish.id}.name`, dish.name);
   const sub = lang === 'ar' ? dish.sub : t(`dish.${dish.id}.sub`, dish.sub);
 
   return (
-    <TouchableOpacity activeOpacity={0.85} onPress={onPress} style={[styles.card, shadow.card, style]}>
+    <TouchableOpacity
+      activeOpacity={0.9}
+      onPress={onPress}
+      style={[styles.card, shadow.lifted, style]}
+    >
       <View style={styles.imageWrap}>
-        <Image source={{ uri: dish.image }} style={styles.image} resizeMode="cover" />
+        <Image source={dish.image} style={styles.image} resizeMode="cover" />
         <Tag variant={dish.cat} style={styles.tag} />
       </View>
       <View style={styles.body}>
         <Text style={styles.name} numberOfLines={1}>
           {name}
         </Text>
-        <Text style={styles.sub} numberOfLines={1}>
+        <Text style={styles.sub} numberOfLines={2}>
           {sub}
         </Text>
         <View style={styles.priceRow}>
@@ -54,58 +64,64 @@ export default function DishCard({ dish, onPress, onAdd, showAdd = false, style 
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: colors.white,
-    borderRadius: radius.lg,
-    overflow: 'hidden',
+    backgroundColor: colors.card,
+    borderRadius: radius.xxl,
+    borderWidth: 1,
+    borderColor: colors.sand,
+    padding: 7,
   },
   imageWrap: {
-    height: 100,
-    position: 'relative',
+    height: 118,
+    borderRadius: radius.md,
+    overflow: 'hidden',
+    backgroundColor: colors.tile,
   },
   image: {
     width: '100%',
     height: '100%',
-    backgroundColor: colors.sand,
   },
   tag: {
     position: 'absolute',
-    top: 8,
-    start: 8,
+    top: 7,
+    start: 7,
   },
   body: {
-    paddingHorizontal: 12,
-    paddingTop: 10,
-    paddingBottom: 12,
+    paddingHorizontal: spacing.sm,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.xs,
     gap: 3,
   },
   name: {
     fontFamily: fonts.bold,
-    fontSize: 13.5,
+    fontSize: 15,
+    lineHeight: 22,
     color: colors.ink,
   },
   sub: {
     fontFamily: fonts.regular,
-    fontSize: 10.5,
+    fontSize: 12.5,
+    lineHeight: 18,
     color: colors.muted2,
+    minHeight: 36,
   },
   priceRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 3,
+    marginTop: spacing.sm,
   },
   addBtn: {
-    width: 26,
-    height: 26,
-    borderRadius: 9,
-    backgroundColor: colors.teal,
+    width: 32,
+    height: 32,
+    borderRadius: 11,
+    backgroundColor: colors.gold,
     alignItems: 'center',
     justifyContent: 'center',
   },
   addText: {
-    fontFamily: fonts.bold,
-    fontSize: 16,
-    color: colors.white,
-    lineHeight: 20,
+    fontFamily: fonts.heavy,
+    fontSize: 19,
+    color: colors.amberText,
+    lineHeight: 24,
   },
 });

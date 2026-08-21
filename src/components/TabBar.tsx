@@ -5,9 +5,9 @@ import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { colors, fonts, radius, shadow } from '../theme';
 import { useLanguage } from '../i18n/LanguageContext';
 import Icon from './Icon';
-import { icons } from './icons';
+import { type IconPath, icons } from './icons';
 
-const TAB_META: Record<string, { icon: string; labelKey: string }> = {
+const TAB_META: Record<string, { icon: IconPath; labelKey: string }> = {
   Plans: { icon: icons.box, labelKey: 'nav.plans' },
   Menu: { icon: icons.grid, labelKey: 'nav.menu' },
   Orders: { icon: icons.receipt, labelKey: 'nav.orders' },
@@ -16,7 +16,7 @@ const TAB_META: Record<string, { icon: string; labelKey: string }> = {
 
 interface TabButtonProps {
   focused: boolean;
-  iconPath: string;
+  iconPath: IconPath;
   label: string;
   onPress: () => void;
 }
@@ -52,9 +52,9 @@ function TabButton({ focused, iconPath, label, onPress }: TabButtonProps) {
       <View style={styles.iconWrap}>
         <Animated.View style={[styles.pill, styles.pillGlow, pillStyle]} />
         <Animated.View style={[styles.iconStack, liftStyle]}>
-          <Icon path={iconPath} size={22} color={colors.muted2} strokeWidth={1.7} />
+          <Icon path={iconPath} size={23} color={colors.muted2} strokeWidth={1.6} />
           <Animated.View style={[StyleSheet.absoluteFill, styles.iconCenter, { opacity: anim }]}>
-            <Icon path={iconPath} size={22} color={colors.white} strokeWidth={1.9} />
+            <Icon path={iconPath} size={23} color={colors.white} strokeWidth={1.8} />
           </Animated.View>
         </Animated.View>
       </View>
@@ -122,7 +122,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'flex-start',
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     borderTopLeftRadius: radius.sheet,
     borderTopRightRadius: radius.sheet,
     paddingTop: 12,
@@ -156,8 +156,8 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   iconStack: {
-    width: 22,
-    height: 22,
+    width: 23,
+    height: 23,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -166,7 +166,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   label: {
-    fontSize: 10.5,
+    fontSize: 12.5,
   },
   labelActive: {
     color: colors.tealText,

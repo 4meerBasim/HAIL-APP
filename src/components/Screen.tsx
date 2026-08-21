@@ -1,6 +1,7 @@
 import React from 'react';
 import { ScrollView, StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 import { Edge, SafeAreaView } from 'react-native-safe-area-context';
+import Texture from './Texture';
 import { colors } from '../theme';
 import { useLanguage } from '../i18n/LanguageContext';
 
@@ -11,6 +12,9 @@ export interface ScreenProps {
   scroll?: boolean;
   edges?: Edge[];
   contentContainerStyle?: StyleProp<ViewStyle>;
+  // Sits behind the content and outside the ScrollView, so it stays put while
+  // the page scrolls rather than sliding away with it.
+  texture?: boolean;
 }
 
 const DEFAULT_EDGES: Edge[] = ['top', 'bottom', 'left', 'right'];
@@ -22,6 +26,7 @@ export default function Screen({
   scroll = false,
   edges = DEFAULT_EDGES,
   contentContainerStyle,
+  texture = false,
 }: ScreenProps) {
   const { isRTL } = useLanguage();
   const direction = isRTL ? 'rtl' : 'ltr';
@@ -31,6 +36,7 @@ export default function Screen({
       edges={edges}
       style={[styles.root, { backgroundColor: background, direction }]}
     >
+      {texture ? <Texture /> : null}
       {scroll ? (
         // Children go straight into the content container: an extra wrapper View
         // would swallow the container's `gap`, collapsing every section rhythm.

@@ -8,7 +8,15 @@ import Icon from './Icon';
 import { icons } from './icons';
 import { colors, fonts, radius, scrim, shadow, spacing, type } from '../theme';
 import { useLanguage } from '../i18n/LanguageContext';
-import { type DietBox, boxDaily, formatPrice, groupNumber } from '../data/menu';
+import { formatNumber } from '../i18n/digits';
+import {
+  type DietBox,
+  boxDaily,
+  boxPerMeal,
+  boxTotal,
+  formatPrice,
+  groupNumber,
+} from '../data/menu';
 
 const SCRIM = [scrim.heroFade, scrim.hero] as const;
 
@@ -25,6 +33,14 @@ export default function BoxCard({ box, onPress, variant = 'grid', style }: BoxCa
   const accent = colors[box.accent];
   const tint = colors[box.tint];
   const name = t(`box.${box.id}.name`);
+  // The same two figures the box's own footer leads with, in the same order.
+  // Leading with the per-meal rate here and the total in there meant the number
+  // you tapped was never the number you landed on.
+  const price = formatPrice(groupNumber(boxTotal(box)), lang);
+  const perMeal = t('boxes.avgPerMeal').replace(
+    '{p}',
+    formatPrice(groupNumber(boxPerMeal(box)), lang),
+  );
 
   return (
     <TouchableOpacity
@@ -32,10 +48,10 @@ export default function BoxCard({ box, onPress, variant = 'grid', style }: BoxCa
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={name}
-      style={[styles.card, shadow.card, feature ? styles.feature : styles.grid, style]}
+      style={[styles.card, shadow.lifted, feature ? styles.feature : styles.grid, style]}
     >
       <View style={{ height: feature ? 132 : 104 }}>
-        <Image source={{ uri: box.image }} style={styles.image} resizeMode="cover" />
+        <Image source={box.image} style={styles.image} resizeMode="cover" />
         <LinearGradient colors={SCRIM} locations={[0.35, 1]} style={StyleSheet.absoluteFill} />
 
         <View style={[styles.iconBadge, { backgroundColor: tint }]}>
@@ -69,11 +85,12 @@ export default function BoxCard({ box, onPress, variant = 'grid', style }: BoxCa
 
         <MacroRow macros={boxDaily(box)} size="sm" />
 
-        <PricePill
-          value={formatPrice(groupNumber(box.perMeal), lang)}
-          note={t('boxes.perMeal')}
-          size={feature ? 'md' : 'sm'}
-        />
+        <View style={styles.price}>
+          <PricePill value={price} size={feature ? 'md' : 'sm'} />
+          <Text style={styles.perMeal} numberOfLines={2}>
+            {`${formatNumber(box.dishes.length)} ${t('plan.mealsUnit')} · ${perMeal}`}
+          </Text>
+        </View>
       </View>
     </TouchableOpacity>
   );
@@ -81,8 +98,10 @@ export default function BoxCard({ box, onPress, variant = 'grid', style }: BoxCa
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: colors.white,
-    borderRadius: radius.lg,
+    backgroundColor: colors.card,
+    borderRadius: radius.xxl,
+    borderWidth: 1,
+    borderColor: colors.sand,
     overflow: 'hidden',
   },
   feature: {
@@ -122,7 +141,7 @@ const styles = StyleSheet.create({
   },
   popularText: {
     fontFamily: fonts.bold,
-    fontSize: 10,
+    fontSize: 11.5,
     color: colors.goldText,
   },
   name: {
@@ -131,11 +150,11 @@ const styles = StyleSheet.create({
     start: 12,
     end: 12,
     fontFamily: fonts.bold,
-    fontSize: 14,
+    fontSize: 15.5,
     color: colors.white,
   },
   nameFeature: {
-    fontSize: 17,
+    fontSize: 19,
   },
   accentBar: {
     height: 3,
@@ -149,7 +168,14 @@ const styles = StyleSheet.create({
   },
   tagline: {
     ...type.caption,
-    fontSize: 11,
+    fontSize: 12.5,
+    color: colors.muted,
+  },
+  price: {
+    gap: 5,
+  },
+  perMeal: {
+    ...type.micro,
     color: colors.muted2,
   },
 });

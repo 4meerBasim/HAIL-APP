@@ -1,11 +1,12 @@
 import React from 'react';
-import { StyleProp, StyleSheet, TouchableOpacity, View, ViewStyle } from 'react-native';
+import { StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 import Text from './AppText';
 import Icon from './Icon';
+import PressScale from './PressScale';
 import type { IconPath } from './icons';
-import { colors, fonts, radius } from '../theme';
+import { colors, fonts, radius, shadow } from '../theme';
 
-export type ButtonVariant = 'primary' | 'amber' | 'light' | 'outline' | 'ghost';
+export type ButtonVariant = 'primary' | 'amber' | 'teal' | 'light' | 'outline' | 'ghost';
 export type ButtonSize = 'sm' | 'md' | 'lg';
 
 export interface ButtonProps {
@@ -22,10 +23,12 @@ export interface ButtonProps {
   accessibilityLabel?: string;
 }
 
+// Taller than before: a 52pt-ish primary reads as a deliberate target and gives
+// the label room to breathe at the larger type scale.
 const SIZES: Record<ButtonSize, { padV: number; padH: number; font: number }> = {
-  sm: { padV: 9, padH: 14, font: 12.5 },
-  md: { padV: 12, padH: 18, font: 14 },
-  lg: { padV: 15, padH: 20, font: 15.5 },
+  sm: { padV: 11, padH: 18, font: 14 },
+  md: { padV: 15, padH: 22, font: 16 },
+  lg: { padV: 18, padH: 26, font: 17.5 },
 };
 
 export default function Button({
@@ -47,34 +50,43 @@ export default function Button({
   let fg: string = colors.white;
   let borderColor: string = 'transparent';
   let borderWidth = 0;
+  let lift: ViewStyle | null = null;
 
-  if (variant === 'primary') {
-    bg = color ?? colors.teal;
-  } else if (variant === 'amber') {
-    bg = colors.amber;
+  // Gold is the commit colour, the one the protein box already used and the one
+  // the printed offer sheets put every price and offer number in. Subscribing
+  // and ordering are the same act everywhere in the app, so they wear it
+  // everywhere — a per-box accent CTA made the same button mean five things.
+  // The label is near-black rather than white: white on #d6a23e is 2:1 and
+  // unreadable in daylight, ink on gold is 8:1.
+  if (variant === 'primary' || variant === 'amber') {
+    bg = color ?? colors.gold;
     fg = colors.amberText;
+    lift = shadow.cta;
+  } else if (variant === 'teal') {
+    bg = color ?? colors.teal;
+    lift = shadow.card;
   } else if (variant === 'light') {
-    bg = colors.white;
+    bg = colors.card;
     fg = color ?? colors.tealDark;
   } else if (variant === 'outline') {
-    bg = colors.white;
+    bg = colors.card;
     fg = color ?? colors.ink;
     borderColor = colors.sand;
-    borderWidth = 1.5;
+    borderWidth = 1;
   } else if (variant === 'ghost') {
     fg = color ?? colors.teal;
   }
 
   return (
-    <TouchableOpacity
-      activeOpacity={0.85}
+    <PressScale
       onPress={onPress}
       disabled={disabled}
-      accessibilityRole="button"
+      scaleTo={0.97}
       accessibilityLabel={accessibilityLabel ?? label}
       accessibilityState={{ disabled }}
       style={[
         styles.base,
+        lift,
         {
           backgroundColor: bg,
           borderColor,
@@ -82,7 +94,7 @@ export default function Button({
           paddingVertical: s.padV,
           paddingHorizontal: s.padH,
           alignSelf: full ? 'stretch' : 'flex-start',
-          opacity: disabled ? 0.5 : 1,
+          opacity: disabled ? 0.45 : 1,
         },
         style,
       ]}
@@ -93,13 +105,13 @@ export default function Button({
           <Icon path={trailing} size={s.font + 2} color={textColor ?? fg} strokeWidth={2.2} />
         ) : null}
       </View>
-    </TouchableOpacity>
+    </PressScale>
   );
 }
 
 const styles = StyleSheet.create({
   base: {
-    borderRadius: radius.md,
+    borderRadius: radius.control,
     alignItems: 'center',
     justifyContent: 'center',
   },
