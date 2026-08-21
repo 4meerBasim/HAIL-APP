@@ -1,38 +1,51 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Image, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Text from '../components/AppText';
 import Screen from '../components/Screen';
 import Icon from '../components/Icon';
+import PatternFill from '../components/PatternFill';
+import DashedOutline from '../components/DashedOutline';
 import { icons } from '../components/icons';
 import Button from '../components/Button';
 import BoxCard from '../components/BoxCard';
 import SectionHeader from '../components/SectionHeader';
-import { colors, overlay, radius, scrim, shadow, spacing, type } from '../theme';
-import { type Lang, useLanguage } from '../i18n/LanguageContext';
-import { toArabicDigits } from '../i18n/digits';
+import LocationPicker from '../components/LocationPicker';
+import { colors, overlay, radius, shadow, spacing, type } from '../theme';
+import { useLanguage } from '../i18n/LanguageContext';
+import { formatNumber } from '../i18n/digits';
 import { useCart } from '../state/CartContext';
 import { usePlan } from '../state/PlanContext';
+import { useLocations } from '../state/LocationContext';
 import {
   type BoxGoal,
   MAX_DISCOUNT,
   dietBoxes,
   formatPrice,
   groupNumber,
-  heroImage,
 } from '../data/menu';
 import type { TabScreenProps } from '../navigation/RootNavigator';
 
+// Same girih tile the login hero uses, alpha-cut so only the gold lines land on
+// the gradient. `repeat` sizes off the asset's own tile, so each patch carries
+// explicit dimensions — an absolute child pinned to opposite edges would
+// collapse to one stretched motif instead.
+const PATTERN_GOLD = require('../../assets/pattern-arabic-gold.png');
+const LOGO = require('../../assets/logo-jareesh.jpg');
+const PATCH_SM = 128;
+const PATCH_LG = 210;
+
 const HEADER_GRADIENT = [colors.tealDark, colors.tealMid] as const;
 const PLAN_GRADIENT = [colors.tealDark, colors.teal] as const;
-const LANGS: Lang[] = ['ar', 'en'];
 
 export default function PlansScreen({ navigation }: TabScreenProps<'Plans'>) {
-  const { t, lang, isRTL, setLang } = useLanguage();
+  const { t, lang, isRTL } = useLanguage();
   const { items } = useCart();
   const insets = useSafeAreaInsets();
   const { subscription, subscriptionPricing, startFromBox, startCustom } = usePlan();
+  const { selected } = useLocations();
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   const cartCount = items.reduce((sum, it) => sum + it.qty, 0);
   const chevron = isRTL ? icons.chevronLeft : icons.chevronRight;
@@ -52,43 +65,50 @@ export default function PlansScreen({ navigation }: TabScreenProps<'Plans'>) {
   };
 
   return (
-    <Screen edges={['left', 'right']}>
+    <Screen edges={['left', 'right']} texture>
+      <LocationPicker
+        visible={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        onOpenMap={() => navigation.navigate('Map')}
+      />
       <LinearGradient
         colors={HEADER_GRADIENT}
         start={{ x: 0.1, y: 0 }}
         end={{ x: 0.9, y: 1 }}
         style={[styles.header, { paddingTop: insets.top + spacing.xl }]}
       >
+        <View style={styles.wash} pointerEvents="none" />
+
+        {/* Logical edges, so the composition mirrors with the language the way
+            the login hero's does. Under Arabic `end` is the physical left. */}
+        <View style={[styles.patch, styles.patchTopEnd]} pointerEvents="none">
+          <Image source={PATTERN_GOLD} resizeMode="repeat" style={styles.fillSm} />
+        </View>
+        <View style={[styles.patch, styles.patchTopStart]} pointerEvents="none">
+          <Image source={PATTERN_GOLD} resizeMode="repeat" style={styles.fillSm} />
+        </View>
+        <View style={[styles.patch, styles.patchBottomEnd]} pointerEvents="none">
+          <Image source={PATTERN_GOLD} resizeMode="repeat" style={styles.fillLg} />
+        </View>
+
         <View style={styles.headerRow}>
           <View style={styles.identity}>
             <Text style={styles.greeting} numberOfLines={1}>
               {t('home.greeting')}
             </Text>
-            <View style={styles.locationRow}>
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => setPickerOpen(true)}
+              accessibilityRole="button"
+              accessibilityLabel={t('location.deliverTo')}
+              style={styles.locationRow}
+            >
               <Icon path={icons.pin} size={13} color={colors.gold} strokeWidth={2} />
               <Text style={styles.location} numberOfLines={1}>
-                {t('home.location')}
+                {selected?.labelKey ? t(selected.labelKey) : selected?.label}
               </Text>
-            </View>
-          </View>
-
-          <View style={styles.langPill}>
-            {LANGS.map((l) => {
-              const on = lang === l;
-              return (
-                <TouchableOpacity
-                  key={l}
-                  activeOpacity={0.8}
-                  onPress={() => void setLang(l)}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: on }}
-                  accessibilityLabel={t(`lang.${l}`)}
-                  style={[styles.langItem, on && styles.langItemOn]}
-                >
-                  <Text style={[styles.langText, on && styles.langTextOn]}>{t(`lang.${l}`)}</Text>
-                </TouchableOpacity>
-              );
-            })}
+              <Icon path={icons.chevronDown} size={13} color={overlay.white70} strokeWidth={2.2} />
+            </TouchableOpacity>
           </View>
 
           <TouchableOpacity
@@ -101,7 +121,7 @@ export default function PlansScreen({ navigation }: TabScreenProps<'Plans'>) {
             <Icon path={icons.bag} size={18} color={colors.white} strokeWidth={1.8} />
             {cartCount > 0 ? (
               <View style={styles.badge}>
-                <Text style={styles.badgeText}>{toArabicDigits(cartCount, lang)}</Text>
+                <Text style={styles.badgeText}>{formatNumber(cartCount)}</Text>
               </View>
             ) : null}
           </TouchableOpacity>
@@ -109,7 +129,7 @@ export default function PlansScreen({ navigation }: TabScreenProps<'Plans'>) {
 
         <TouchableOpacity
           activeOpacity={0.9}
-          onPress={() => navigation.navigate('Menu', { cat: 'all' })}
+          onPress={() => navigation.navigate('Menu', { cat: 'all', focusSearch: true })}
           accessibilityRole="search"
           accessibilityLabel={t('home.searchPlaceholder')}
           style={styles.search}
@@ -140,6 +160,7 @@ export default function PlansScreen({ navigation }: TabScreenProps<'Plans'>) {
               end={{ x: 0.85, y: 1 }}
               style={styles.active}
             >
+              <PatternFill />
               <View style={styles.activeTile}>
                 <Icon path={icons.box} size={20} color={colors.white} strokeWidth={1.9} />
               </View>
@@ -153,18 +174,16 @@ export default function PlansScreen({ navigation }: TabScreenProps<'Plans'>) {
             </LinearGradient>
           </TouchableOpacity>
         ) : (
-          <View style={styles.promo}>
-            <Image source={{ uri: heroImage }} style={StyleSheet.absoluteFill} resizeMode="cover" />
-            <LinearGradient
-              colors={[scrim.hero, scrim.heroFade]}
-              locations={[0.38, 0.9]}
-              start={{ x: isRTL ? 1 : 0, y: 0.5 }}
-              end={{ x: isRTL ? 0 : 1, y: 0.5 }}
-              style={StyleSheet.absoluteFill}
-            />
+          <LinearGradient
+            colors={PLAN_GRADIENT}
+            start={{ x: 0.15, y: 0 }}
+            end={{ x: 0.85, y: 1 }}
+            style={styles.promo}
+          >
+            <PatternFill />
             <View style={styles.promoText}>
               <Text style={styles.promoKicker}>
-                {`${t('home.hero.kicker')} ${toArabicDigits(Math.round(MAX_DISCOUNT * 100), lang)}${t('common.percent')}`}
+                {`${t('home.hero.kicker')} ${formatNumber(Math.round(MAX_DISCOUNT * 100))}${t('common.percent')}`}
               </Text>
               <Text style={styles.promoTitle}>{t('home.hero.title')}</Text>
               <Button
@@ -176,7 +195,13 @@ export default function PlansScreen({ navigation }: TabScreenProps<'Plans'>) {
                 style={styles.promoCta}
               />
             </View>
-          </View>
+            {/* The brand mark rather than a dish: this card sells the idea of a
+                plan, not any one meal, and a photo cropped into a short banner
+                only ever showed a fragment of one. */}
+            <View style={styles.promoLogoRing}>
+              <Image source={LOGO} style={styles.promoLogo} resizeMode="cover" />
+            </View>
+          </LinearGradient>
         )}
 
         <View style={styles.section}>
@@ -185,7 +210,7 @@ export default function PlansScreen({ navigation }: TabScreenProps<'Plans'>) {
         </View>
 
         <View style={styles.section}>
-          <SectionHeader title={t('plans.boxes')} subtitle={t('boxes.subtitle')} />
+          <SectionHeader title={t('plans.boxes')} />
           <View style={styles.grid}>
             {rest.map((box) => (
               <BoxCard key={box.id} box={box} onPress={() => openBox(box.id)} style={styles.gridItem} />
@@ -203,7 +228,8 @@ export default function PlansScreen({ navigation }: TabScreenProps<'Plans'>) {
             accessibilityLabel={t('plans.custom')}
             style={[styles.custom, shadow.card]}
           >
-            <View style={[styles.tile, { backgroundColor: colors.healthyBg }]}>
+            <DashedOutline />
+            <View style={[styles.tile, { backgroundColor: colors.tile }]}>
               <Icon path={icons.puzzle} size={19} color={colors.teal} strokeWidth={1.8} />
             </View>
             <View style={styles.linkText}>
@@ -220,12 +246,29 @@ export default function PlansScreen({ navigation }: TabScreenProps<'Plans'>) {
             accessibilityLabel={t('plans.single')}
             style={styles.single}
           >
-            <View style={[styles.tile, { backgroundColor: colors.white }]}>
+            <View style={[styles.tile, { backgroundColor: colors.card }]}>
               <Icon path={icons.utensils} size={19} color={colors.muted} strokeWidth={1.8} />
             </View>
             <View style={styles.linkText}>
               <Text style={styles.linkLabel}>{t('plans.single')}</Text>
               <Text style={styles.linkSub}>{t('home.single.sub')}</Text>
+            </View>
+            <Icon path={chevron} size={15} color={colors.faint2} strokeWidth={2.2} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            activeOpacity={0.9}
+            onPress={() => navigation.navigate('Catering')}
+            accessibilityRole="button"
+            accessibilityLabel={t('catering.entry')}
+            style={styles.single}
+          >
+            <View style={[styles.tile, { backgroundColor: colors.tile }]}>
+              <Icon path={icons.user} size={19} color={colors.muted} strokeWidth={1.8} />
+            </View>
+            <View style={styles.linkText}>
+              <Text style={styles.linkLabel}>{t('catering.entry')}</Text>
+              <Text style={styles.linkSub}>{t('catering.entrySub')}</Text>
             </View>
             <Icon path={chevron} size={15} color={colors.faint2} strokeWidth={2.2} />
           </TouchableOpacity>
@@ -242,6 +285,54 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: radius.sheet,
     borderBottomRightRadius: radius.sheet,
     gap: spacing.xxl,
+    // Required: the patches bleed past every edge and would otherwise spill
+    // over the rounded corners and down the page.
+    overflow: 'hidden',
+  },
+  // A warm veil over the teal so the gradient reads softer under the texture.
+  wash: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: colors.regularBg,
+    opacity: 0.1,
+  },
+  patch: {
+    position: 'absolute',
+    overflow: 'hidden',
+    opacity: 0.55,
+  },
+  patchTopEnd: {
+    top: -46,
+    end: -30,
+    width: PATCH_SM,
+    height: PATCH_SM,
+    borderRadius: PATCH_SM / 2,
+  },
+  patchTopStart: {
+    top: -34,
+    start: -38,
+    width: PATCH_SM,
+    height: PATCH_SM,
+    borderRadius: PATCH_SM / 2,
+  },
+  patchBottomEnd: {
+    bottom: -86,
+    end: -64,
+    width: PATCH_LG,
+    height: PATCH_LG,
+    borderRadius: PATCH_LG / 2,
+    opacity: 0.42,
+  },
+  fillSm: {
+    width: PATCH_SM,
+    height: PATCH_SM,
+  },
+  fillLg: {
+    width: PATCH_LG,
+    height: PATCH_LG,
   },
   headerRow: {
     flexDirection: 'row',
@@ -264,28 +355,6 @@ const styles = StyleSheet.create({
   location: {
     ...type.bodyStrong,
     color: colors.white,
-  },
-  langPill: {
-    flexDirection: 'row',
-    backgroundColor: overlay.white14,
-    borderRadius: radius.pill,
-    padding: 3,
-  },
-  langItem: {
-    borderRadius: radius.pill,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: 4,
-  },
-  langItemOn: {
-    backgroundColor: colors.white,
-  },
-  langText: {
-    ...type.captionStrong,
-    fontSize: 11,
-    color: overlay.white80,
-  },
-  langTextOn: {
-    color: colors.tealDark,
   },
   cartBtn: {
     width: 38,
@@ -338,22 +407,39 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.giant,
     gap: spacing.giant,
   },
+  // A row now the photo is gone: copy on the leading side, the mark on the
+  // trailing side, both in flow so neither has to be positioned over the other.
   promo: {
     height: 132,
     borderRadius: radius.xl,
     overflow: 'hidden',
     backgroundColor: colors.tealDark,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 18,
+    gap: spacing.xl,
   },
   promoText: {
-    position: 'absolute',
-    top: 0,
-    bottom: 0,
-    start: 0,
-    end: 0,
-    justifyContent: 'center',
+    flex: 1,
     alignItems: 'flex-start',
-    paddingHorizontal: 18,
     gap: spacing.sm,
+  },
+  // The splash's ring at card scale, so the mark is the same object in both
+  // places rather than a bare image pasted on teal.
+  promoLogoRing: {
+    width: 84,
+    height: 84,
+    borderRadius: 42,
+    borderWidth: 2.5,
+    borderColor: colors.gold,
+    backgroundColor: colors.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  promoLogo: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
   },
   promoKicker: {
     ...type.captionStrong,
@@ -435,11 +521,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xl,
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     borderRadius: radius.lg,
-    borderWidth: 1.5,
-    borderColor: colors.teal,
-    borderStyle: 'dashed',
     paddingHorizontal: spacing.xxl,
     paddingVertical: spacing.xxl,
   },
