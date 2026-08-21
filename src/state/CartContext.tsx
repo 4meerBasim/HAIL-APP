@@ -4,8 +4,8 @@ import type { CartItem } from '../components/CartRow';
 
 const SEED: { id: string; qty: number }[] = [
   { id: 'dolma', qty: 1 },
-  { id: 'jireesh', qty: 2 },
-  { id: 'salad', qty: 1 },
+  { id: 'noodles', qty: 2 },
+  { id: 'lasagna', qty: 1 },
 ];
 
 const buildItem = (id: string, qty: number): CartItem | null => {
@@ -22,6 +22,7 @@ export interface CartContextValue {
   items: CartItem[];
   addItem: (id: string, qty?: number) => void;
   changeQty: (id: string, delta: number) => void;
+  clearCart: () => void;
   subtotal: number;
 }
 
@@ -46,14 +47,18 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     );
   }, []);
 
+  // Emptied once the order is placed — the cart is the draft, the order is the
+  // record, and leaving the draft behind would re-order it on the next confirm.
+  const clearCart = useCallback(() => setItems([]), []);
+
   const subtotal = useMemo(
     () => items.reduce((sum, it) => sum + parsePrice(it.price) * it.qty, 0),
     [items],
   );
 
   const value = useMemo<CartContextValue>(
-    () => ({ items, addItem, changeQty, subtotal }),
-    [items, addItem, changeQty, subtotal],
+    () => ({ items, addItem, changeQty, clearCart, subtotal }),
+    [items, addItem, changeQty, clearCart, subtotal],
   );
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
