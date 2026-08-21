@@ -5,16 +5,16 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle, Path } from 'react-native-svg';
 import { colors, fonts, radius, shadow, type } from '../theme';
 import { useLanguage } from '../i18n/LanguageContext';
-import { formatPrice, groupNumber } from '../data/menu';
+import { DELIVERY_FEE, formatPrice, groupNumber } from '../data/menu';
 import { useCart } from '../state/CartContext';
+import { useOrders } from '../state/OrdersContext';
 import Screen from '../components/Screen';
 import Icon from '../components/Icon';
 import Card from '../components/Card';
+import DashedRule from '../components/DashedRule';
 import Button from '../components/Button';
 import CartRow from '../components/CartRow';
 import { RootStackScreenProps } from '../navigation/RootNavigator';
-
-const DELIVERY_FEE = 2000;
 
 const CHEVRON = { rtl: 'M9 5l7 7-7 7', ltr: 'M15 5l-7 7 7 7' } as const;
 
@@ -47,14 +47,23 @@ function PaymentOption({ selected, onPress, title, sub }: PaymentOptionProps) {
 
 export default function CartScreen({ navigation }: RootStackScreenProps<'Cart'>) {
   const { t, lang, isRTL } = useLanguage();
-  const { items, changeQty, subtotal } = useCart();
+  const { items, changeQty, clearCart, subtotal } = useCart();
+  const { placeOrder } = useOrders();
   const insets = useSafeAreaInsets();
   const [payment, setPayment] = useState<PaymentMethod>('online');
 
   const total = subtotal + DELIVERY_FEE;
 
+  // Confirming is what creates the order — Orders and Tracking have nothing to
+  // show until this runs, so it has to record the cart before navigating away.
+  const confirm = () => {
+    placeOrder(items.map((it) => ({ dishId: it.id, qty: it.qty })));
+    clearCart();
+    navigation.navigate('Tracking');
+  };
+
   return (
-    <Screen edges={['top', 'left', 'right']}>
+    <Screen edges={['top', 'left', 'right']} texture>
       <View style={styles.flex}>
         <ScrollView
           style={styles.flex}
@@ -81,14 +90,18 @@ export default function CartScreen({ navigation }: RootStackScreenProps<'Cart'>)
           </View>
 
           <View style={styles.items}>
-            {items.map((it) => (
-              <CartRow
-                key={it.id}
-                item={it}
-                onInc={() => changeQty(it.id, 1)}
-                onDec={() => changeQty(it.id, -1)}
-              />
-            ))}
+            {items.length > 0 ? (
+              items.map((it) => (
+                <CartRow
+                  key={it.id}
+                  item={it}
+                  onInc={() => changeQty(it.id, 1)}
+                  onDec={() => changeQty(it.id, -1)}
+                />
+              ))
+            ) : (
+              <Text style={styles.emptyItems}>{t('cart.empty')}</Text>
+            )}
           </View>
 
           <Card style={styles.addressCard}>
@@ -142,6 +155,7 @@ export default function CartScreen({ navigation }: RootStackScreenProps<'Cart'>)
               <Text style={styles.totalLabel}>{t('cart.delivery')}</Text>
               <Text style={styles.totalLabel}>{formatPrice(groupNumber(DELIVERY_FEE), lang)}</Text>
             </View>
+            <DashedRule />
             <View style={[styles.totalRow, styles.grandRow]}>
               <Text style={styles.grandLabel}>{t('cart.total')}</Text>
               <Text style={styles.grandValue}>{formatPrice(groupNumber(total), lang)}</Text>
@@ -152,8 +166,9 @@ export default function CartScreen({ navigation }: RootStackScreenProps<'Cart'>)
             variant="primary"
             size="lg"
             full
-            onPress={() => navigation.navigate('Tracking')}
-            style={[styles.cta, shadow.teal]}
+            disabled={items.length === 0}
+            onPress={confirm}
+            style={[styles.cta, shadow.cta]}
           />
         </View>
       </View>
@@ -180,7 +195,7 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: radius.pill,
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -191,6 +206,12 @@ const styles = StyleSheet.create({
   items: {
     gap: 9,
   },
+  emptyItems: {
+    ...type.body,
+    color: colors.muted2,
+    textAlign: 'center',
+    paddingVertical: 26,
+  },
   addressCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -200,7 +221,7 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: radius.sm,
-    backgroundColor: colors.healthyBg,
+    backgroundColor: colors.tile,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -239,7 +260,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 9,
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     borderRadius: radius.card,
     borderWidth: 1.5,
     paddingHorizontal: 13,
@@ -256,7 +277,7 @@ const styles = StyleSheet.create({
     width: 19,
     height: 19,
     borderRadius: radius.pill,
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
   },
   radioOn: {
     borderWidth: 6,
@@ -300,9 +321,6 @@ const styles = StyleSheet.create({
     color: colors.body,
   },
   grandRow: {
-    borderTopWidth: 1,
-    borderStyle: 'dashed',
-    borderTopColor: colors.sand,
     paddingTop: 8,
   },
   grandLabel: {

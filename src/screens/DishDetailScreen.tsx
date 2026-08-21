@@ -1,23 +1,28 @@
 import React, { useState } from 'react';
-import { Image, StyleSheet, TextStyle, TouchableOpacity, View, ViewStyle } from 'react-native';
+import { StyleSheet, TouchableOpacity, View } from 'react-native';
 import Text from '../components/AppText';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Screen from '../components/Screen';
 import Icon from '../components/Icon';
 import { icons } from '../components/icons';
+import MacroRow from '../components/MacroRow';
+import PricePill from '../components/PricePill';
+import Hero from '../components/Hero';
 import { colors, fonts, radius, shadow, spacing } from '../theme';
 import { useLanguage } from '../i18n/LanguageContext';
-import { toArabicDigits } from '../i18n/digits';
+import { formatNumber } from '../i18n/digits';
 import {
+  dishParts,
   formatPrice,
   getDish,
+  groupNumber,
   macros as dishMacros,
-  ingredientKeys as dishIngredientKeys,
+  parsePrice,
 } from '../data/menu';
 import { useCart } from '../state/CartContext';
 import type { RootStackScreenProps } from '../navigation/RootNavigator';
 
-const DEFAULT_DISH_ID = 'masgouf';
+const DEFAULT_DISH_ID = 'quzi';
 
 export default function DishDetailScreen({ route, navigation }: RootStackScreenProps<'DishDetail'>) {
   const { t, lang, isRTL } = useLanguage();
@@ -29,13 +34,13 @@ export default function DishDetailScreen({ route, navigation }: RootStackScreenP
   const dish = getDish(route.params?.id ?? DEFAULT_DISH_ID) ?? getDish(DEFAULT_DISH_ID)!;
   const dishName = lang === 'ar' ? dish.name : t(`dish.${dish.id}.name`, dish.name);
 
-  const fmtNum = (n: number | string): string => toArabicDigits(n, lang);
-  const gram = t('detail.gram');
+  const fmtNum = (n: number | string): string => formatNumber(n);
   const isHealthy = dish.cat === 'h';
 
   const macros = dishMacros[dish.id];
-  const ingredientKeys = dishIngredientKeys[dish.id] ?? [];
   const description = t(`detail.${dish.id}.desc`, dish.sub);
+  // What comes in the box, straight off the offer sheet's own "+" list.
+  const parts = dishParts(lang === 'ar' ? dish.sub : t(`dish.${dish.id}.sub`, dish.sub));
 
   const tagLabel = t(isHealthy ? 'tag.healthy' : 'tag.regular');
   const badgeText =
@@ -45,32 +50,19 @@ export default function DishDetailScreen({ route, navigation }: RootStackScreenP
   const badgeBg = isHealthy ? colors.healthyBg : colors.regularBg;
   const badgeColor = isHealthy ? colors.tealText : colors.amberIcon;
 
-  const macroCards = macros
-    ? [
-        { value: fmtNum(macros.calories), color: colors.ink, label: t('detail.calories') },
-        { value: `${fmtNum(macros.protein)}${gram}`, color: colors.teal, label: t('detail.protein') },
-        { value: `${fmtNum(macros.carbs)}${gram}`, color: colors.ink, label: t('detail.carbs') },
-        { value: `${fmtNum(macros.fat)}${gram}`, color: colors.ink, label: t('detail.fat') },
-      ]
-    : [];
-
-  const leadPos: ViewStyle = isRTL ? { right: 16 } : { left: 16 };
-  const trailPos: ViewStyle = isRTL ? { left: 16 } : { right: 16 };
-  const textStart: TextStyle = {
-    textAlign: isRTL ? 'right' : 'left',
-    writingDirection: isRTL ? 'rtl' : 'ltr',
-  };
+  // The button-side price is the line total, so the stepper and the money the
+  // customer is about to spend never disagree.
+  const lineTotal = formatPrice(groupNumber(parsePrice(dish.price) * qty), lang);
 
   return (
-    <Screen scroll={false} edges={['bottom', 'left', 'right']}>
-      <View style={styles.hero}>
-        <Image source={{ uri: dish.image }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+    <Screen scroll={false} edges={['bottom', 'left', 'right']} texture>
+      <Hero source={dish.image}>
         <TouchableOpacity
           activeOpacity={0.85}
           onPress={() => navigation.goBack()}
           accessibilityRole="button"
           accessibilityLabel={t('common.back')}
-          style={[styles.circleBtn, { top: insets.top + 12 }, leadPos]}
+          style={[styles.circleBtn, styles.lead, { top: insets.top + 12 }]}
         >
           <Icon
             path={isRTL ? icons.chevronRight : icons.chevronLeft}
@@ -85,7 +77,7 @@ export default function DishDetailScreen({ route, navigation }: RootStackScreenP
           accessibilityRole="button"
           accessibilityLabel={t('detail.favorite')}
           accessibilityState={{ selected: fav }}
-          style={[styles.circleBtn, { top: insets.top + 12 }, trailPos]}
+          style={[styles.circleBtn, styles.trail, { top: insets.top + 12 }]}
         >
           <Icon
             path={icons.heart}
@@ -95,44 +87,36 @@ export default function DishDetailScreen({ route, navigation }: RootStackScreenP
             fill={fav ? colors.coral : 'none'}
           />
         </TouchableOpacity>
-      </View>
+      </Hero>
 
       <View style={styles.sheet}>
         <View style={styles.headerRow}>
-          <View style={styles.headerLeft}>
-            <View style={[styles.badge, { backgroundColor: badgeBg }]}>
-              {isHealthy ? (
-                <Icon path={icons.leaf} size={12} color={badgeColor} strokeWidth={2} />
-              ) : null}
-              <Text style={[styles.badgeText, { color: badgeColor }]}>{badgeText}</Text>
-            </View>
-            <Text style={[styles.title, textStart]}>{dishName}</Text>
+          <View style={[styles.badge, { backgroundColor: badgeBg }]}>
+            {isHealthy ? (
+              <Icon path={icons.leaf} size={12} color={badgeColor} strokeWidth={2} />
+            ) : null}
+            <Text style={[styles.badgeText, { color: badgeColor }]}>{badgeText}</Text>
           </View>
-          <Text style={styles.price}>{formatPrice(dish.price, lang)}</Text>
+          <Text style={styles.title}>{dishName}</Text>
         </View>
 
-        <Text style={[styles.desc, textStart]}>{description}</Text>
+        <Text style={styles.desc}>{description}</Text>
 
-        {ingredientKeys.length > 0 && (
+        {parts.length > 0 && (
           <View style={styles.chips}>
-            {ingredientKeys.map((key) => (
-              <View key={key} style={styles.chip}>
-                <Text style={styles.chipText}>{t(key)}</Text>
+            {parts.map((part) => (
+              <View key={part} style={styles.chip}>
+                <Text style={styles.chipText}>{part}</Text>
               </View>
             ))}
           </View>
         )}
 
-        {macroCards.length > 0 && (
-          <View style={styles.macros}>
-            {macroCards.map((m) => (
-              <View key={m.label} style={styles.macroCard}>
-                <Text style={[styles.macroValue, { color: m.color }]}>{m.value}</Text>
-                <Text style={styles.macroLabel}>{m.label}</Text>
-              </View>
-            ))}
+        {macros ? (
+          <View style={[styles.macros, shadow.card]}>
+            <MacroRow macros={macros} />
           </View>
-        )}
+        ) : null}
 
         <View style={styles.ctaRow}>
           <View style={styles.stepper}>
@@ -155,6 +139,8 @@ export default function DishDetailScreen({ route, navigation }: RootStackScreenP
             </TouchableOpacity>
           </View>
 
+          <PricePill value={lineTotal} size="sm" style={styles.ctaPrice} />
+
           <TouchableOpacity
             activeOpacity={0.9}
             onPress={() => {
@@ -164,7 +150,9 @@ export default function DishDetailScreen({ route, navigation }: RootStackScreenP
             style={[styles.cta, styles.ctaPrimary]}
             accessibilityRole="button"
           >
-            <Text style={styles.ctaPrimaryText}>{t('detail.addToCart')}</Text>
+            <Text style={styles.ctaPrimaryText} numberOfLines={1}>
+              {t('detail.addToCart')}
+            </Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -173,16 +161,20 @@ export default function DishDetailScreen({ route, navigation }: RootStackScreenP
 }
 
 const styles = StyleSheet.create({
-  hero: {
-    height: 300,
-    flexShrink: 0,
+  // See TrackingScreen: `left`/`right` are mirrored under RTL, so the physical
+  // ternary this replaced put the control on the wrong edge.
+  lead: {
+    start: 16,
+  },
+  trail: {
+    end: 16,
   },
   circleBtn: {
     position: 'absolute',
     width: 38,
     height: 38,
     borderRadius: radius.pill,
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     alignItems: 'center',
     justifyContent: 'center',
     ...shadow.card,
@@ -198,13 +190,7 @@ const styles = StyleSheet.create({
     gap: 13,
   },
   headerRow: {
-    flexDirection: 'row',
     alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    gap: spacing.lg,
-  },
-  headerLeft: {
-    flexShrink: 1,
     gap: 5,
   },
   badge: {
@@ -218,23 +204,18 @@ const styles = StyleSheet.create({
   },
   badgeText: {
     fontFamily: fonts.bold,
-    fontSize: 11,
+    fontSize: 12.5,
   },
   title: {
     fontFamily: fonts.bold,
-    fontSize: 22,
+    fontSize: 24,
+    lineHeight: 35,
     color: colors.ink,
-  },
-  price: {
-    fontFamily: fonts.bold,
-    fontSize: 19,
-    color: colors.teal,
-    marginTop: spacing.giant,
   },
   desc: {
     fontFamily: fonts.regular,
-    fontSize: 13,
-    lineHeight: 24,
+    fontSize: 15,
+    lineHeight: 27,
     color: colors.body,
   },
   chips: {
@@ -243,40 +224,23 @@ const styles = StyleSheet.create({
     gap: 7,
   },
   chip: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: colors.sand,
     borderRadius: radius.pill,
-    paddingHorizontal: 11,
-    paddingVertical: 5,
+    paddingHorizontal: 13,
+    paddingVertical: 7,
   },
   chipText: {
     fontFamily: fonts.regular,
-    fontSize: 11.5,
+    fontSize: 12.5,
     color: colors.body,
   },
   macros: {
-    flexDirection: 'row',
-    gap: spacing.lg,
-  },
-  macroCard: {
-    flex: 1,
-    backgroundColor: colors.white,
-    borderRadius: radius.md,
-    paddingVertical: 11,
-    paddingHorizontal: spacing.sm,
-    alignItems: 'center',
-    ...shadow.card,
-  },
-  macroValue: {
-    fontFamily: fonts.bold,
-    fontSize: 16,
-  },
-  macroLabel: {
-    fontFamily: fonts.regular,
-    fontSize: 10.5,
-    color: colors.muted2,
-    marginTop: 2,
+    backgroundColor: colors.card,
+    borderRadius: radius.card,
+    paddingVertical: spacing.xxl,
+    paddingHorizontal: spacing.xl,
   },
   ctaRow: {
     flexDirection: 'row',
@@ -290,7 +254,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xxl,
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: colors.sand,
     borderRadius: radius.pill,
@@ -309,6 +273,11 @@ const styles = StyleSheet.create({
     minWidth: 12,
     textAlign: 'center',
   },
+  // PricePill aligns itself to the top of a column by default; in this row it
+  // has to sit on the stepper's centre line.
+  ctaPrice: {
+    alignSelf: 'center',
+  },
   cta: {
     flex: 1,
     borderRadius: radius.pill,
@@ -316,13 +285,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   ctaPrimary: {
-    backgroundColor: colors.teal,
-    paddingVertical: 13,
-    ...shadow.teal,
+    backgroundColor: colors.gold,
+    paddingVertical: 15,
+    ...shadow.cta,
   },
   ctaPrimaryText: {
     fontFamily: fonts.bold,
-    fontSize: 14.5,
-    color: colors.white,
+    fontSize: 16.5,
+    color: colors.amberText,
   },
 });

@@ -1,82 +1,127 @@
-import React from 'react';
-import { StyleSheet, TouchableOpacity, View } from 'react-native';
+import React, { useMemo } from 'react';
+import { StyleSheet, View } from 'react-native';
 import Text from '../components/AppText';
 import Screen from '../components/Screen';
 import Icon from '../components/Icon';
+import PatternFill from '../components/PatternFill';
 import { type IconName, icons } from '../components/icons';
 import Card from '../components/Card';
 import Button from '../components/Button';
 import SectionHeader from '../components/SectionHeader';
-import { colors, fonts, radius, spacing, type } from '../theme';
-import { type Lang, useLanguage } from '../i18n/LanguageContext';
+import SettingRow from '../components/SettingRow';
+import { colors, overlay, radius, shadow, spacing, type } from '../theme';
+import { useLanguage } from '../i18n/LanguageContext';
+import { formatNumber } from '../i18n/digits';
+import { useOrders } from '../state/OrdersContext';
 import { useAuth } from '../state/AuthContext';
+import { planProgress, usePlan } from '../state/PlanContext';
 import type { TabScreenProps } from '../navigation/RootNavigator';
 
+// Every row here opens a screen of its own — none of them is a dead tap.
+type RowKey = 'addresses' | 'payments' | 'notifications' | 'support';
+
 interface Row {
-  key: string;
+  key: RowKey;
   icon: IconName;
-  tint: string;
-  color: string;
 }
 
 const ACCOUNT_ROWS: Row[] = [
-  { key: 'addresses', icon: 'pin', tint: colors.healthyBg, color: colors.teal },
-  { key: 'payments', icon: 'creditCard', tint: colors.regularBg, color: colors.amberIcon },
+  { key: 'addresses', icon: 'pin' },
+  { key: 'payments', icon: 'creditCard' },
 ];
 
 const SETTINGS_ROWS: Row[] = [
-  { key: 'notifications', icon: 'bell', tint: colors.sandChip, color: colors.body },
-  { key: 'support', icon: 'chat', tint: colors.sandChip, color: colors.body },
+  { key: 'notifications', icon: 'bell' },
+  { key: 'support', icon: 'chat' },
 ];
 
-const LANGS: Lang[] = ['ar', 'en'];
-
 export default function ProfileScreen({ navigation }: TabScreenProps<'Profile'>) {
-  const { t, lang, isRTL, setLang } = useLanguage();
+  const { t, isRTL } = useLanguage();
   const { status, user, signOut } = useAuth();
+  const { subscription } = usePlan();
+  const { orders } = useOrders();
   const authed = status === 'authed';
-  const chevron = isRTL ? icons.chevronLeft : icons.chevronRight;
 
+  // Keyed by row rather than carried on the row itself, so each destination is
+  // a literal `navigate` call the router can type-check, and the Record makes
+  // adding a row without a destination a compile error.
+  const open: Record<RowKey, () => void> = {
+    addresses: () => navigation.navigate('Addresses'),
+    payments: () => navigation.navigate('Payments'),
+    notifications: () => navigation.navigate('Notifications'),
+    support: () => navigation.navigate('Support'),
+  };
+
+  const progress = useMemo(
+    () => (subscription ? planProgress(subscription) : null),
+    [subscription],
+  );
+
+  // 'auto' resolves against the paragraph's writing direction; a physical
+  // 'right' would be mirrored back to the left by RN's RTL swap.
+  const readingSide = { textAlign: 'auto', writingDirection: isRTL ? 'rtl' : 'ltr' } as const;
+
+  // One muted glyph per row rather than a filled colour tile. Four tinted tiles
+  // stacked down the page competed with the hero and with each other; the icon
+  // is a scent for the label, not a thing to look at on its own.
   const renderRow = (row: Row, first: boolean) => (
-    <View key={row.key}>
-      {first ? null : <View style={styles.divider} />}
-      <TouchableOpacity
-        activeOpacity={0.7}
-        style={styles.row}
-        accessibilityRole="button"
-        accessibilityLabel={t(`profile.${row.key}`)}
-      >
-        <View style={[styles.tile, { backgroundColor: row.tint }]}>
-          <Icon path={icons[row.icon]} size={18} color={row.color} strokeWidth={1.9} />
-        </View>
-        <View style={styles.rowText}>
-          <Text style={styles.rowLabel}>{t(`profile.${row.key}`)}</Text>
-          <Text style={styles.rowSub}>{t(`profile.${row.key}.sub`)}</Text>
-        </View>
-        <Icon path={chevron} size={15} color={colors.faint2} strokeWidth={2.2} />
-      </TouchableOpacity>
-    </View>
+    <SettingRow
+      key={row.key}
+      first={first}
+      icon={row.icon}
+      label={t(`profile.${row.key}`)}
+      sub={t(`profile.${row.key}.sub`)}
+      onPress={open[row.key]}
+    />
   );
 
   return (
-    <Screen scroll contentContainerStyle={styles.content}>
-      <View style={styles.header}>
-        <View style={styles.avatar}>
-          <Icon
-            path={authed ? icons.user : icons.userPlus}
-            size={28}
-            color={colors.tealText}
-            strokeWidth={1.7}
-          />
+    <Screen scroll contentContainerStyle={styles.content} texture>
+      <View style={[styles.hero, shadow.raised]}>
+        <PatternFill />
+        <View style={styles.heroTop}>
+          <View style={styles.avatar}>
+            <Icon
+              path={authed ? icons.user : icons.userPlus}
+              size={26}
+              color={colors.white}
+              strokeWidth={1.7}
+            />
+          </View>
+          <View style={styles.identity}>
+            <Text style={[styles.name, readingSide]} numberOfLines={1}>
+              {authed ? user?.phone : t('profile.guest')}
+            </Text>
+            <Text style={[styles.identitySub, readingSide]} numberOfLines={2}>
+              {authed ? t('profile.member') : t('profile.guest.sub')}
+            </Text>
+          </View>
         </View>
-        <View style={styles.identity}>
-          <Text style={styles.name} numberOfLines={1}>
-            {authed ? user?.phone : t('profile.guest')}
-          </Text>
-          <Text style={styles.identitySub} numberOfLines={1}>
-            {authed ? t('profile.member') : t('profile.guest.sub')}
-          </Text>
-        </View>
+
+        {/* Guests have no orders and no plan, so the strip would be three
+            zeroes — the sign-in CTA below is the whole message for them. */}
+        {authed ? (
+          <View style={styles.statRow}>
+            <View style={styles.stat}>
+              <Text style={styles.statValue}>{formatNumber(orders.length)}</Text>
+              <Text style={styles.statLabel}>{t('profile.stat.orders')}</Text>
+            </View>
+            {progress ? (
+              <>
+                <View style={styles.statDivider} />
+                <View style={styles.stat}>
+                  <Text style={styles.statValue}>{formatNumber(progress.remainingDays)}</Text>
+                  <Text style={styles.statLabel}>{t('orders.remainingDays')}</Text>
+                </View>
+                <View style={styles.statDivider} />
+                <View style={styles.stat}>
+                  <Text style={styles.statValue}>{formatNumber(progress.remainingMeals)}</Text>
+                  <Text style={styles.statLabel}>{t('orders.remainingMeals')}</Text>
+                </View>
+              </>
+            ) : null}
+          </View>
+        ) : null}
       </View>
 
       <View style={styles.section}>
@@ -90,33 +135,6 @@ export default function ProfileScreen({ navigation }: TabScreenProps<'Profile'>)
         <SectionHeader title={t('profile.settings')} />
         <Card padding={0} style={styles.rows}>
           {SETTINGS_ROWS.map((row, i) => renderRow(row, i === 0))}
-          <View style={styles.divider} />
-          <View style={styles.row}>
-            <View style={[styles.tile, { backgroundColor: colors.sandChip }]}>
-              <Icon path={icons.globe} size={18} color={colors.body} strokeWidth={1.9} />
-            </View>
-            <Text style={styles.rowLabel}>{t('profile.language')}</Text>
-            <View style={styles.segment}>
-              {LANGS.map((l) => {
-                const on = lang === l;
-                return (
-                  <TouchableOpacity
-                    key={l}
-                    activeOpacity={0.8}
-                    onPress={() => void setLang(l)}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected: on }}
-                    accessibilityLabel={t(`lang.${l}`)}
-                    style={[styles.segmentItem, on && styles.segmentItemOn]}
-                  >
-                    <Text style={[styles.segmentText, on && styles.segmentTextOn]}>
-                      {t(`lang.${l}`)}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </View>
         </Card>
       </View>
 
@@ -149,18 +167,28 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.giant,
     gap: spacing.giant,
   },
-  header: {
+  // Flat teal rather than a gradient: `tealMid` is the midpoint of the two
+  // stops it used to run between, so the panel keeps its colour and drops only
+  // the sheen.
+  hero: {
+    backgroundColor: colors.tealMid,
+    borderRadius: radius.xl,
+    paddingHorizontal: spacing.huge,
+    paddingVertical: spacing.xxxl,
+    gap: spacing.xxl,
+  },
+  heroTop: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xxl,
   },
   avatar: {
-    width: 64,
-    height: 64,
+    width: 56,
+    height: 56,
     borderRadius: radius.pill,
-    backgroundColor: colors.healthyBg,
-    borderWidth: 2.5,
-    borderColor: colors.teal,
+    backgroundColor: overlay.white16,
+    borderWidth: 1.5,
+    borderColor: overlay.white30,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -170,71 +198,43 @@ const styles = StyleSheet.create({
   },
   name: {
     ...type.h2,
-    color: colors.ink,
+    color: colors.white,
   },
   identitySub: {
     ...type.caption,
-    color: colors.muted2,
+    color: overlay.white75,
+  },
+  statRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: overlay.white08,
+    borderRadius: radius.md,
+    paddingVertical: spacing.xl,
+  },
+  stat: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 1,
+  },
+  statValue: {
+    ...type.h3,
+    color: colors.white,
+  },
+  statLabel: {
+    ...type.caption,
+    fontSize: 12,
+    color: overlay.white75,
+    textAlign: 'center',
+  },
+  statDivider: {
+    width: 1,
+    alignSelf: 'stretch',
+    backgroundColor: overlay.white16,
   },
   section: {
     gap: spacing.xl,
   },
   rows: {
     overflow: 'hidden',
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xl,
-    paddingVertical: spacing.xxl,
-    paddingHorizontal: spacing.xxl,
-  },
-  tile: {
-    width: 34,
-    height: 34,
-    borderRadius: radius.sm,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  rowText: {
-    flex: 1,
-    gap: 1,
-  },
-  rowLabel: {
-    ...type.title,
-    color: colors.ink,
-    flex: 1,
-  },
-  rowSub: {
-    ...type.caption,
-    color: colors.muted2,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: colors.sandChip,
-    marginHorizontal: spacing.xxl,
-  },
-  segment: {
-    flexDirection: 'row',
-    backgroundColor: colors.sandChip,
-    borderRadius: radius.pill,
-    padding: 3,
-    gap: 2,
-  },
-  segmentItem: {
-    borderRadius: radius.pill,
-    paddingHorizontal: spacing.xl,
-    paddingVertical: 5,
-  },
-  segmentItemOn: {
-    backgroundColor: colors.teal,
-  },
-  segmentText: {
-    fontFamily: fonts.bold,
-    fontSize: 11,
-    color: colors.muted2,
-  },
-  segmentTextOn: {
-    color: colors.white,
   },
 });
