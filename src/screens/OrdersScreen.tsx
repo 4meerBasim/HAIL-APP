@@ -13,7 +13,6 @@ import Icon from '../components/Icon';
 import { type IconPath, icons } from '../components/icons';
 import Button from '../components/Button';
 import Card from '../components/Card';
-import MacroRow from '../components/MacroRow';
 import PatternFill from '../components/PatternFill';
 import PressScale from '../components/PressScale';
 import Reveal from '../components/Reveal';
@@ -193,7 +192,6 @@ export default function OrdersScreen({ navigation }: TabScreenProps<'Orders'>) {
     subscription,
     subscriptionMeals,
     subscriptionPricing,
-    subscriptionMacros,
     editSubscription,
     skipDay,
     postponeDay,
@@ -226,15 +224,17 @@ export default function OrdersScreen({ navigation }: TabScreenProps<'Orders'>) {
     [subscription, progress],
   );
 
-  // Relative wording beats a weekday name for the very next drop — "Today" is
-  // unambiguous where "Saturday" makes the customer work out which Saturday.
-  const nextLabel = useMemo(() => {
-    if (!subscription || !progress || progress.nextDayIndex === null) return '';
-    const inDays = progress.nextDayIndex - progress.elapsedDays;
-    if (inDays <= 0) return t('orders.today');
-    if (inDays === 1) return t('orders.tomorrow');
-    return t(dayKeys[progress.nextDayIndex % 7]);
-  }, [subscription, progress, t]);
+  // The date the paid span closes. `endsAt` was already computed on every
+  // render and never shown; the card carried the plan's length instead, which
+  // the progress bar underneath states more usefully.
+  const endLabel = useMemo(() => {
+    if (!progress) return '';
+    if (progress.finished) return t('orders.finished');
+    const end = new Date(progress.endsAt);
+    return `${t('orders.endsOn')} ${formatNumber(end.getDate())} ${t(`month.${end.getMonth()}`)}`;
+  }, [progress, t]);
+
+  const percent = progress ? Math.round(progress.ratio * 100) : 0;
 
   // The rotation repeats across delivery days, so slot N gets the next
   // `mealsPerDay` meals in the plan's order.
@@ -290,13 +290,17 @@ export default function OrdersScreen({ navigation }: TabScreenProps<'Orders'>) {
             style={[styles.planCard, shadow.raised]}
           >
             <PatternFill />
+            {/* The plan's shape and the date it runs out. A calendar date is
+                something the customer can plan around; "23 days left" is the
+                same fact in a form they have to do arithmetic on, and it is
+                already the first counter below. */}
             <View style={styles.planHead}>
               <View style={styles.planText}>
                 <Text style={styles.planName} numberOfLines={1}>
                   {planName}
                 </Text>
                 <Text style={styles.planMeta} numberOfLines={1}>
-                  {`${formatNumber(subscriptionPricing.activeDays)} ${t('unit.days')} · ${formatNumber(subscriptionPricing.mealsPerDay)} ${t('unit.perDay')}`}
+                  {`${formatNumber(subscriptionPricing.mealsPerDay)} ${t('unit.perDay')} · ${endLabel}`}
                 </Text>
               </View>
               <View style={styles.statusPillOnDark}>
@@ -305,20 +309,29 @@ export default function OrdersScreen({ navigation }: TabScreenProps<'Orders'>) {
               </View>
             </View>
 
+            {/* Bar first, numbers under it. The bar is the thing read at a
+                glance and the caption is the footnote, so the caption carries
+                the count rather than repeating it in a third place. */}
             <View style={styles.progressBlock}>
+              <View style={styles.track}>
+                <View style={[styles.fill, { width: `${percent}%` }]} />
+              </View>
               <View style={styles.progressLabels}>
                 <Text style={styles.progressLead}>
-                  {`${t('orders.delivered')} ${formatNumber(progress.deliveredDays)} ${t('orders.ofTotal')} ${formatNumber(progress.totalDays)}`}
+                  {`${formatNumber(progress.deliveredDays)} ${t('orders.ofTotal')} ${formatNumber(progress.totalDays)} ${t('unit.days')}`}
                 </Text>
-                {progress.finished ? (
-                  <Text style={styles.progressTrail}>{t('orders.finished')}</Text>
-                ) : null}
-              </View>
-              <View style={styles.track}>
-                <View style={[styles.fill, { width: `${Math.round(progress.ratio * 100)}%` }]} />
+                <Text style={styles.progressTrail}>
+                  {progress.finished
+                    ? t('orders.finished')
+                    : `${formatNumber(percent)}${t('common.percent')}`}
+                </Text>
               </View>
             </View>
 
+            {/* Two live counters, both of which fall as the plan runs down. The
+                plan total used to sit here as a third: money already committed,
+                static, and labelled with a currency mark where its neighbours
+                are labelled with nouns. It belongs on the receipt. */}
             <View style={styles.statRow}>
               <View style={styles.stat}>
                 <Text style={styles.statValue}>{formatNumber(progress.remainingDays)}</Text>
@@ -329,28 +342,7 @@ export default function OrdersScreen({ navigation }: TabScreenProps<'Orders'>) {
                 <Text style={styles.statValue}>{formatNumber(progress.remainingMeals)}</Text>
                 <Text style={styles.statLabel}>{t('orders.remainingMeals')}</Text>
               </View>
-              <View style={styles.statDivider} />
-              <View style={styles.stat}>
-                <Text style={styles.statValue}>{groupNumber(subscriptionPricing.total)}</Text>
-                <Text style={styles.statLabel}>{currencyMark(lang)}</Text>
-              </View>
             </View>
-
-            {nextLabel ? (
-              <View style={styles.nextRow}>
-                <View style={styles.nextIcon}>
-                  <Icon path={icons.truck} size={15} color={colors.white} strokeWidth={2} />
-                </View>
-                <View style={styles.nextText}>
-                  <Text style={styles.nextTitle}>{t('orders.nextDelivery')}</Text>
-                  <Text style={styles.nextMeta} numberOfLines={1}>
-                    {`${nextLabel} · ${subscription.mealSlots.map((slot) => slotLabel(slot, t)).join(' · ')}`}
-                  </Text>
-                </View>
-              </View>
-            ) : null}
-
-            {subscriptionMacros ? <MacroRow macros={subscriptionMacros} size="sm" onDark /> : null}
 
             <Button
               label={t('orders.track')}
@@ -614,7 +606,7 @@ const styles = StyleSheet.create({
   // Progress is measured in delivery days, not calendar days — a Sat-to-Wed
   // plan is not half done because half the calendar span elapsed.
   progressBlock: {
-    gap: spacing.md,
+    gap: spacing.sm,
   },
   progressLabels: {
     flexDirection: 'row',
@@ -624,12 +616,14 @@ const styles = StyleSheet.create({
   },
   progressLead: {
     ...type.caption,
-    fontFamily: fonts.bold,
-    color: colors.white,
+    fontSize: 12,
+    color: overlay.white75,
   },
   progressTrail: {
     ...type.caption,
-    color: overlay.white75,
+    fontFamily: fonts.bold,
+    fontSize: 12,
+    color: colors.white,
   },
   track: {
     height: 6,
@@ -668,33 +662,6 @@ const styles = StyleSheet.create({
     width: 1,
     alignSelf: 'stretch',
     backgroundColor: overlay.white16,
-  },
-  nextRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xl,
-  },
-  nextIcon: {
-    width: 30,
-    height: 30,
-    borderRadius: radius.pill,
-    backgroundColor: overlay.white16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  nextText: {
-    flex: 1,
-    gap: 1,
-  },
-  nextTitle: {
-    ...type.caption,
-    fontSize: 12,
-    color: overlay.white75,
-  },
-  nextMeta: {
-    ...type.bodyStrong,
-    fontSize: 13,
-    color: colors.white,
   },
   totalRow: {
     flexDirection: 'row',
