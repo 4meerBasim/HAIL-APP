@@ -69,7 +69,12 @@ export const icons = {
     'M2 12h20',
     'M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20z',
   ],
-  user: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21c1.5-4 5-5.5 8-5.5s6.5 1.5 8 5.5',
+  // Head r3.5 on centre (12,8.5) over a true semicircular shoulder cap. The old
+  // one swept 4→20 across the grid, which read squat and wide next to the rest.
+  user: [
+    'M12 12a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z',
+    'M5.5 20.5a6.5 6.5 0 0 1 13 0',
+  ],
   userPlus: [
     'M10 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8z',
     'M3 21c1.4-3.8 4.6-5.5 7-5.5 1.1 0 2.2.2 3.2.7',
@@ -97,7 +102,13 @@ export const icons = {
   clock: ['M2 12a10 10 0 1 0 20 0 10 10 0 1 0-20 0z', 'M12 6v6l4 2'],
 
   // ── Subscription & schedule ───────────────────────────────────────────────
-  box: 'M12 3 3 7.5v9L12 21l9-4.5v-9L12 3zM3.3 7.6 12 12l8.7-4.4M12 12v9',
+  // A meal box seen straight on — rounded body, lid band, carry handle. The
+  // isometric cube it replaces read as a shipping carton, not as food.
+  box: [
+    'M5.5 7h13a2.5 2.5 0 0 1 2.5 2.5v8a2.5 2.5 0 0 1-2.5 2.5h-13a2.5 2.5 0 0 1-2.5-2.5v-8a2.5 2.5 0 0 1 2.5-2.5z',
+    'M3 11.5h18',
+    'M9.5 7V5.5a1.5 1.5 0 0 1 1.5-1.5h2a1.5 1.5 0 0 1 1.5 1.5V7',
+  ],
   puzzle:
     'M15.39 4.39a1 1 0 0 0 1.68-.47 2.5 2.5 0 1 1 3.01 3.01 1 1 0 0 0-.47 1.68l1.68 1.69a2.41 2.41 0 0 1 0 3.41L19.61 15.39a1 1 0 0 1-1.68-.47 2.5 2.5 0 1 0-3.01 3.01 1 1 0 0 1 .47 1.68l-1.68 1.69a2.41 2.41 0 0 1-3.41 0L8.61 19.61a1 1 0 0 0-1.68.47 2.5 2.5 0 1 1-3.01-3.01 1 1 0 0 0 .47-1.68l-1.68-1.69a2.41 2.41 0 0 1 0-3.41L4.39 8.61a1 1 0 0 1 1.68.47 2.5 2.5 0 1 0 3.01-3.01 1 1 0 0 1-.47-1.68z',
   skipForward: ['M5 4 15 12 5 20z', 'M19 5v14'],
@@ -116,8 +127,22 @@ export const icons = {
   moon: 'M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z',
 
   // ── Navigation & controls ─────────────────────────────────────────────────
-  grid: 'M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z',
-  receipt: 'M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6',
+  // Four 7x7 tiles on a symmetric 3.5–20.5 grid, corners at r2. The previous
+  // path was four bare `h7v7z` squares: dead-sharp corners on an otherwise
+  // fully rounded UI, which is most of what made the bar look cheap.
+  grid: [
+    'M5.5 3.5h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2h-3a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2z',
+    'M15.5 3.5h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2h-3a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2z',
+    'M5.5 13.5h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2h-3a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2z',
+    'M15.5 13.5h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2h-3a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2z',
+  ],
+  // Rounded top, five even teeth along the tear, and two content lines of
+  // different lengths so it reads as a printed slip rather than a box.
+  receipt: [
+    'M7 3.5h10a2 2 0 0 1 2 2v15l-2.8-1.7-2.8 1.7-2.8-1.7-2.8 1.7-2.8-1.7V5.5a2 2 0 0 1 2-2z',
+    'M9 8.5h6',
+    'M9 12.5h4',
+  ],
   chevronDown: 'M6 9l6 6 6-6',
   chevronLeft: 'M15 18 9 12l6-6',
   chevronRight: 'M9 18l6-6-6-6',
@@ -132,6 +157,11 @@ export const icons = {
   heart: 'M12 20s-8-5-8-11a4.5 4.5 0 0 1 8-2.8A4.5 4.5 0 0 1 20 9c0 6-8 11-8 11z',
   filter: 'M4 6h16M7 12h10M10 18h4',
   search: ['M18 11a7 7 0 1 0-14 0 7 7 0 1 0 14 0', 'M20 20l-3.5-3.5'],
+  crosshair: [
+    'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z',
+    'M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z',
+    'M12 1v3M12 20v3M1 12h3M20 12h3',
+  ],
   calendar: [
     'M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z',
     'M3 10h18',
