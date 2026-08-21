@@ -1,25 +1,28 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
-  DimensionValue,
   Easing,
   StyleSheet,
   TextStyle,
   TouchableOpacity,
   View,
-  ViewStyle,
 } from 'react-native';
 import Text from '../components/AppText';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Svg, { Circle, Line, Path } from 'react-native-svg';
+import { WebView } from 'react-native-webview';
+import { LinearGradient } from 'expo-linear-gradient';
 import Screen from '../components/Screen';
 import Icon from '../components/Icon';
 import { icons } from '../components/icons';
-import { colors, fonts, radius, shadow } from '../theme';
+import { colors, fonts, radius, shadow, spacing, type } from '../theme';
 import { useLanguage } from '../i18n/LanguageContext';
 import { toWesternDigits } from '../i18n/digits';
 import {
   DEFAULT_TRACKING,
+  trackingDestination,
+  trackingProgress,
+  trackingRestaurant,
+  trackingRoute,
   trackingOrder,
   trackingStepIndex,
   trackingSteps,
@@ -27,16 +30,130 @@ import {
 } from '../data/menu';
 import type { RootStackScreenProps } from '../navigation/RootNavigator';
 
-// Route SVG uses the design frame; markers are positioned as a % of the same box
-// so they stay locked to the (stretched) route regardless of device size.
-const MAP_W = 402;
-const MAP_H = 680;
-const pct = (n: number, base: number): DimensionValue => `${(n / base) * 100}%` as `${number}%`;
-
-// Route geometry lifted verbatim from the design's <!-- 07 TRACKING --> SVGs.
-const ROUTE = 'M330 180 C 300 260, 180 260, 150 340 S 90 470, 120 540';
-
 // Step labels are localized via t(); these are the strings.ts keys in step order.
+// The tracking basemap is the same CARTO Positron + tone chain the address
+// picker uses, so the two map surfaces read as one product. Tone before hue for
+// the reason documented there: Positron sits at the top of the value range, so
+// contrast has to be given room by brightness first or the streets flatten out.
+const buildHtml = (fromLabel: string, toLabel: string): string => `
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+  html, body, #map { margin: 0; height: 100%; background: ${colors.mapBg}; }
+  .leaflet-tile-pane { filter: brightness(0.94) contrast(1.14) sepia(0.16) saturate(0.9); }
+  .leaflet-control-attribution {
+    font-family: -apple-system, sans-serif; font-size: 9px;
+    padding: 2px 7px; border-radius: 9px 0 0 0; border: none; box-shadow: none;
+    background: rgba(255,255,255,0.82); color: ${colors.muted};
+  }
+  .leaflet-control-attribution a { color: ${colors.tealDark}; text-decoration: none; }
+  .cap {
+    background: ${colors.tealDark}; color: #fff; border-radius: 12px;
+    padding: 4px 9px; font: 700 10.5px -apple-system, sans-serif; white-space: nowrap;
+  }
+  .cap.dest { background: ${colors.gold}; }
+  .van {
+    width: 40px; height: 40px; border-radius: 50%;
+    background: ${colors.teal}; border: 3px solid #fff;
+    box-shadow: 0 4px 12px rgba(16,60,59,.35);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .van svg { width: 20px; height: 20px; }
+  .halo {
+    position: absolute; left: 50%; top: 50%; width: 40px; height: 40px;
+    margin: -20px 0 0 -20px; border-radius: 50%; background: ${colors.teal};
+    animation: halo 1800ms ease-out infinite;
+  }
+  @keyframes halo {
+    from { transform: scale(1); opacity: .45; }
+    to   { transform: scale(2.6); opacity: 0; }
+  }
+</style>
+</head>
+<body>
+<div id="map"></div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+  var ROUTE = ${JSON.stringify(trackingRoute)};
+  var FROM = [${trackingRestaurant.lat}, ${trackingRestaurant.lng}];
+  var TO = [${trackingDestination.lat}, ${trackingDestination.lng}];
+
+  // Non-interactive on purpose: this is a status display, not a picker, and a
+  // map that pans under the thumb competes with the sheet below it.
+  var map = L.map('map', {
+    zoomControl: false, attributionControl: true,
+    dragging: false, touchZoom: false, doubleClickZoom: false,
+    scrollWheelZoom: false, boxZoom: false, keyboard: false, tap: false
+  });
+
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+    maxZoom: 19, attribution: '&copy; OpenStreetMap &copy; CARTO'
+  }).addTo(map);
+
+  // The travelled leg sits on top of the full route, so progress reads as the
+  // solid line eating into the dashed one.
+  L.polyline(ROUTE, { color: '${colors.sand}', weight: 6, opacity: 1, lineCap: 'round' }).addTo(map);
+  var done = L.polyline([], { color: '${colors.teal}', weight: 6, opacity: 1, lineCap: 'round' }).addTo(map);
+
+  var cap = function (text, cls) {
+    return L.divIcon({ className: '', html: '<div class="cap ' + cls + '">' + text + '</div>', iconAnchor: [0, 28] });
+  };
+  L.marker(FROM, { icon: cap(${JSON.stringify(fromLabel)}, 'from'), interactive: false }).addTo(map);
+  L.marker(TO, { icon: cap(${JSON.stringify(toLabel)}, 'dest'), interactive: false }).addTo(map);
+
+  var VAN = '<div class="halo"></div><div class="van"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.62l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/></svg></div>';
+  var van = L.marker(FROM, {
+    icon: L.divIcon({ className: '', html: VAN, iconSize: [40, 40], iconAnchor: [20, 20] }),
+    interactive: false, zIndexOffset: 500
+  }).addTo(map);
+
+  map.fitBounds(L.latLngBounds(ROUTE), { padding: [56, 56] });
+
+  // Walk the polyline by cumulative segment length so the marker tracks the
+  // road rather than the straight line between endpoints.
+  var lengths = [], total = 0;
+  for (var i = 1; i < ROUTE.length; i++) {
+    var dy = ROUTE[i][0] - ROUTE[i-1][0], dx = ROUTE[i][1] - ROUTE[i-1][1];
+    var d = Math.sqrt(dy*dy + dx*dx);
+    lengths.push(d); total += d;
+  }
+
+  var at = function (ratio) {
+    var want = Math.max(0, Math.min(1, ratio)) * total, run = 0;
+    for (var i = 0; i < lengths.length; i++) {
+      if (run + lengths[i] >= want) {
+        var f = lengths[i] === 0 ? 0 : (want - run) / lengths[i];
+        return {
+          point: [
+            ROUTE[i][0] + (ROUTE[i+1][0] - ROUTE[i][0]) * f,
+            ROUTE[i][1] + (ROUTE[i+1][1] - ROUTE[i][1]) * f
+          ],
+          upto: i + 1
+        };
+      }
+      run += lengths[i];
+    }
+    return { point: ROUTE[ROUTE.length - 1], upto: ROUTE.length - 1 };
+  };
+
+  window.jr = {
+    setProgress: function (ratio) {
+      var r = at(ratio);
+      van.setLatLng(r.point);
+      done.setLatLngs(ROUTE.slice(0, r.upto).concat([r.point]));
+    }
+  };
+</script>
+</body>
+</html>
+`;
+
+const MAP_FADE = ['rgba(232,235,226,0)', 'rgba(232,235,226,0.75)'] as const;
+
 const STEP_KEYS = ['track.step.preparing', 'track.step.ontheway', 'track.step.delivered'] as const;
 
 // Status cycle order derived from the exported step-index map (preparing -> ontheway -> delivered).
@@ -44,39 +161,33 @@ const STATUS_ORDER = (Object.keys(trackingStepIndex) as TrackingStatus[]).sort(
   (a, b) => trackingStepIndex[a] - trackingStepIndex[b],
 );
 
-const AnimatedPath = Animated.createAnimatedComponent(Path);
-
-interface GridLine {
-  x1: number;
-  y1: number;
-  x2: number;
-  y2: number;
-  o: number;
-  w: number;
-}
-
 export default function TrackingScreen({ route, navigation }: RootStackScreenProps<'Tracking'>) {
-  const { t, lang, isRTL } = useLanguage();
+  const { t, isRTL } = useLanguage();
   const insets = useSafeAreaInsets();
   const [status, setStatus] = useState<TrackingStatus>(route.params?.status ?? DEFAULT_TRACKING);
-  const [mapSize, setMapSize] = useState<{ w: number; h: number } | null>(null);
+  const web = useRef<WebView>(null);
+
+  // Built once. Rebuilding the document on a status change would reload the map
+  // and lose the driver's position mid-animation; the marker moves through
+  // `window.jr` instead.
+  const html = useMemo(() => buildHtml(t('track.restaurant'), t('track.destination')), [t]);
+
+  // Also fired from onLoadEnd: on mount this runs before Leaflet has parsed, so
+  // `window.jr` does not exist yet and the first position would be dropped.
+  const applyProgress = useCallback(() => {
+    web.current?.injectJavaScript(
+      `window.jr && window.jr.setProgress(${trackingProgress[status]});true;`,
+    );
+  }, [status]);
+
+  useEffect(applyProgress, [applyProgress]);
 
   const idx = trackingStepIndex[status];
 
-  // JS-driven value for the SVG dash offset (native driver can't animate SVG props).
-  const dash = useRef(new Animated.Value(0)).current;
   // Native-driven value for the marker/live-dot pulses (transform + opacity).
   const pulse = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    const dashLoop = Animated.loop(
-      Animated.timing(dash, {
-        toValue: 1,
-        duration: 800,
-        easing: Easing.linear,
-        useNativeDriver: false,
-      }),
-    );
     const pulseLoop = Animated.loop(
       Animated.timing(pulse, {
         toValue: 1,
@@ -85,112 +196,68 @@ export default function TrackingScreen({ route, navigation }: RootStackScreenPro
         useNativeDriver: true,
       }),
     );
-    dashLoop.start();
     pulseLoop.start();
     return () => {
-      dashLoop.stop();
       pulseLoop.stop();
     };
-  }, [dash, pulse]);
+  }, [pulse]);
 
-  // One full dash period (2 + 14) so the loop is seamless.
-  const dashOffset = dash.interpolate({ inputRange: [0, 1], outputRange: [0, -16] });
   const ringScale = pulse.interpolate({ inputRange: [0, 0.7, 1], outputRange: [1, 2.2, 2.2] });
   const ringOpacity = pulse.interpolate({ inputRange: [0, 0.7, 1], outputRange: [0.45, 0, 0] });
-
-  const grid = useMemo<GridLine[] | null>(() => {
-    if (!mapSize) return null;
-    const { w, h } = mapSize;
-    const lines: GridLine[] = [];
-    for (let x = 0; x <= w; x += 28) lines.push({ x1: x, y1: 0, x2: x, y2: h, o: 0.5, w: 1 });
-    for (let y = 0; y <= h; y += 28) lines.push({ x1: 0, y1: y, x2: w, y2: y, o: 0.5, w: 1 });
-    for (let x = 0; x <= w; x += 110) lines.push({ x1: x, y1: 0, x2: x, y2: h, o: 0.9, w: 2 });
-    for (let y = 0; y <= h; y += 110) lines.push({ x1: 0, y1: y, x2: w, y2: y, o: 0.9, w: 2 });
-    return lines;
-  }, [mapSize]);
 
   const cycleStatus = () =>
     setStatus((s) => STATUS_ORDER[(trackingStepIndex[s] + 1) % STATUS_ORDER.length]);
 
-  const minutes = lang === 'ar' ? trackingOrder.minutes : toWesternDigits(trackingOrder.minutes);
+  const minutes = toWesternDigits(trackingOrder.minutes);
   const avatar = t('track.driver.name').trim().charAt(0);
 
-  // Connector segments are physical (left/width %); map coloring to the right segment per direction.
-  const leftSegOn = isRTL ? idx >= 2 : idx >= 1;
-  const rightSegOn = isRTL ? idx >= 1 : idx >= 2;
+  // Clock time the order lands, so the ETA is an arrival and not just a
+  // countdown the customer has to add to the current time themselves.
+  const arrivesAt = useMemo(() => {
+    const at = new Date(Date.now() + Number(minutes) * 60_000);
+    return toWesternDigits(
+      `${String(at.getHours()).padStart(2, '0')}:${String(at.getMinutes()).padStart(2, '0')}`,
+    );
+  }, [minutes]);
 
-  const leadPos: ViewStyle = isRTL ? { right: 16 } : { left: 16 };
-  const trailPos: ViewStyle = isRTL ? { left: 16 } : { right: 16 };
-  const textStart: TextStyle = {
-    textAlign: isRTL ? 'right' : 'left',
+
+  // 'auto' resolves against the paragraph's own writing direction. A physical
+  // 'right' is mirrored back to the left by RN's RTL swap — the same trap the
+  // login screen documents.
+  const readingSide: TextStyle = {
+    textAlign: 'auto',
     writingDirection: isRTL ? 'rtl' : 'ltr',
   };
 
   return (
     <Screen background={colors.mapBg} edges={['left', 'right']}>
-      <View style={styles.map} onLayout={(e) => setMapSize({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
-        {grid && (
-          <Svg style={StyleSheet.absoluteFill} width={mapSize!.w} height={mapSize!.h}>
-            {grid.map((l, i) => (
-              <Line
-                key={i}
-                x1={l.x1}
-                y1={l.y1}
-                x2={l.x2}
-                y2={l.y2}
-                stroke={colors.white}
-                strokeOpacity={l.o}
-                strokeWidth={l.w}
-              />
-            ))}
-          </Svg>
-        )}
+      <View style={styles.map}>
+        <WebView
+          ref={web}
+          source={{ html }}
+          originWhitelist={['*']}
+          style={styles.web}
+          scrollEnabled={false}
+          bounces={false}
+          overScrollMode="never"
+          pointerEvents="none"
+          onLoadEnd={applyProgress}
+        />
 
-        <View style={styles.blob1} />
-        <View style={styles.blob2} />
-
-        <Svg
-          style={StyleSheet.absoluteFill}
-          width="100%"
-          height="100%"
-          viewBox={`0 0 ${MAP_W} ${MAP_H}`}
-          preserveAspectRatio="none"
-        >
-          <AnimatedPath
-            d={ROUTE}
-            stroke={colors.teal}
-            strokeWidth={5}
-            strokeLinecap="round"
-            fill="none"
-            strokeDasharray={[2, 14]}
-            strokeDashoffset={dashOffset}
-          />
-          <Circle cx={330} cy={180} r={9} fill={colors.tealDark} />
-        </Svg>
-
-        <View style={[styles.pin, styles.restaurantPin]}>
-          <Text style={styles.restaurantText}>{t('track.restaurant')}</Text>
-        </View>
-
-        <View style={styles.driverMarker}>
-          <Animated.View
-            style={[styles.driverRing, { transform: [{ scale: ringScale }], opacity: ringOpacity }]}
-          />
-          <View style={styles.driverDot}>
-            <Icon path={icons.truck} size={20} color={colors.white} strokeWidth={1.8} />
-          </View>
-        </View>
-
-        <View style={[styles.pin, styles.driverBadge]}>
-          <Text style={styles.driverBadgeText}>{t('track.driver.badge')}</Text>
-        </View>
+        {/* The sheet's rounded corners otherwise sit straight on live tiles;
+            this softens the seam without dimming the route. */}
+        <LinearGradient
+          colors={MAP_FADE}
+          style={styles.mapFade}
+          pointerEvents="none"
+        />
 
         <TouchableOpacity
           activeOpacity={0.85}
           onPress={() => navigation.goBack()}
           accessibilityRole="button"
           accessibilityLabel={t('common.back')}
-          style={[styles.backBtn, { top: insets.top + 12 }, leadPos]}
+          style={[styles.backBtn, styles.lead, { top: insets.top + spacing.xl }]}
         >
           <Icon
             path={isRTL ? icons.chevronRight : icons.chevronLeft}
@@ -205,11 +272,15 @@ export default function TrackingScreen({ route, navigation }: RootStackScreenPro
           onPress={cycleStatus}
           accessibilityRole="button"
           accessibilityLabel={t('track.cycle')}
-          style={[styles.livePill, { top: insets.top + 12 }, trailPos]}
+          style={[styles.livePill, styles.trail, { top: insets.top + spacing.xl }]}
         >
           <View style={styles.liveDotWrap}>
             <Animated.View
-              style={[styles.liveRing, { transform: [{ scale: ringScale }], opacity: ringOpacity }]}
+              style={[
+                styles.liveDot,
+                styles.liveRing,
+                { transform: [{ scale: ringScale }], opacity: ringOpacity },
+              ]}
             />
             <View style={styles.liveDot} />
           </View>
@@ -217,37 +288,47 @@ export default function TrackingScreen({ route, navigation }: RootStackScreenPro
         </TouchableOpacity>
       </View>
 
-      <View style={[styles.sheet, { paddingBottom: insets.bottom + 40 }]}>
+      <View style={[styles.sheet, { paddingBottom: insets.bottom + spacing.giant }]}>
+        <View style={styles.handle} />
+
         <View style={styles.headerRow}>
           <View style={styles.headerLeft}>
-            <Text style={[styles.headline, textStart]}>{t(`track.headline.${status}`)}</Text>
-            <Text style={[styles.orderLine, textStart]}>{t('track.orderLine')}</Text>
+            <Text style={[styles.headline, readingSide]} numberOfLines={2}>
+              {t(`track.headline.${status}`)}
+            </Text>
+            <Text style={[styles.orderLine, readingSide]} numberOfLines={1}>
+              {t('track.orderLine')}
+            </Text>
           </View>
           <View style={styles.minuteBox}>
             <Text style={styles.minuteNum}>{minutes}</Text>
             <Text style={styles.minuteLabel}>{t('track.minute')}</Text>
+            <Text style={styles.minuteAt}>{`${t('track.arrivesAt')} ${arrivesAt}`}</Text>
           </View>
         </View>
 
         <View style={styles.steps}>
-          <View
-            style={[styles.connector, styles.connectorLeft, { backgroundColor: leftSegOn ? colors.teal : colors.sand }]}
-          />
-          <View
-            style={[styles.connector, styles.connectorRight, { backgroundColor: rightSegOn ? colors.teal : colors.sand }]}
-          />
           <View style={styles.stepRow}>
             {trackingSteps.map((_, i) => {
               const done = i < idx;
               const active = i === idx;
               const filled = done || active;
+              const last = i === trackingSteps.length - 1;
               return (
                 <View key={STEP_KEYS[i]} style={styles.stepCol}>
+                  {i > 0 ? (
+                    <View
+                      style={[styles.rail, styles.railLead, done || active ? styles.railOn : null]}
+                    />
+                  ) : null}
+                  {last ? null : (
+                    <View style={[styles.rail, styles.railTrail, done ? styles.railOn : null]} />
+                  )}
                   <View
                     style={[
                       styles.stepDot,
                       {
-                        backgroundColor: filled ? colors.teal : colors.white,
+                        backgroundColor: filled ? colors.teal : colors.card,
                         borderColor: filled ? colors.teal : colors.faint3,
                       },
                     ]}
@@ -284,8 +365,12 @@ export default function TrackingScreen({ route, navigation }: RootStackScreenPro
             <Text style={styles.avatarText}>{avatar}</Text>
           </View>
           <View style={styles.driverInfo}>
-            <Text style={[styles.driverName, textStart]}>{t('track.driver.name')}</Text>
-            <Text style={[styles.driverRole, textStart]}>{t('track.driver.role')}</Text>
+            <Text style={[styles.driverName, readingSide]} numberOfLines={1}>
+              {t('track.driver.name')}
+            </Text>
+            <Text style={[styles.driverRole, readingSide]} numberOfLines={1}>
+              {t('track.driver.role')}
+            </Text>
           </View>
           <TouchableOpacity
             activeOpacity={0.8}
@@ -309,104 +394,60 @@ export default function TrackingScreen({ route, navigation }: RootStackScreenPro
   );
 }
 
+// Dot and rail are derived, not hand-tuned: the rail has to sit on the dot's
+// centre line, and it did not when either number was edited on its own.
+const DOT = 28;
+const RAIL = 3;
+
 const styles = StyleSheet.create({
   map: {
     flex: 1,
     overflow: 'hidden',
   },
-  blob1: {
+  web: {
+    flex: 1,
+    backgroundColor: colors.mapBg,
+  },
+  mapFade: {
     position: 'absolute',
-    top: 120,
-    right: -30,
-    width: 220,
-    height: 150,
-    backgroundColor: colors.mapShape1,
-    borderRadius: 40,
-    transform: [{ rotate: '-8deg' }],
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 72,
   },
-  blob2: {
-    position: 'absolute',
-    top: 330,
-    left: -40,
-    width: 190,
-    height: 120,
-    backgroundColor: colors.mapShape2,
-    borderRadius: 40,
-    transform: [{ rotate: '6deg' }],
+  // Logical, not physical. React Native mirrors `left`/`right` under RTL
+  // (I18nManager.doLeftAndRightSwapInRTL), so an `isRTL ? {right} : {left}`
+  // ternary is a double negative and lands the control on the wrong edge —
+  // a back chevron pointing to the trailing edge while sitting on the leading
+  // one. `start`/`end` are resolved once, correctly, for both directions.
+  lead: {
+    start: spacing.huge,
   },
-  pin: {
-    position: 'absolute',
-    borderRadius: radius.sm,
-    paddingHorizontal: 9,
-    paddingVertical: 4,
-  },
-  restaurantPin: {
-    top: pct(158, MAP_H),
-    right: pct(52, MAP_W),
-    backgroundColor: colors.tealDark,
-  },
-  restaurantText: {
-    fontFamily: fonts.bold,
-    fontSize: 10.5,
-    color: colors.white,
-  },
-  driverMarker: {
-    position: 'absolute',
-    top: pct(520, MAP_H),
-    right: pct(258, MAP_W),
-    width: 44,
-    height: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  driverRing: {
-    position: 'absolute',
-    width: 44,
-    height: 44,
-    borderRadius: radius.pill,
-    backgroundColor: colors.teal,
-  },
-  driverDot: {
-    width: 44,
-    height: 44,
-    borderRadius: radius.pill,
-    backgroundColor: colors.teal,
-    borderWidth: 3,
-    borderColor: colors.white,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  driverBadge: {
-    top: pct(568, MAP_H),
-    right: pct(238, MAP_W),
-    backgroundColor: colors.white,
-    ...shadow.card,
-  },
-  driverBadgeText: {
-    fontFamily: fonts.bold,
-    fontSize: 10.5,
-    color: colors.ink,
+  trail: {
+    end: spacing.huge,
   },
   backBtn: {
     position: 'absolute',
     width: 38,
     height: 38,
     borderRadius: radius.pill,
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     alignItems: 'center',
     justifyContent: 'center',
     ...shadow.card,
+    shadowColor: colors.ink,
   },
   livePill: {
     position: 'absolute',
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 7,
-    backgroundColor: colors.white,
+    gap: spacing.md,
+    backgroundColor: colors.card,
     borderRadius: radius.pill,
-    paddingHorizontal: 16,
-    paddingVertical: 9,
+    paddingHorizontal: spacing.xxxl,
+    paddingVertical: spacing.lg,
     ...shadow.card,
+    shadowColor: colors.ink,
   },
   liveDotWrap: {
     width: 8,
@@ -414,85 +455,81 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  liveRing: {
-    position: 'absolute',
-    width: 8,
-    height: 8,
-    borderRadius: radius.pill,
-    backgroundColor: colors.green,
-  },
   liveDot: {
     width: 8,
     height: 8,
     borderRadius: radius.pill,
     backgroundColor: colors.green,
   },
+  // Composed onto liveDot rather than redeclaring its size and colour — the two
+  // were duplicate definitions that could drift apart.
+  liveRing: {
+    position: 'absolute',
+  },
   liveText: {
-    fontFamily: fonts.bold,
-    fontSize: 12,
+    ...type.captionStrong,
     color: colors.ink,
   },
   sheet: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     borderTopLeftRadius: radius.sheet,
     borderTopRightRadius: radius.sheet,
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    gap: 15,
+    paddingHorizontal: spacing.huge,
+    paddingTop: spacing.xxl,
+    gap: spacing.xxl,
     ...shadow.sheet,
+  },
+  handle: {
+    alignSelf: 'center',
+    width: 42,
+    height: 4,
+    borderRadius: radius.pill,
+    backgroundColor: colors.sand,
+    marginBottom: spacing.xs,
   },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 12,
+    gap: spacing.xl,
   },
   headerLeft: {
-    flexShrink: 1,
+    flex: 1,
+    gap: 2,
   },
   headline: {
-    fontFamily: fonts.bold,
-    fontSize: 17,
+    ...type.h3,
     color: colors.ink,
   },
   orderLine: {
-    fontFamily: fonts.regular,
-    fontSize: 12,
+    ...type.caption,
     color: colors.muted2,
-    marginTop: 2,
   },
   minuteBox: {
     backgroundColor: colors.healthyBg,
     borderRadius: radius.md,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    paddingHorizontal: spacing.xxl,
+    paddingVertical: spacing.lg,
     alignItems: 'center',
   },
   minuteNum: {
-    fontFamily: fonts.bold,
-    fontSize: 18,
+    ...type.h2,
     color: colors.tealText,
   },
   minuteLabel: {
-    fontFamily: fonts.regular,
-    fontSize: 10,
+    ...type.caption,
+    fontSize: 11.5,
     color: colors.tealText,
+  },
+  minuteAt: {
+    ...type.caption,
+    fontSize: 11.5,
+    fontFamily: fonts.bold,
+    color: colors.tealDark,
+    marginTop: 2,
   },
   steps: {
     position: 'relative',
-  },
-  connector: {
-    position: 'absolute',
-    top: 12.5,
-    height: 3,
-  },
-  connectorLeft: {
-    left: '16.67%',
-    width: '33.33%',
-  },
-  connectorRight: {
-    left: '50%',
-    width: '33.33%',
   },
   stepRow: {
     flexDirection: 'row',
@@ -501,27 +538,50 @@ const styles = StyleSheet.create({
   stepCol: {
     flex: 1,
     alignItems: 'center',
-    gap: 6,
+    gap: spacing.sm,
+  },
+  // Two half-rails per column instead of two absolutely-positioned bars across
+  // the whole row. The old version hardcoded 16.67%/33.33% offsets, which only
+  // held for exactly three steps, and needed its colours hand-mapped per
+  // direction. These are logical (start/end), so they mirror with the language
+  // and stay correct if a step is ever added.
+  rail: {
+    position: 'absolute',
+    top: (DOT - RAIL) / 2,
+    height: RAIL,
+    width: '50%',
+    backgroundColor: colors.sand,
+  },
+  railLead: {
+    start: 0,
+  },
+  railTrail: {
+    end: 0,
+  },
+  railOn: {
+    backgroundColor: colors.teal,
   },
   stepDot: {
-    width: 28,
-    height: 28,
+    width: DOT,
+    height: DOT,
     borderRadius: radius.pill,
     borderWidth: 2.5,
     alignItems: 'center',
     justifyContent: 'center',
   },
   stepLabel: {
-    fontSize: 11,
+    ...type.caption,
+    fontSize: 12.5,
+    textAlign: 'center',
   },
   driverCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    backgroundColor: colors.cream,
+    gap: spacing.xl,
+    backgroundColor: colors.card,
     borderRadius: radius.card,
-    paddingHorizontal: 13,
-    paddingVertical: 11,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.xl,
   },
   avatar: {
     width: 46,
@@ -532,29 +592,27 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   avatarText: {
-    fontFamily: fonts.bold,
-    fontSize: 17,
+    ...type.h3,
     color: colors.white,
   },
   driverInfo: {
     flex: 1,
+    gap: 2,
   },
   driverName: {
-    fontFamily: fonts.bold,
+    ...type.bodyStrong,
     fontSize: 13.5,
     color: colors.ink,
   },
   driverRole: {
-    fontFamily: fonts.regular,
-    fontSize: 11,
+    ...type.caption,
     color: colors.muted2,
-    marginTop: 2,
   },
   iconBtn: {
     width: 40,
     height: 40,
     borderRadius: radius.pill,
-    backgroundColor: colors.healthyBg,
+    backgroundColor: colors.tile,
     alignItems: 'center',
     justifyContent: 'center',
   },

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   FlatList,
   ListRenderItemInfo,
@@ -40,6 +40,22 @@ export default function MenuScreen({ navigation, route }: TabScreenProps<'Menu'>
     }
   }, [routeCat]);
 
+  // Arriving from the Plans search box: put the caret in the field so the tap
+  // that got the customer here is the only tap they need. The param is cleared
+  // once used, otherwise the tab would refocus every time it is revisited —
+  // and leaving it set would stop a later request from firing the effect again.
+  const focusSearch = route.params?.focusSearch;
+  const searchRef = useRef<TextInput>(null);
+  useEffect(() => {
+    if (!focusSearch) return;
+    // A frame or two for the tab transition, else the keyboard is swallowed.
+    const id = setTimeout(() => {
+      searchRef.current?.focus();
+      navigation.setParams({ focusSearch: undefined });
+    }, 150);
+    return () => clearTimeout(id);
+  }, [focusSearch, navigation]);
+
   const itemWidth = (width - H_PAD * 2 - GRID_GAP) / 2;
 
   const cats = useMemo<{ k: CatKey; label: string }[]>(
@@ -51,13 +67,6 @@ export default function MenuScreen({ navigation, route }: TabScreenProps<'Menu'>
     ],
     [t],
   );
-
-  const filterPills = [
-    t('menu.filter.diet'),
-    t('menu.filter.category'),
-    t('menu.filter.price'),
-    t('menu.filter.calories'),
-  ];
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -94,70 +103,57 @@ export default function MenuScreen({ navigation, route }: TabScreenProps<'Menu'>
     />
   );
 
-  return (
-    <Screen edges={['top', 'left', 'right']}>
-      <View style={styles.header}>
-        <Text style={styles.title}>{t('menu.title')}</Text>
+  const header = (
+    <View style={styles.header}>
+      <Text style={styles.title}>{t('menu.title')}</Text>
 
-        <View style={styles.searchRow}>
-          <View style={styles.searchField}>
-            <Icon path={icons.search} size={15} color={colors.muted2} />
-            <TextInput
-              style={[styles.searchInput, { textAlign: isRTL ? 'right' : 'left' }]}
-              value={query}
-              onChangeText={setQuery}
-              placeholder={t('menu.searchPlaceholder')}
-              placeholderTextColor={colors.muted2}
-              returnKeyType="search"
-              accessibilityLabel={t('menu.searchPlaceholder')}
-            />
-            {query.length > 0 ? (
-              <TouchableOpacity
-                activeOpacity={0.7}
-                onPress={() => setQuery('')}
-                hitSlop={8}
-                accessibilityRole="button"
-                accessibilityLabel={t('menu.searchClear')}
-              >
-                <Text style={styles.clearText}>{t('menu.searchClear')}</Text>
-              </TouchableOpacity>
-            ) : null}
-          </View>
-          <TouchableOpacity activeOpacity={0.85} style={styles.filterBtn}>
-            <Icon path={icons.filter} size={17} color={colors.white} />
-          </TouchableOpacity>
-        </View>
-
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.pillsRow}
-        >
-          {filterPills.map((label) => (
-            <TouchableOpacity key={label} activeOpacity={0.7} style={styles.pill}>
-              <Text style={styles.pillText}>{label}</Text>
-              <Icon path={icons.chevronDown} size={12} color={colors.muted2} strokeWidth={2.2} />
+      <View style={styles.searchRow}>
+        <View style={styles.searchField}>
+          <Icon path={icons.search} size={15} color={colors.muted2} />
+          <TextInput
+            ref={searchRef}
+            style={[styles.searchInput, { textAlign: 'auto', writingDirection: isRTL ? 'rtl' : 'ltr' }]}
+            value={query}
+            onChangeText={setQuery}
+            placeholder={t('menu.searchPlaceholder')}
+            placeholderTextColor={colors.muted2}
+            returnKeyType="search"
+            accessibilityLabel={t('menu.searchPlaceholder')}
+          />
+          {query.length > 0 ? (
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() => setQuery('')}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel={t('menu.searchClear')}
+            >
+              <Text style={styles.clearText}>{t('menu.searchClear')}</Text>
             </TouchableOpacity>
-          ))}
-        </ScrollView>
-
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.chipsRow}
-        >
-          {cats.map((c) => (
-            <Chip
-              key={c.k}
-              label={c.label}
-              selected={cat === c.k}
-              onPress={() => setCat(c.k)}
-              shape="pill"
-            />
-          ))}
-        </ScrollView>
+          ) : null}
+        </View>
       </View>
 
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.chipsRow}
+      >
+        {cats.map((c) => (
+          <Chip
+            key={c.k}
+            label={c.label}
+            selected={cat === c.k}
+            onPress={() => setCat(c.k)}
+            shape="pill"
+          />
+        ))}
+      </ScrollView>
+    </View>
+  );
+
+  return (
+    <Screen edges={['top', 'left', 'right']} texture>
       <FlatList
         data={filtered}
         renderItem={renderItem}
@@ -166,6 +162,7 @@ export default function MenuScreen({ navigation, route }: TabScreenProps<'Menu'>
         columnWrapperStyle={styles.column}
         contentContainerStyle={styles.grid}
         style={styles.list}
+        ListHeaderComponent={header}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         ListEmptyComponent={
@@ -179,30 +176,36 @@ export default function MenuScreen({ navigation, route }: TabScreenProps<'Menu'>
 }
 
 const styles = StyleSheet.create({
+  // Rides the grid as its list header rather than sitting over it, so there is
+  // nothing to scroll under and no bar to separate from the page — the girih
+  // texture runs straight through behind the field and the chips.
   header: {
-    paddingHorizontal: H_PAD,
     paddingTop: spacing.md,
+    paddingBottom: spacing.xxl,
     gap: spacing.xl,
   },
   title: {
     ...type.h1,
     color: colors.ink,
+    paddingHorizontal: H_PAD,
   },
   searchRow: {
     flexDirection: 'row',
-    gap: spacing.md,
+    paddingHorizontal: H_PAD,
   },
+  // The field is white on a warm page now, so it needs a line of its own to
+  // read as a field rather than a hole.
   searchField: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: colors.sand,
-    borderRadius: 13,
-    paddingVertical: spacing.lg,
-    paddingHorizontal: spacing.xl,
+    borderRadius: radius.control,
+    paddingVertical: spacing.xxl,
+    paddingHorizontal: spacing.huge,
   },
   searchInput: {
     flex: 1,
@@ -216,53 +219,32 @@ const styles = StyleSheet.create({
   },
   empty: {
     paddingTop: spacing.giant,
+    paddingHorizontal: H_PAD,
     alignItems: 'center',
   },
   emptyText: {
     ...type.body,
     color: colors.muted2,
   },
-  filterBtn: {
-    width: 42,
-    height: 42,
-    borderRadius: 13,
-    backgroundColor: colors.tealDark,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  pillsRow: {
-    gap: spacing.sm,
-    alignItems: 'center',
-  },
-  pill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: colors.sand,
-    borderRadius: radius.pill,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: 11,
-  },
-  pillText: {
-    ...type.captionStrong,
-    color: colors.body,
-  },
+  // The row scrolls edge to edge and carries the gutter as content padding, so a
+  // chip runs off the screen rather than being clipped short of it.
   chipsRow: {
     gap: spacing.md,
     alignItems: 'center',
+    paddingHorizontal: H_PAD,
   },
   list: {
     flex: 1,
   },
+  // The gutter lives on the rows, not the container: the header sits in here
+  // too and its chip row has to run off the screen edge, which it cannot do
+  // through a container padding.
   grid: {
-    paddingHorizontal: H_PAD,
-    paddingTop: spacing.xxl,
     paddingBottom: spacing.giant,
     gap: GRID_GAP,
   },
   column: {
+    paddingHorizontal: H_PAD,
     gap: GRID_GAP,
   },
 });

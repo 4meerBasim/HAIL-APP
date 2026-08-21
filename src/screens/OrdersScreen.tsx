@@ -1,54 +1,194 @@
 import React, { useMemo } from 'react';
-import { Image, StyleSheet, TouchableOpacity, View } from 'react-native';
+import {
+  Animated,
+  ImageSourcePropType,
+  StyleSheet,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Text from '../components/AppText';
 import Screen from '../components/Screen';
 import Icon from '../components/Icon';
-import { icons } from '../components/icons';
+import { type IconPath, icons } from '../components/icons';
 import Button from '../components/Button';
 import Card from '../components/Card';
 import MacroRow from '../components/MacroRow';
+import PatternFill from '../components/PatternFill';
+import PressScale from '../components/PressScale';
+import Reveal from '../components/Reveal';
 import SectionHeader from '../components/SectionHeader';
-import { colors, fonts, overlay, radius, scrim, shadow, spacing, type } from '../theme';
+import UpcomingMeals from '../components/UpcomingMeals';
+import { usePulseLoop, useReveal, useToggle } from '../animation';
+import { colors, fonts, overlay, radius, shadow, spacing, type } from '../theme';
 import { useLanguage } from '../i18n/LanguageContext';
-import { toArabicDigits } from '../i18n/digits';
+import { useOrderText } from '../i18n/orderText';
+import { formatNumber } from '../i18n/digits';
 import {
   DEFAULT_TRACKING,
   MAX_POSTPONE_DAYS,
-  type Order,
   currencyMark,
   dayKeys,
-  formatPrice,
   getDish,
   groupNumber,
-  heroImage,
+  orderGrandTotal,
   orderItemCount,
-  orderTotal,
-  orders,
-  timeKeys,
+  slotLabel,
 } from '../data/menu';
-import { type PlanState, postponedBy, postponedOffPlan, usePlan } from '../state/PlanContext';
-import { useCart } from '../state/CartContext';
+import {
+  postponedBy,
+  postponedOffPlan,
+  planProgress,
+  upcomingDeliveries,
+  usePlan,
+} from '../state/PlanContext';
+import { useOrders } from '../state/OrdersContext';
 import type { TabScreenProps } from '../navigation/RootNavigator';
 
 const PLAN_GRADIENT = [colors.tealDark, colors.teal] as const;
-const ORDER_GRADIENT = [colors.tealDark, colors.teal] as const;
-const SCRIM = [scrim.heroFade, scrim.hero] as const;
-const MAX_THUMBS = 3;
 const UPCOMING_COUNT = 6;
 
-// The next delivery slots on the plan: day offsets that land on a selected weekday.
-const upcomingDays = (plan: PlanState, count: number): number[] => {
-  const out: number[] = [];
-  for (let i = 0; i < plan.dayCount && out.length < count; i += 1) {
-    if (plan.weekdays.includes(i % 7)) out.push(i);
-  }
-  return out;
-};
+// The live indicator on an in-flight order — a halo breathing out of the dot,
+// the one thing here that should look like it's still moving.
+function LiveDot() {
+  const anim = usePulseLoop();
+  const halo = {
+    opacity: anim.interpolate({ inputRange: [0, 1], outputRange: [0.55, 0] }),
+    transform: [{ scale: anim.interpolate({ inputRange: [0, 1], outputRange: [1, 2.6] }) }],
+  };
+
+  return (
+    <View style={styles.liveWrap}>
+      <Animated.View style={[styles.liveDot, styles.liveHalo, halo]} pointerEvents="none" />
+      <View style={styles.liveDot} />
+    </View>
+  );
+}
+
+interface DayRowProps {
+  index: number;
+  label: string;
+  names: string;
+  statusText: string;
+  exKind?: 'skip' | 'postpone';
+  next: boolean;
+  canPostponeMore: boolean;
+  images: ImageSourcePropType[];
+  skipIcon: IconPath;
+  onSkip: () => void;
+  onPostpone: () => void;
+  onUndo: () => void;
+}
+
+// Skipping or postponing repaints the whole row, so the tint and the thumbnails
+// cross-fade together rather than snapping between two states.
+function DayRow({
+  index,
+  label,
+  names,
+  statusText,
+  exKind,
+  next,
+  canPostponeMore,
+  images,
+  skipIcon,
+  onSkip,
+  onPostpone,
+  onUndo,
+}: DayRowProps) {
+  const { t } = useLanguage();
+  const reveal = useReveal(index);
+  const anim = useToggle(Boolean(exKind));
+  const dim = anim.interpolate({ inputRange: [0, 1], outputRange: [1, 0.45] });
+  const hit = { top: 6, bottom: 6, left: 6, right: 6 };
+
+  return (
+    <Animated.View style={[styles.day, styles.dayNormal, shadow.card, reveal]}>
+      <Animated.View style={[styles.dayFill, { opacity: anim }]} pointerEvents="none" />
+
+      <View style={styles.dayTop}>
+        <View style={[styles.dayChip, next ? styles.dayChipNext : styles.dayChipRest]}>
+          <Text style={[styles.dayChipText, next && styles.dayChipTextNext]}>{label}</Text>
+        </View>
+
+        <View style={styles.dayInfo}>
+          <Text style={[styles.dayName, exKind && styles.dayNameOff]} numberOfLines={1}>
+            {names}
+          </Text>
+          <View style={styles.dayStatusRow}>
+            {exKind ? (
+              <Icon
+                path={exKind === 'skip' ? skipIcon : icons.clock}
+                size={11}
+                color={colors.coral}
+                strokeWidth={2.4}
+              />
+            ) : null}
+            <Text style={styles.dayStatus} numberOfLines={1}>
+              {statusText}
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.actions}>
+          {exKind !== 'skip' ? (
+            <PressScale
+              disabled={!canPostponeMore}
+              onPress={onPostpone}
+              scaleTo={0.88}
+              hitSlop={hit}
+              accessibilityLabel={t('orders.postpone')}
+              accessibilityState={{ disabled: !canPostponeMore }}
+              style={[styles.action, !canPostponeMore && styles.actionOff]}
+            >
+              <Icon
+                path={icons.clock}
+                size={17}
+                color={canPostponeMore ? colors.muted : colors.faint2}
+                strokeWidth={2}
+              />
+            </PressScale>
+          ) : null}
+
+          {exKind ? (
+            <PressScale
+              onPress={onUndo}
+              scaleTo={0.88}
+              hitSlop={hit}
+              accessibilityLabel={t('orders.undo')}
+              style={[styles.action, styles.actionOnTint]}
+            >
+              <Icon path={icons.undo} size={17} color={colors.muted} strokeWidth={2} />
+            </PressScale>
+          ) : (
+            <PressScale
+              onPress={onSkip}
+              scaleTo={0.88}
+              hitSlop={hit}
+              accessibilityLabel={t('common.skipDay')}
+              style={styles.action}
+            >
+              <Icon path={skipIcon} size={17} color={colors.muted} strokeWidth={2} />
+            </PressScale>
+          )}
+        </View>
+      </View>
+
+      {images.length > 0 ? (
+        <View style={styles.thumbs}>
+          {images.map((src, k) => (
+            <Animated.Image key={k} source={src} style={[styles.thumb, { opacity: dim }]} />
+          ))}
+        </View>
+      ) : null}
+    </Animated.View>
+  );
+}
 
 export default function OrdersScreen({ navigation }: TabScreenProps<'Orders'>) {
   const { t, lang, isRTL } = useLanguage();
-  const { addItem } = useCart();
+  const { dishName, summarize, whenLabel } = useOrderText();
+  const { orders } = useOrders();
   const {
     subscription,
     subscriptionMeals,
@@ -66,36 +206,41 @@ export default function OrdersScreen({ navigation }: TabScreenProps<'Orders'>) {
   const active = orders.find((o) => o.status === 'active') ?? null;
   const past = orders.filter((o) => o.status !== 'active');
 
-  const upcoming = useMemo(
-    () => (subscription ? upcomingDays(subscription, UPCOMING_COUNT) : []),
+  // Nothing placed and nothing subscribed: the screen has no content of its
+  // own, so it says so rather than rendering as a bare heading.
+  const blank = !subscription && orders.length === 0;
+
+  // Anchored to today rather than to day zero: `upcomingDays` walked from the
+  // start of the plan every time, so a subscription three weeks in still listed
+  // its first week as "upcoming".
+  const progress = useMemo(
+    () => (subscription ? planProgress(subscription) : null),
     [subscription],
   );
 
-  const dishName = (id: string): string => {
-    const dish = getDish(id);
-    if (!dish) return id;
-    return lang === 'ar' ? dish.name : t(`dish.${id}.name`, dish.name);
-  };
+  const upcoming = useMemo(
+    () =>
+      subscription && progress
+        ? upcomingDeliveries(subscription, progress.elapsedDays, UPCOMING_COUNT)
+        : [],
+    [subscription, progress],
+  );
 
-  const summarize = (order: Order): string =>
-    order.lines
-      .map((line) =>
-        line.qty > 1
-          ? `${dishName(line.dishId)} ×${toArabicDigits(line.qty, lang)}`
-          : dishName(line.dishId),
-      )
-      .join(' + ');
-
-  const reorder = (order: Order) => {
-    order.lines.forEach((line) => addItem(line.dishId, line.qty));
-    navigation.navigate('Cart');
-  };
+  // Relative wording beats a weekday name for the very next drop — "Today" is
+  // unambiguous where "Saturday" makes the customer work out which Saturday.
+  const nextLabel = useMemo(() => {
+    if (!subscription || !progress || progress.nextDayIndex === null) return '';
+    const inDays = progress.nextDayIndex - progress.elapsedDays;
+    if (inDays <= 0) return t('orders.today');
+    if (inDays === 1) return t('orders.tomorrow');
+    return t(dayKeys[progress.nextDayIndex % 7]);
+  }, [subscription, progress, t]);
 
   // The rotation repeats across delivery days, so slot N gets the next
   // `mealsPerDay` meals in the plan's order.
   const mealsForSlot = (slot: number) => {
     if (!subscription || subscriptionMeals.length === 0) return [];
-    const perDay = subscription.mealTimes.length;
+    const perDay = subscription.mealSlots.length;
     return Array.from(
       { length: perDay },
       (_, k) => subscriptionMeals[(slot * perDay + k) % subscriptionMeals.length],
@@ -108,7 +253,6 @@ export default function OrdersScreen({ navigation }: TabScreenProps<'Orders'>) {
       : t('plans.custom')
     : '';
 
-  const openPlans = () => navigation.navigate('Plans');
 
   const openEditor = () => {
     editSubscription();
@@ -116,11 +260,23 @@ export default function OrdersScreen({ navigation }: TabScreenProps<'Orders'>) {
   };
 
   return (
-    <Screen scroll contentContainerStyle={styles.content}>
-      <Text style={styles.heading}>{t('orders.title')}</Text>
+    <Screen scroll contentContainerStyle={styles.content} texture>
+      <Reveal index={0}>
+        <Text style={styles.heading}>{t('orders.title')}</Text>
+      </Reveal>
 
-      {subscription && subscriptionPricing ? (
-        <View style={styles.section}>
+      {blank ? (
+        <Reveal index={1} style={styles.empty}>
+          <View style={styles.emptyIcon}>
+            <Icon path={icons.receipt} size={28} color={colors.faint} strokeWidth={1.6} />
+          </View>
+          <Text style={styles.emptyTitle}>{t('orders.empty.title')}</Text>
+          <Text style={styles.emptySub}>{t('orders.empty.sub')}</Text>
+        </Reveal>
+      ) : null}
+
+      {subscription && subscriptionPricing && progress ? (
+        <Reveal index={1} style={styles.section}>
           <SectionHeader
             title={t('plans.active')}
             actionLabel={t('common.edit')}
@@ -133,27 +289,68 @@ export default function OrdersScreen({ navigation }: TabScreenProps<'Orders'>) {
             end={{ x: 0.85, y: 1 }}
             style={[styles.planCard, shadow.raised]}
           >
+            <PatternFill />
             <View style={styles.planHead}>
               <View style={styles.planText}>
                 <Text style={styles.planName} numberOfLines={1}>
                   {planName}
                 </Text>
                 <Text style={styles.planMeta} numberOfLines={1}>
-                  {`${toArabicDigits(subscriptionPricing.activeDays, lang)} ${t('unit.days')} · ${toArabicDigits(subscriptionPricing.mealsPerDay, lang)} ${t('unit.perDay')} · ${subscription.mealTimes.map((i) => t(timeKeys[i])).join(' · ')}`}
+                  {`${formatNumber(subscriptionPricing.activeDays)} ${t('unit.days')} · ${formatNumber(subscriptionPricing.mealsPerDay)} ${t('unit.perDay')}`}
                 </Text>
               </View>
               <View style={styles.statusPillOnDark}>
-                <View style={styles.liveDot} />
+                <LiveDot />
                 <Text style={styles.statusTextOnDark}>{t('orders.active')}</Text>
               </View>
             </View>
 
-            <View style={styles.totalRow}>
-              <Text style={styles.total}>{groupNumber(subscriptionPricing.total)}</Text>
-              <Text style={styles.totalUnit}>{currencyMark(lang)}</Text>
+            <View style={styles.progressBlock}>
+              <View style={styles.progressLabels}>
+                <Text style={styles.progressLead}>
+                  {`${t('orders.delivered')} ${formatNumber(progress.deliveredDays)} ${t('orders.ofTotal')} ${formatNumber(progress.totalDays)}`}
+                </Text>
+                {progress.finished ? (
+                  <Text style={styles.progressTrail}>{t('orders.finished')}</Text>
+                ) : null}
+              </View>
+              <View style={styles.track}>
+                <View style={[styles.fill, { width: `${Math.round(progress.ratio * 100)}%` }]} />
+              </View>
             </View>
 
-            {subscriptionMacros ? <MacroRow macros={subscriptionMacros} size="sm" /> : null}
+            <View style={styles.statRow}>
+              <View style={styles.stat}>
+                <Text style={styles.statValue}>{formatNumber(progress.remainingDays)}</Text>
+                <Text style={styles.statLabel}>{t('orders.remainingDays')}</Text>
+              </View>
+              <View style={styles.statDivider} />
+              <View style={styles.stat}>
+                <Text style={styles.statValue}>{formatNumber(progress.remainingMeals)}</Text>
+                <Text style={styles.statLabel}>{t('orders.remainingMeals')}</Text>
+              </View>
+              <View style={styles.statDivider} />
+              <View style={styles.stat}>
+                <Text style={styles.statValue}>{groupNumber(subscriptionPricing.total)}</Text>
+                <Text style={styles.statLabel}>{currencyMark(lang)}</Text>
+              </View>
+            </View>
+
+            {nextLabel ? (
+              <View style={styles.nextRow}>
+                <View style={styles.nextIcon}>
+                  <Icon path={icons.truck} size={15} color={colors.white} strokeWidth={2} />
+                </View>
+                <View style={styles.nextText}>
+                  <Text style={styles.nextTitle}>{t('orders.nextDelivery')}</Text>
+                  <Text style={styles.nextMeta} numberOfLines={1}>
+                    {`${nextLabel} · ${subscription.mealSlots.map((slot) => slotLabel(slot, t)).join(' · ')}`}
+                  </Text>
+                </View>
+              </View>
+            ) : null}
+
+            {subscriptionMacros ? <MacroRow macros={subscriptionMacros} size="sm" onDark /> : null}
 
             <Button
               label={t('orders.track')}
@@ -168,116 +365,40 @@ export default function OrdersScreen({ navigation }: TabScreenProps<'Orders'>) {
 
           <SectionHeader
             title={t('orders.upcoming')}
-            subtitle={`${toArabicDigits(upcoming.length, lang)} ${t('unit.days')}`}
+            subtitle={`${formatNumber(upcoming.length)} ${t('unit.days')}`}
           />
 
           <View style={styles.days}>
             {upcoming.map((dayIndex, slot) => {
               const ex = subscription.exceptions.find((e) => e.dayIndex === dayIndex);
               const dayMeals = mealsForSlot(slot);
-              const names = dayMeals.map((m) => dishName(m.dishId)).join(' + ');
-              const next = slot === 0 && !ex;
               const shifted = postponedBy(subscription, dayIndex);
               const offPlan = postponedOffPlan(subscription, dayIndex);
-              const canPostponeMore = shifted < MAX_POSTPONE_DAYS;
 
               return (
-                <View
+                <DayRow
                   key={dayIndex}
-                  style={[styles.day, ex ? styles.dayException : styles.dayNormal, shadow.card]}
-                >
-                  <View style={styles.dayTop}>
-                    <View style={[styles.dayChip, next ? styles.dayChipNext : styles.dayChipRest]}>
-                      <Text style={[styles.dayChipText, next && styles.dayChipTextNext]}>
-                        {t(dayKeys[dayIndex % 7])}
-                      </Text>
-                    </View>
-
-                    <View style={styles.dayInfo}>
-                      <Text style={[styles.dayName, ex && styles.dayNameOff]} numberOfLines={1}>
-                        {names}
-                      </Text>
-                      <View style={styles.dayStatusRow}>
-                        {ex ? (
-                          <Icon
-                            path={ex.kind === 'skip' ? skipIcon : icons.clock}
-                            size={11}
-                            color={colors.coral}
-                            strokeWidth={2.4}
-                          />
-                        ) : null}
-                        <Text style={styles.dayStatus} numberOfLines={1}>
-                          {ex
-                            ? ex.kind === 'skip'
-                              ? t('orders.skipped')
-                              : `${t(offPlan ? 'orders.pushedOff' : 'orders.postponed')} +${toArabicDigits(shifted, lang)} ${t('unit.days')}`
-                            : subscription.mealTimes.map((i) => t(timeKeys[i])).join(' · ')}
-                        </Text>
-                      </View>
-                    </View>
-
-                    <View style={styles.actions}>
-                      {ex?.kind !== 'skip' ? (
-                        <TouchableOpacity
-                          activeOpacity={0.7}
-                          disabled={!canPostponeMore}
-                          onPress={() => postponeDay(dayIndex, shifted + 1)}
-                          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                          accessibilityRole="button"
-                          accessibilityLabel={t('orders.postpone')}
-                          accessibilityState={{ disabled: !canPostponeMore }}
-                          style={[styles.action, !canPostponeMore && styles.actionOff]}
-                        >
-                          <Icon
-                            path={icons.clock}
-                            size={17}
-                            color={canPostponeMore ? colors.muted : colors.faint2}
-                            strokeWidth={2}
-                          />
-                        </TouchableOpacity>
-                      ) : null}
-
-                      {ex ? (
-                        <TouchableOpacity
-                          activeOpacity={0.7}
-                          onPress={() => clearException(ex.id)}
-                          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                          accessibilityRole="button"
-                          accessibilityLabel={t('orders.undo')}
-                          style={[styles.action, styles.actionOnTint]}
-                        >
-                          <Icon path={icons.undo} size={17} color={colors.muted} strokeWidth={2} />
-                        </TouchableOpacity>
-                      ) : (
-                        <TouchableOpacity
-                          activeOpacity={0.7}
-                          onPress={() => skipDay(dayIndex)}
-                          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                          accessibilityRole="button"
-                          accessibilityLabel={t('common.skipDay')}
-                          style={styles.action}
-                        >
-                          <Icon path={skipIcon} size={17} color={colors.muted} strokeWidth={2} />
-                        </TouchableOpacity>
-                      )}
-                    </View>
-                  </View>
-
-                  {dayMeals.length > 0 ? (
-                    <View style={styles.thumbs}>
-                      {dayMeals.map((m, k) => {
-                        const d = getDish(m.dishId);
-                        return d ? (
-                          <Image
-                            key={`${m.dishId}-${k}`}
-                            source={{ uri: d.image }}
-                            style={[styles.thumb, ex && styles.thumbOff]}
-                          />
-                        ) : null;
-                      })}
-                    </View>
-                  ) : null}
-                </View>
+                  index={slot + 2}
+                  label={t(dayKeys[dayIndex % 7])}
+                  names={dayMeals.map((m) => dishName(m.dishId)).join(' + ')}
+                  statusText={
+                    ex
+                      ? ex.kind === 'skip'
+                        ? t('orders.skipped')
+                        : `${t(offPlan ? 'orders.pushedOff' : 'orders.postponed')} +${formatNumber(shifted)} ${t('unit.days')}`
+                      : subscription.mealSlots.map((slot) => slotLabel(slot, t)).join(' · ')
+                  }
+                  exKind={ex?.kind}
+                  next={slot === 0 && !ex}
+                  canPostponeMore={shifted < MAX_POSTPONE_DAYS}
+                  images={dayMeals
+                    .map((m) => getDish(m.dishId)?.image)
+                    .filter((src): src is ImageSourcePropType => Boolean(src))}
+                  skipIcon={skipIcon}
+                  onSkip={() => skipDay(dayIndex)}
+                  onPostpone={() => postponeDay(dayIndex, shifted + 1)}
+                  onUndo={() => ex && clearException(ex.id)}
+                />
               );
             })}
           </View>
@@ -291,44 +412,27 @@ export default function OrdersScreen({ navigation }: TabScreenProps<'Orders'>) {
           >
             <Text style={styles.cancel}>{t('orders.cancel')}</Text>
           </TouchableOpacity>
-        </View>
-      ) : (
-        <View style={[styles.emptyCard, shadow.card]}>
-          <Image source={{ uri: heroImage }} style={StyleSheet.absoluteFill} resizeMode="cover" />
-          <LinearGradient colors={SCRIM} locations={[0.15, 1]} style={StyleSheet.absoluteFill} />
-          <View style={styles.emptyText}>
-            <Text style={styles.emptyKicker}>{t('plans.active')}</Text>
-            <Text style={styles.emptyTitle}>{t('orders.noPlan')}</Text>
-          </View>
-          <Button
-            label={t('boxes.custom.cta')}
-            variant="amber"
-            size="md"
-            onPress={openPlans}
-            style={styles.emptyCta}
-          />
-        </View>
-      )}
+        </Reveal>
+      ) : null}
 
       {active ? (
-        <View style={styles.section}>
+        <Reveal index={2} style={styles.section}>
           <SectionHeader title={t('orders.current')} />
 
-          <LinearGradient
-            colors={ORDER_GRADIENT}
-            start={{ x: 0.15, y: 0 }}
-            end={{ x: 0.85, y: 1 }}
-            style={[styles.planCard, shadow.raised]}
-          >
+          {/* Same teal, laid flat — `tealMid` is the midpoint of the two stops
+              the gradient used to run between, so the card keeps its colour and
+              loses only the sheen. */}
+          <View style={[styles.planCard, styles.orderCard, shadow.raised]}>
+            <PatternFill />
             <View style={styles.planHead}>
               <View style={styles.planText}>
-                <Text style={styles.planName}>{`#${toArabicDigits(active.id, lang)}`}</Text>
+                <Text style={styles.planName}>{`#${formatNumber(active.id)}`}</Text>
                 <Text style={styles.planMeta}>
-                  {`${t(active.whenKey)} · ${toArabicDigits(orderItemCount(active), lang)} ${t('orders.items')}`}
+                  {`${whenLabel(active)} · ${formatNumber(orderItemCount(active))} ${t('orders.items')}`}
                 </Text>
               </View>
               <View style={styles.statusPillOnDark}>
-                <View style={styles.liveDot} />
+                <LiveDot />
                 <Text style={styles.statusTextOnDark}>{t(`track.step.${DEFAULT_TRACKING}`)}</Text>
               </View>
             </View>
@@ -338,7 +442,7 @@ export default function OrdersScreen({ navigation }: TabScreenProps<'Orders'>) {
             </Text>
 
             <View style={styles.totalRow}>
-              <Text style={styles.total}>{groupNumber(orderTotal(active))}</Text>
+              <Text style={styles.total}>{groupNumber(orderGrandTotal(active))}</Text>
               <Text style={styles.totalUnit}>{currencyMark(lang)}</Text>
             </View>
 
@@ -351,55 +455,57 @@ export default function OrdersScreen({ navigation }: TabScreenProps<'Orders'>) {
               onPress={() => navigation.navigate('Tracking')}
               style={styles.trackBtn}
             />
-          </LinearGradient>
-        </View>
+          </View>
+        </Reveal>
       ) : null}
 
+      {subscription && subscriptionMeals.length > 0 ? (
+        <Reveal index={3} style={styles.section}>
+          <SectionHeader title={t('orders.upcomingMeals')} />
+          {/* Opens on the next drop rather than on day one — three weeks in,
+              the plan's first week is history. */}
+          <UpcomingMeals
+            plan={subscription}
+            meals={subscriptionMeals}
+            fromDay={progress?.elapsedDays ?? 0}
+            onPressMeal={(id) => navigation.navigate('DishDetail', { id })}
+          />
+        </Reveal>
+      ) : null}
+
+      {/* History collapses to one recessed card. Past deliveries are reference
+          material, not something to scroll past on the way to the live order —
+          the filtered list behind it is where you go looking for one. */}
       {past.length > 0 ? (
-        <View style={styles.section}>
-          <SectionHeader title={t('orders.past')} />
-
-          {past.map((order) => (
-            <Card key={order.id} padding={spacing.xl} style={styles.pastCard}>
-              <View style={styles.pastHead}>
-                <View style={styles.pastText}>
-                  <Text style={styles.pastItems} numberOfLines={2}>
-                    {summarize(order)}
-                  </Text>
-                  <Text style={styles.pastMeta}>
-                    {`${t(order.whenKey)} · ${formatPrice(groupNumber(orderTotal(order)), lang)}`}
-                  </Text>
-                </View>
-                <View style={styles.deliveredPill}>
-                  <Icon path={icons.check} size={11} color={colors.tealText} strokeWidth={2.6} />
-                  <Text style={styles.deliveredText}>{t('orders.delivered')}</Text>
-                </View>
+        <Reveal index={3} style={styles.section}>
+          <Card
+            padding={spacing.xl}
+            background={colors.sandChip}
+            onPress={() => navigation.navigate('PastOrders')}
+            accessibilityLabel={`${t('orders.past')} · ${formatNumber(past.length)}`}
+            style={styles.pastCard}
+          >
+            <View style={styles.archiveRow}>
+              <View style={styles.archiveIcon}>
+                <Icon path={icons.receipt} size={18} color={colors.muted} strokeWidth={1.9} />
               </View>
 
-              <View style={styles.pastFoot}>
-                <View style={styles.thumbs}>
-                  {order.lines.slice(0, MAX_THUMBS).map((line) => {
-                    const dish = getDish(line.dishId);
-                    return dish ? (
-                      <Image key={line.dishId} source={{ uri: dish.image }} style={styles.thumb} />
-                    ) : null;
-                  })}
-                </View>
-                <TouchableOpacity
-                  activeOpacity={0.7}
-                  onPress={() => reorder(order)}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                  accessibilityRole="button"
-                  accessibilityLabel={t('common.reorder')}
-                  style={styles.reorderBtn}
-                >
-                  <Icon path={icons.refresh} size={14} color={colors.teal} strokeWidth={2.1} />
-                  <Text style={styles.reorderText}>{t('common.reorder')}</Text>
-                </TouchableOpacity>
+              <View style={styles.archiveText}>
+                <Text style={styles.archiveTitle}>{t('orders.past')}</Text>
+                <Text style={styles.archiveMeta} numberOfLines={1}>
+                  {`${formatNumber(past.length)} ${t('orders.past.count')} · ${t('orders.past.latest')} ${whenLabel(past[0])}`}
+                </Text>
               </View>
-            </Card>
-          ))}
-        </View>
+
+              <Icon
+                path={isRTL ? icons.chevronLeft : icons.chevronRight}
+                size={15}
+                color={colors.faint}
+                strokeWidth={2.2}
+              />
+            </View>
+          </Card>
+        </Reveal>
       ) : null}
     </Screen>
   );
@@ -419,35 +525,39 @@ const styles = StyleSheet.create({
   section: {
     gap: spacing.xl,
   },
-  emptyCard: {
-    height: 210,
-    borderRadius: radius.xl,
-    overflow: 'hidden',
-    justifyContent: 'flex-end',
-    alignItems: 'flex-start',
-    padding: spacing.huge,
-    gap: spacing.xl,
-    backgroundColor: colors.tealDark,
+  empty: {
+    alignItems: 'center',
+    gap: spacing.lg,
+    paddingTop: spacing.giant,
+    paddingHorizontal: spacing.xxl,
   },
-  emptyText: {
-    gap: spacing.xs,
-  },
-  emptyKicker: {
-    ...type.captionStrong,
-    color: colors.goldLight,
+  emptyIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: radius.pill,
+    backgroundColor: colors.sandChip,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.xs,
   },
   emptyTitle: {
-    ...type.h2,
-    color: colors.white,
+    ...type.h3,
+    color: colors.ink,
+    textAlign: 'center',
   },
-  emptyCta: {
-    borderRadius: radius.pill,
+  emptySub: {
+    ...type.body,
+    color: colors.muted2,
+    textAlign: 'center',
   },
   planCard: {
     borderRadius: radius.xl,
     paddingHorizontal: spacing.huge,
     paddingVertical: spacing.xxxl,
     gap: spacing.xl,
+  },
+  orderCard: {
+    backgroundColor: colors.tealMid,
   },
   planHead: {
     flexDirection: 'row',
@@ -477,20 +587,114 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingVertical: 4,
   },
+  liveWrap: {
+    width: 6,
+    height: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   liveDot: {
     width: 6,
     height: 6,
     borderRadius: radius.pill,
     backgroundColor: colors.gold,
   },
+  liveHalo: {
+    position: 'absolute',
+  },
   statusTextOnDark: {
     fontFamily: fonts.bold,
-    fontSize: 10.5,
+    fontSize: 12,
     color: colors.white,
   },
   activeItems: {
     ...type.body,
     color: overlay.white90,
+  },
+  // Progress is measured in delivery days, not calendar days — a Sat-to-Wed
+  // plan is not half done because half the calendar span elapsed.
+  progressBlock: {
+    gap: spacing.md,
+  },
+  progressLabels: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+  },
+  progressLead: {
+    ...type.caption,
+    fontFamily: fonts.bold,
+    color: colors.white,
+  },
+  progressTrail: {
+    ...type.caption,
+    color: overlay.white75,
+  },
+  track: {
+    height: 6,
+    borderRadius: radius.pill,
+    backgroundColor: overlay.white16,
+    overflow: 'hidden',
+  },
+  fill: {
+    height: '100%',
+    borderRadius: radius.pill,
+    backgroundColor: colors.goldLight,
+  },
+  statRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: overlay.white08,
+    borderRadius: radius.md,
+    paddingVertical: spacing.xl,
+  },
+  stat: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 1,
+  },
+  statValue: {
+    ...type.h3,
+    color: colors.white,
+  },
+  statLabel: {
+    ...type.caption,
+    fontSize: 12,
+    color: overlay.white75,
+    textAlign: 'center',
+  },
+  statDivider: {
+    width: 1,
+    alignSelf: 'stretch',
+    backgroundColor: overlay.white16,
+  },
+  nextRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xl,
+  },
+  nextIcon: {
+    width: 30,
+    height: 30,
+    borderRadius: radius.pill,
+    backgroundColor: overlay.white16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  nextText: {
+    flex: 1,
+    gap: 1,
+  },
+  nextTitle: {
+    ...type.caption,
+    fontSize: 12,
+    color: overlay.white75,
+  },
+  nextMeta: {
+    ...type.bodyStrong,
+    fontSize: 13,
+    color: colors.white,
   },
   totalRow: {
     flexDirection: 'row',
@@ -519,9 +723,17 @@ const styles = StyleSheet.create({
     gap: spacing.lg,
   },
   dayNormal: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
   },
-  dayException: {
+  // Painted over the resting card and faded in, so a skip reads as the row
+  // changing state rather than as a different row appearing.
+  dayFill: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: radius.card,
     backgroundColor: colors.sandChip,
   },
   dayTop: {
@@ -545,7 +757,7 @@ const styles = StyleSheet.create({
   },
   dayChipText: {
     fontFamily: fonts.bold,
-    fontSize: 12.5,
+    fontSize: 13.5,
     color: colors.ink,
     textAlign: 'center',
   },
@@ -571,7 +783,7 @@ const styles = StyleSheet.create({
   },
   dayStatus: {
     ...type.caption,
-    fontSize: 11,
+    fontSize: 12.5,
     color: colors.body,
     flexShrink: 1,
   },
@@ -588,57 +800,48 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   actionOnTint: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
   },
   actionOff: {
     opacity: 0.5,
   },
   cancel: {
     fontFamily: fonts.semibold,
-    fontSize: 12.5,
+    fontSize: 13.5,
     color: colors.coral,
     textAlign: 'center',
   },
+  // Recessed rather than white: it sits on the page as an archive drawer, not
+  // as another live card competing with the order above it.
   pastCard: {
     borderRadius: radius.card,
+    borderWidth: 1,
+    borderColor: colors.sand,
+  },
+  archiveRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: spacing.xl,
   },
-  pastHead: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing.lg,
-  },
-  pastText: {
-    flex: 1,
-    gap: 3,
-  },
-  pastItems: {
-    ...type.bodyStrong,
-    color: colors.ink,
-  },
-  pastMeta: {
-    ...type.caption,
-    color: colors.muted2,
-  },
-  deliveredPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    backgroundColor: colors.healthyBg,
+  archiveIcon: {
+    width: 38,
+    height: 38,
     borderRadius: radius.pill,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: 4,
-  },
-  deliveredText: {
-    fontFamily: fonts.bold,
-    fontSize: 10.5,
-    color: colors.tealText,
-  },
-  pastFoot: {
-    flexDirection: 'row',
+    backgroundColor: colors.tile,
     alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.lg,
+    justifyContent: 'center',
+  },
+  archiveText: {
+    flex: 1,
+    gap: 2,
+  },
+  archiveTitle: {
+    ...type.bodyStrong,
+    color: colors.muted,
+  },
+  archiveMeta: {
+    ...type.caption,
+    color: colors.faint,
   },
   thumbs: {
     flexDirection: 'row',
@@ -649,22 +852,5 @@ const styles = StyleSheet.create({
     height: 34,
     borderRadius: radius.sm,
     backgroundColor: colors.sand,
-  },
-  thumbOff: {
-    opacity: 0.45,
-  },
-  reorderBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    backgroundColor: colors.healthyBg,
-    borderRadius: radius.pill,
-    paddingHorizontal: spacing.xxl,
-    paddingVertical: spacing.md,
-  },
-  reorderText: {
-    fontFamily: fonts.bold,
-    fontSize: 12,
-    color: colors.teal,
   },
 });
