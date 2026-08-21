@@ -7,11 +7,13 @@ import PatternFill from '../components/PatternFill';
 import { type IconName, icons } from '../components/icons';
 import Card from '../components/Card';
 import Button from '../components/Button';
+import PressScale from '../components/PressScale';
 import SectionHeader from '../components/SectionHeader';
 import SettingRow from '../components/SettingRow';
 import { colors, overlay, radius, shadow, spacing, type } from '../theme';
 import { useLanguage } from '../i18n/LanguageContext';
 import { formatNumber } from '../i18n/digits';
+import { formatPhone } from '../data/phone';
 import { useOrders } from '../state/OrdersContext';
 import { useAuth } from '../state/AuthContext';
 import { planProgress, usePlan } from '../state/PlanContext';
@@ -75,54 +77,81 @@ export default function ProfileScreen({ navigation }: TabScreenProps<'Profile'>)
     />
   );
 
-  return (
-    <Screen scroll contentContainerStyle={styles.content} texture>
-      <View style={[styles.hero, shadow.raised]}>
-        <PatternFill />
-        <View style={styles.heroTop}>
-          <View style={styles.avatar}>
-            <Icon
-              path={authed ? icons.user : icons.userPlus}
-              size={26}
-              color={colors.white}
-              strokeWidth={1.7}
-            />
-          </View>
-          <View style={styles.identity}>
-            <Text style={[styles.name, readingSide]} numberOfLines={1}>
-              {authed ? user?.phone : t('profile.guest')}
-            </Text>
-            <Text style={[styles.identitySub, readingSide]} numberOfLines={2}>
-              {authed ? t('profile.member') : t('profile.guest.sub')}
-            </Text>
-          </View>
+  // The hero is the only surface showing the account's number, so it is also
+  // where the customer reaches for when they want to change it. Guests have no
+  // number to manage, so for them it stays a plain panel.
+  const hero = (
+    <>
+      <PatternFill />
+      <View style={styles.heroTop}>
+        <View style={styles.avatar}>
+          <Icon
+            path={authed ? icons.user : icons.userPlus}
+            size={26}
+            color={colors.white}
+            strokeWidth={1.7}
+          />
         </View>
-
-        {/* Guests have no orders and no plan, so the strip would be three
-            zeroes — the sign-in CTA below is the whole message for them. */}
+        <View style={styles.identity}>
+          <Text style={[styles.name, readingSide]} numberOfLines={1}>
+            {authed ? formatNumber(formatPhone(user?.phone ?? '')) : t('profile.guest')}
+          </Text>
+          <Text style={[styles.identitySub, readingSide]} numberOfLines={2}>
+            {authed ? t('phones.manage') : t('profile.guest.sub')}
+          </Text>
+        </View>
+        {/* The chevron is the promise that the panel opens something. */}
         {authed ? (
-          <View style={styles.statRow}>
-            <View style={styles.stat}>
-              <Text style={styles.statValue}>{formatNumber(orders.length)}</Text>
-              <Text style={styles.statLabel}>{t('profile.stat.orders')}</Text>
-            </View>
-            {progress ? (
-              <>
-                <View style={styles.statDivider} />
-                <View style={styles.stat}>
-                  <Text style={styles.statValue}>{formatNumber(progress.remainingDays)}</Text>
-                  <Text style={styles.statLabel}>{t('orders.remainingDays')}</Text>
-                </View>
-                <View style={styles.statDivider} />
-                <View style={styles.stat}>
-                  <Text style={styles.statValue}>{formatNumber(progress.remainingMeals)}</Text>
-                  <Text style={styles.statLabel}>{t('orders.remainingMeals')}</Text>
-                </View>
-              </>
-            ) : null}
-          </View>
+          <Icon
+            path={isRTL ? icons.chevronLeft : icons.chevronRight}
+            size={17}
+            color={overlay.white75}
+            strokeWidth={2.2}
+          />
         ) : null}
       </View>
+
+      {/* Guests have no orders and no plan, so the strip would be three
+          zeroes — the sign-in CTA below is the whole message for them. */}
+      {authed ? (
+        <View style={styles.statRow}>
+          <View style={styles.stat}>
+            <Text style={styles.statValue}>{formatNumber(orders.length)}</Text>
+            <Text style={styles.statLabel}>{t('profile.stat.orders')}</Text>
+          </View>
+          {progress ? (
+            <>
+              <View style={styles.statDivider} />
+              <View style={styles.stat}>
+                <Text style={styles.statValue}>{formatNumber(progress.remainingDays)}</Text>
+                <Text style={styles.statLabel}>{t('orders.remainingDays')}</Text>
+              </View>
+              <View style={styles.statDivider} />
+              <View style={styles.stat}>
+                <Text style={styles.statValue}>{formatNumber(progress.remainingMeals)}</Text>
+                <Text style={styles.statLabel}>{t('orders.remainingMeals')}</Text>
+              </View>
+            </>
+          ) : null}
+        </View>
+      ) : null}
+    </>
+  );
+
+  return (
+    <Screen scroll contentContainerStyle={styles.content} texture>
+      {authed ? (
+        <PressScale
+          style={[styles.hero, shadow.raised]}
+          scaleTo={0.985}
+          onPress={() => navigation.navigate('Phones')}
+          accessibilityLabel={t('phones.manage')}
+        >
+          {hero}
+        </PressScale>
+      ) : (
+        <View style={[styles.hero, shadow.raised]}>{hero}</View>
+      )}
 
       <View style={styles.section}>
         <SectionHeader title={t('profile.account')} />

@@ -27,6 +27,8 @@ import PaymentsScreen from '../screens/PaymentsScreen';
 import NotificationsScreen from '../screens/NotificationsScreen';
 import SupportScreen from '../screens/SupportScreen';
 import AddCardScreen from '../screens/AddCardScreen';
+import PhonesScreen from '../screens/PhonesScreen';
+import AddPhoneScreen from '../screens/AddPhoneScreen';
 
 export type MenuCategory = 'all' | 'h' | 'r' | 'pop';
 
@@ -55,6 +57,10 @@ export type RootStackParamList = {
   Tracking: { status?: TrackingStatus } | undefined;
   Map: undefined;
   Addresses: undefined;
+  Phones: undefined;
+  // Same screen for both jobs: `asPrimary` decides whether the verified number
+  // replaces the sign-in number or joins the list beside it.
+  AddPhone: { asPrimary: boolean } | undefined;
   Payments: undefined;
   AddCard: undefined;
   Notifications: undefined;
@@ -105,6 +111,8 @@ export default function RootNavigator() {
           <Stack.Screen name="Catering" component={CateringScreen} />
           <Stack.Screen name="PlanMenu" component={PlanMenuScreen} />
           <Stack.Screen name="Addresses" component={AddressesScreen} />
+          <Stack.Screen name="Phones" component={PhonesScreen} />
+          <Stack.Screen name="AddPhone" component={AddPhoneScreen} />
           <Stack.Screen name="Payments" component={PaymentsScreen} />
           <Stack.Screen name="AddCard" component={AddCardScreen} />
           <Stack.Screen name="Notifications" component={NotificationsScreen} />
