@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { ScrollView, StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
+import { useScrollToTop } from '@react-navigation/native';
 import { Edge, SafeAreaView } from 'react-native-safe-area-context';
 import Texture from './Texture';
 import { colors } from '../theme';
@@ -31,6 +32,11 @@ export default function Screen({
   const { isRTL } = useLanguage();
   const direction = isRTL ? 'rtl' : 'ltr';
 
+  // Pressing the tab you are already on returns that screen to the top, which
+  // every scrolling screen built on Screen gets without asking for it.
+  const scroller = useRef<ScrollView>(null);
+  useScrollToTop(scroller);
+
   return (
     <SafeAreaView
       edges={edges}
@@ -41,6 +47,7 @@ export default function Screen({
         // Children go straight into the content container: an extra wrapper View
         // would swallow the container's `gap`, collapsing every section rhythm.
         <ScrollView
+          ref={scroller}
           style={styles.flex}
           contentContainerStyle={[contentContainerStyle, style]}
           showsVerticalScrollIndicator={false}

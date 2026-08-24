@@ -7,9 +7,9 @@ export type Category = 'h' | 'r';
 // What part of the meal a dish is, mirroring how the restaurant's own menu is
 // sectioned. `cat` above is the diet split (healthy / regular) and answers a
 // different question, so the two filter independently.
-export type Course = 'main' | 'starter' | 'side' | 'dessert';
+export type Course = 'main' | 'starter' | 'side' | 'dessert' | 'drink' | 'built';
 
-export const courseKeys: Course[] = ['main', 'starter', 'side', 'dessert'];
+export const courseKeys: Course[] = ['main', 'starter', 'side', 'dessert', 'drink'];
 
 export interface Dish {
   id: string;
@@ -22,10 +22,9 @@ export interface Dish {
   image: ImageSourcePropType;
 }
 
-// Catering trays still come off the restaurant's live menu (menu.jareesh.com),
-// keyed by the upload id their CDN serves.
-const SHOT = 'https://menu.jareesh.com/uploads/restorants/';
-const img = (id: string): string => `${SHOT}${id}_large.jpg`;
+// Catering photos came off the restaurant's live menu (menu.jareesh.com) and
+// are now bundled: every image in the app ships with it, so nothing on screen
+// waits on a network that a customer in a lift does not have.
 
 // The 21 offers exactly as the restaurant prints them on its own offer sheets:
 // their wording, their component lists, their IQD prices, and the photograph
@@ -62,6 +61,11 @@ const OFFER_PHOTOS: ImageSourcePropType[] = [
 // Sheet numbers are 1-based, so offers read the way they are printed.
 const offer = (n: number): ImageSourcePropType => OFFER_PHOTOS[n - 1];
 
+// Stands in wherever a real photograph has not been shot yet: the cream field
+// and the girih medallion the rest of the app is built from, so a card holding
+// one still looks like the app rather than like a missing file.
+const PLACEHOLDER: ImageSourcePropType = require('../../assets/placeholder-dish.jpg');
+
 export const dishes: Dish[] = [
   { id: 'pasta', name: 'باستا بني فورنو', sub: 'خضار سوتيه + نوع مقبلات + مشروب غازي', price: '7,500', cat: 'r', course: 'main', pop: false, image: offer(1) },
   { id: 'biryani', name: 'رز برياني مع فخذ دجاج', sub: 'نوعان مرق + طرشي + خبز + لبن', price: '11,000', cat: 'r', course: 'main', pop: true, image: offer(2) },
@@ -84,7 +88,33 @@ export const dishes: Dish[] = [
   { id: 'liver', name: 'طبق كبدة', sub: 'نوع مقبلات + طرشي وخضار + خبز + عصير طبيعي', price: '8,500', cat: 'r', course: 'main', pop: false, image: offer(19) },
   { id: 'carrot-rice', name: 'تمن جزر باللحم المفروم', sub: 'تمن 400 غم + نوع مرق + طرشي وخضار + خبز + لبن', price: '6,000', cat: 'r', course: 'main', pop: false, image: offer(20) },
   { id: 'meatballs', name: 'مرق كرات لحم وبطاطا', sub: 'رز أبيض + طرشي + خبز + لبن', price: '7,500', cat: 'r', course: 'main', pop: false, image: offer(21) },
+
+  // Sweets and drinks, ordered alongside a meal rather than instead of one.
+  // Their photographs are not on the restaurant's public menu, so they carry
+  // the placeholder plate until the real shots are exported: swapping one is a
+  // change to its `image` and nothing else.
+  { id: 'kunafa', name: 'كنافة بالقشطة', sub: 'قشطة + فستق + قطر', price: '4,000', cat: 'r', course: 'dessert', pop: true, image: PLACEHOLDER },
+  { id: 'zalabia', name: 'زلابية', sub: 'عجين مقلي + قطر', price: '3,000', cat: 'r', course: 'dessert', pop: false, image: PLACEHOLDER },
+  { id: 'mahalabia', name: 'مهلبية بالفستق', sub: 'حليب + ماء ورد + فستق', price: '3,500', cat: 'h', course: 'dessert', pop: false, image: PLACEHOLDER },
+  { id: 'baklava', name: 'بقلاوة', sub: 'جوز + قطر', price: '4,500', cat: 'r', course: 'dessert', pop: false, image: PLACEHOLDER },
+
+  { id: 'juice-orange', name: 'عصير برتقال طازج', sub: 'برتقال معصور عند الطلب', price: '2,500', cat: 'h', course: 'drink', pop: true, image: PLACEHOLDER },
+  { id: 'juice-lemon-mint', name: 'ليمون بالنعناع', sub: 'ليمون + نعناع طازج', price: '2,500', cat: 'h', course: 'drink', pop: false, image: PLACEHOLDER },
+  { id: 'juice-pomegranate', name: 'عصير رمان', sub: 'رمان معصور عند الطلب', price: '3,000', cat: 'h', course: 'drink', pop: false, image: PLACEHOLDER },
+  { id: 'soft-drink', name: 'مشروب غازي', sub: 'علبة 330 مل', price: '1,000', cat: 'r', course: 'drink', pop: false, image: PLACEHOLDER },
+  { id: 'water', name: 'ماء', sub: 'قنينة 500 مل', price: '500', cat: 'h', course: 'drink', pop: false, image: PLACEHOLDER },
+
+  // Assembled to order on the build tab. It has no price of its own — the
+  // parts carry it — and it is filtered out of every list by its course.
+  { id: 'built-meal', name: 'وجبة من اختيارك', sub: 'مكوّنات مختارة', price: '0', cat: 'h', course: 'built', pop: false, image: PLACEHOLDER },
 ];
+
+/** A handful of real dishes to cycle through a search hint. */
+export const searchHints = (): Dish[] => dishes.filter((d) => d.course === 'main' && d.pop);
+
+/** Every sweet and every drink, in the order the kitchen lists them. */
+export const dishesOfCourse = (course: Course): Dish[] =>
+  dishes.filter((d) => d.course === course);
 
 export const heroImage = offer(18);
 
@@ -122,8 +152,8 @@ export interface DietBox {
   protein: number; // daily protein (g)
   carbs: number; // daily carbs (g)
   fat: number; // daily fat (g)
-  dishes: string[]; // dish ids that make up the box rotation — what it costs
-  // is derived from these by `boxTotal` / `boxPerMeal`, never stored
+  dishes: string[]; // dish ids that make up the box rotation — what a
+  // subscription on it costs is derived from these by `priceOf`, never stored
   image: ImageSourcePropType;
   popular?: boolean;
 }
@@ -249,17 +279,17 @@ export interface CateringTray {
   id: string;
   price: number;
   serves: number;
-  image: string;
+  image: ImageSourcePropType;
 }
 
 export const cateringTrays: CateringTray[] = [
-  { id: 'chicken', price: 24000, serves: 4, image: img('786f82c4-900b-4335-967c-ffe6c224ee8c') },
-  { id: 'ribs', price: 45000, serves: 6, image: img('d57fa68e-b364-4cbe-9fae-abe341afb2e4') },
-  { id: 'shoulder', price: 45000, serves: 6, image: img('37ffc869-84b5-4c96-9646-2d9bd760b31f') },
-  { id: 'mixed', price: 55000, serves: 8, image: img('a1a748a8-89df-4418-a145-555c580bdfdf') },
+  { id: 'chicken', price: 24000, serves: 4, image: require('../../assets/catering/chicken.jpg') },
+  { id: 'ribs', price: 45000, serves: 6, image: require('../../assets/catering/ribs.jpg') },
+  { id: 'shoulder', price: 45000, serves: 6, image: require('../../assets/catering/shoulder.jpg') },
+  { id: 'mixed', price: 55000, serves: 8, image: require('../../assets/catering/mixed.jpg') },
 ];
 
-export const cateringHero = img('74cef388-7e9e-4828-8074-2328f790baea');
+export const cateringHero: ImageSourcePropType = require('../../assets/catering/hero.jpg');
 
 export const MIN_GUESTS = 10;
 export const MAX_GUESTS = 500;
@@ -334,15 +364,6 @@ export const SUBSCRIPTION_SAVING = 0.15;
 export const subscriptionPrice = (dishId: string): number =>
   roundMoney(parsePrice(getDish(dishId)?.price ?? '0') * (1 - SUBSCRIPTION_SAVING));
 
-// What one rotation of a box costs, and what that works out to per meal.
-// Derived, never stored — a stored headline is a number that goes stale the
-// first time the rotation changes.
-export const boxTotal = (box: DietBox): number =>
-  box.dishes.reduce((sum, id) => sum + subscriptionPrice(id), 0);
-
-export const boxPerMeal = (box: DietBox): number =>
-  box.dishes.length > 0 ? roundMoney(boxTotal(box) / box.dishes.length) : 0;
-
 // Duration is always a raw number of days; the presets are just shortcuts and
 // the discount is a pure function of that number, so a custom 23-day plan is
 // priced on exactly the same curve as the "month" preset.
@@ -384,15 +405,16 @@ export const nextDiscountDays = (days: number): number =>
     .reverse()
     .find((m) => m > days) ?? days;
 
-// i18n keys for the 7 weekday short labels, in Sat-to-Fri order.
+// i18n keys for the 7 weekday short labels, in Sun-to-Sat order — the week as
+// it is read here, and the same order JS getDay() numbers it in.
 export const dayKeys = [
-  'day.sat',
   'day.sun',
   'day.mon',
   'day.tue',
   'day.wed',
   'day.thu',
   'day.fri',
+  'day.sat',
 ] as const;
 
 export const DEFAULT_DAYS: number[] = [0, 1, 2, 3, 4];
@@ -400,17 +422,25 @@ export const DEFAULT_DAYS: number[] = [0, 1, 2, 3, 4];
 // A slot is one eating occasion in the daily rotation. The three built-ins carry
 // an i18n key; anything the customer adds carries a literal `name` they typed,
 // so it is shown verbatim in whatever language they wrote it in.
+//
+// `time` is when that meal should arrive, as minutes from midnight. A number
+// rather than a string so slots sort by it and the picker can step it without
+// parsing; the clock face is built back at render time by `formatTime`.
 export interface MealSlot {
   id: string;
   labelKey?: string;
   name?: string;
   icon: IconName;
+  time: number;
 }
 
+/** Minutes from midnight, for a slot with no time of its own yet. */
+export const DEFAULT_SLOT_TIME = 12 * 60;
+
 export const builtInSlots: MealSlot[] = [
-  { id: 'breakfast', labelKey: 'time.breakfast', icon: 'sun' },
-  { id: 'lunch', labelKey: 'time.lunch', icon: 'utensils' },
-  { id: 'dinner', labelKey: 'time.dinner', icon: 'moon' },
+  { id: 'breakfast', labelKey: 'time.breakfast', icon: 'sun', time: 8 * 60 },
+  { id: 'lunch', labelKey: 'time.lunch', icon: 'utensils', time: 13 * 60 },
+  { id: 'dinner', labelKey: 'time.dinner', icon: 'moon', time: 20 * 60 },
 ];
 
 export const CUSTOM_SLOT_ICON: IconName = 'clock';
@@ -419,8 +449,25 @@ export const MAX_SLOTS = 6;
 export const slotLabel = (slot: MealSlot, t: (k: string, f?: string) => string): string =>
   slot.name ?? (slot.labelKey ? t(slot.labelKey) : slot.id);
 
-// Every plan opens with all three meal times, breakfast included.
-export const defaultSlots = (): MealSlot[] => builtInSlots.map((s) => ({ ...s }));
+/**
+ * A slot's delivery time on a 12-hour face — "8:00 ص". Western digits in both
+ * languages, like every other number in the app (see `digits.ts`); only the
+ * period marker is translated.
+ *
+ * Clamped and wrapped rather than trusted: `time` comes back out of storage,
+ * where an older build or a hand-edited plan can leave anything.
+ */
+export const formatTime = (minutes: number, t: (k: string, f?: string) => string): string => {
+  const total = ((Math.round(minutes) % 1440) + 1440) % 1440;
+  const hour24 = Math.floor(total / 60);
+  const hour = hour24 % 12 === 0 ? 12 : hour24 % 12;
+  const minute = String(total % 60).padStart(2, '0');
+  return `${hour}:${minute} ${t(hour24 < 12 ? 'time.am' : 'time.pm')}`;
+};
+
+// A plan opens with one meal time. The customer adds the rest — a second
+// delivery a day is a real cost, so it is chosen rather than assumed.
+export const defaultSlots = (): MealSlot[] => [{ ...builtInSlots[0] }];
 
 export type TrackingStatus = 'preparing' | 'ontheway' | 'delivered';
 
@@ -514,7 +561,24 @@ export interface Order {
   status: OrderStatus;
   placedAt: number; // epoch ms — the receipt's relative date is derived from this
   lines: OrderLine[];
+  /** What the customer asked the kitchen for, in their own words. */
+  note?: string;
+  /** What the driver should do on arrival — see `dropKeys`. */
+  drop?: DropChoice;
 }
+
+// What happens when the driver reaches the address. Kept short and concrete:
+// each one is a different thing for the driver to do, not a different way of
+// saying "deliver it".
+export type DropChoice = 'hand' | 'door' | 'lobby';
+
+export const dropKeys: DropChoice[] = ['hand', 'door', 'lobby'];
+
+/** A rough door-to-door estimate, in minutes, quoted as a range. */
+export const DELIVERY_MINUTES: [number, number] = [35, 50];
+
+/** Charged per order on top of delivery, the way the branch bills it. */
+export const SERVICE_FEE = 500;
 
 // Order numbers start where the branch's paper book left off, so the first one
 // a customer places doesn't read as #1.

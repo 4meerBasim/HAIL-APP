@@ -5,6 +5,7 @@ import {
   type Macros,
   type SaverKey,
   CUSTOM_SLOT_ICON,
+  DEFAULT_SLOT_TIME,
   MAX_DAYS,
   MAX_POSTPONE_DAYS,
   MAX_SLOTS,
@@ -14,22 +15,28 @@ import {
   getBox,
 } from '../data/menu';
 import {
+  type MealBuildState,
   type MealLine,
   type PlanPricing,
   type PlanState,
+  addGridDay,
   applySaverTo,
   buildMeals,
   dailyMacrosOf,
   emptyPlan,
   planFromBox,
   priceOf,
-  reorderSlots,
+  pruneGrid,
+  removeGridDay,
+  sortSlotsByTime,
+  setGridDish,
   spreadOverSlots,
   withoutSlot,
 } from '../data/plan';
+import { useAuth } from './AuthContext';
 
-export type { MealLine, PlanPricing, PlanState };
-export { cycleNoteKey, deliveryDays, dishesForSlot, postponedBy, postponedOffPlan, rotationDays, saverSaving, planProgress, upcomingDeliveries } from '../data/plan';
+export type { MealBuildState, MealLine, PlanPricing, PlanState };
+export { cycleNoteKey, dayCountOf, deliveryDays, gridOf, incompleteDays, postponedBy, postponedOffPlan, rotationDays, saverSaving, planProgress, upcomingDeliveries } from '../data/plan';
 export type { PlanProgress } from '../data/plan';
 
 const PLAN_KEY = '@jareesh/subscription';
@@ -40,33 +47,61 @@ interface PlanValue {
   pricing: PlanPricing;
   dailyMacros: Macros;
   subscription: PlanState | null;
+  /** False until the stored subscription has been read back. */
+  hydrated: boolean;
   subscriptionMeals: MealLine[];
   subscriptionPricing: PlanPricing | null;
   subscriptionMacros: Macros | null;
   startFromBox: (boxId: BoxGoal) => void;
   startCustom: () => void;
   editSubscription: () => void;
-  addSlot: (name: string) => void;
+  addSlot: (name: string, time: number) => void;
+  /** Rename or re-time one slot; a renamed built-in stops following the locale. */
+  updateSlot: (slotId: string, patch: { name?: string; time?: number }) => void;
   removeSlot: (slotId: string) => void;
-  moveSlot: (from: number, to: number) => void;
   toggleWeekday: (index: number) => void;
   setDayCount: (n: number) => void;
   toggleDish: (dishId: string, slotId: string) => void;
+  /** Puts a dish in one day's meal slot, or takes it back out. */
+  setDayDish: (day: number, slotIndex: number, dishId: string) => void;
+  addDay: () => void;
+  removeDay: (day: number) => void;
+  /** Drops every day that still has an empty meal time. */
+  pruneDays: () => void;
   applySaver: (key: SaverKey) => void;
   confirm: () => void;
   skipDay: (dayIndex: number) => void;
   postponeDay: (dayIndex: number, byDays: number) => void;
   clearException: (id: string) => void;
   cancelSubscription: () => void;
+  /** Records how one meal of the running plan should be cooked. */
+  setMealBuild: (dishId: string, build: MealBuildState) => void;
+  /** Swap the running subscription for the plan being built. */
+  replaceSubscription: () => void;
 }
 
 const PlanContext = createContext<PlanValue | undefined>(undefined);
 
 export function PlanProvider({ children }: { children: React.ReactNode }) {
+  const { status } = useAuth();
   const [plan, setPlan] = useState<PlanState>(emptyPlan);
   const [subscription, setSubscription] = useState<PlanState | null>(null);
+  // False until storage has answered. Without it every screen that reads
+  // `subscription` paints "no plan" first and then swaps a card in.
+  const [hydrated, setHydrated] = useState(false);
 
+  // The subscription is stored on the device, not against the account, so it is
+  // read back only for a signed-in customer — a guest inheriting the last
+  // customer's live plan would see a card, a progress bar and an upcoming list
+  // for something they cannot cancel and did not buy. Signing out drops it from
+  // state; the record stays on disk and returns on the next sign-in.
   useEffect(() => {
+    if (status === 'loading') return;
+    if (status !== 'authed') {
+      setSubscription(null);
+      setHydrated(true);
+      return;
+    }
     let alive = true;
     void (async () => {
       try {
@@ -97,6 +132,19 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
             saved.mealSlots = rebuilt.length > 0 ? rebuilt : defaultSlots();
             migrated = true;
           }
+          // Slots written before delivery times existed carry none. A built-in
+          // takes its own hour back; anything the customer named gets midday,
+          // which is at least a time they can see is wrong and correct.
+          if (saved.mealSlots.some((slot) => typeof slot.time !== 'number')) {
+            saved.mealSlots = saved.mealSlots.map((slot) => ({
+              ...slot,
+              time:
+                typeof slot.time === 'number'
+                  ? slot.time
+                  : (builtInSlots.find((b) => b.id === slot.id)?.time ?? DEFAULT_SLOT_TIME),
+            }));
+            migrated = true;
+          }
           if (saved.slots) {
             saved.slots = Object.fromEntries(
               Object.entries(saved.slots).map(([dishId, v]) => [
@@ -118,12 +166,14 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
         }
       } catch {
         /* no saved subscription */
+      } finally {
+        if (alive) setHydrated(true);
       }
     })();
     return () => {
       alive = false;
     };
-  }, []);
+  }, [status]);
 
   const persist = useCallback((next: PlanState | null) => {
     setSubscription(next);
@@ -148,26 +198,47 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
 
   // Custom ids are minted off a counter rather than the slot name, so renaming
   // or repeating a name never collides with an existing slot's dishes.
-  const addSlot = useCallback((name: string) => {
+  const addSlot = useCallback((name: string, time: number) => {
     const label = name.trim();
     if (!label) return;
     setPlan((p) => {
       if (p.mealSlots.length >= MAX_SLOTS) return p;
       let n = p.mealSlots.length + 1;
       while (p.mealSlots.some((s) => s.id === `custom-${n}`)) n += 1;
-      return {
+      return sortSlotsByTime({
         ...p,
-        mealSlots: [...p.mealSlots, { id: `custom-${n}`, name: label, icon: CUSTOM_SLOT_ICON }],
-      };
+        mealSlots: [
+          ...p.mealSlots,
+          { id: `custom-${n}`, name: label, icon: CUSTOM_SLOT_ICON, time },
+        ],
+      });
     });
+  }, []);
+
+  /**
+   * Renames or re-times one slot in place. Editing a built-in drops its
+   * `labelKey` for the typed name, since a slot the customer has renamed must
+   * not snap back to "فطور" when they switch language.
+   */
+  const updateSlot = useCallback((slotId: string, patch: { name?: string; time?: number }) => {
+    setPlan((p) =>
+      sortSlotsByTime({
+        ...p,
+        mealSlots: p.mealSlots.map((s) => {
+          if (s.id !== slotId) return s;
+          const label = patch.name?.trim();
+          return {
+            ...s,
+            ...(label ? { name: label, labelKey: undefined } : null),
+            ...(patch.time !== undefined ? { time: patch.time } : null),
+          };
+        }),
+      }),
+    );
   }, []);
 
   const removeSlot = useCallback((slotId: string) => {
     setPlan((p) => withoutSlot(p, slotId));
-  }, []);
-
-  const moveSlot = useCallback((from: number, to: number) => {
-    setPlan((p) => reorderSlots(p, from, to));
   }, []);
 
   const toggleWeekday = useCallback((index: number) => {
@@ -204,6 +275,16 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
+  const setDayDish = useCallback((day: number, slotIndex: number, dishId: string) => {
+    setPlan((p) => setGridDish(p, day, slotIndex, dishId));
+  }, []);
+
+  const addDay = useCallback(() => setPlan((p) => addGridDay(p)), []);
+
+  const removeDay = useCallback((day: number) => setPlan((p) => removeGridDay(p, day)), []);
+
+  const pruneDays = useCallback(() => setPlan((p) => pruneGrid(p)), []);
+
   const applySaver = useCallback((key: SaverKey) => {
     setPlan((p) => applySaverTo(p, key));
   }, []);
@@ -218,6 +299,13 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
     });
   }, [persist, plan, subscription]);
 
+  // Editing keeps the original start date; swapping does not. A customer who
+  // picks a different box is buying a different plan, not amending the one they
+  // are part-way through, so the term restarts from today.
+  const replaceSubscription = useCallback(() => {
+    persist({ ...plan, exceptions: [], startedAt: Date.now() });
+  }, [persist, plan]);
+
   const mutateSubscription = useCallback((fn: (s: PlanState) => PlanState) => {
     setSubscription((s) => {
       if (!s) return s;
@@ -226,6 +314,16 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
       return next;
     });
   }, []);
+
+  const setMealBuild = useCallback(
+    (dishId: string, build: MealBuildState) => {
+      mutateSubscription((s) => ({
+        ...s,
+        mealBuilds: { ...(s.mealBuilds ?? {}), [dishId]: build },
+      }));
+    },
+    [mutateSubscription],
+  );
 
   const skipDay = useCallback(
     (dayIndex: number) => {
@@ -287,6 +385,7 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
       pricing,
       dailyMacros,
       subscription,
+      hydrated,
       subscriptionMeals,
       subscriptionPricing,
       subscriptionMacros,
@@ -294,17 +393,23 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
       startCustom,
       editSubscription,
       addSlot,
+      updateSlot,
       removeSlot,
-      moveSlot,
       toggleWeekday,
       setDayCount,
       toggleDish,
+      setDayDish,
+      addDay,
+      removeDay,
+      pruneDays,
       applySaver,
       confirm,
       skipDay,
       postponeDay,
       clearException,
       cancelSubscription,
+      replaceSubscription,
+      setMealBuild,
     }),
     [
       plan,
@@ -312,6 +417,7 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
       pricing,
       dailyMacros,
       subscription,
+      hydrated,
       subscriptionMeals,
       subscriptionPricing,
       subscriptionMacros,
@@ -319,17 +425,23 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
       startCustom,
       editSubscription,
       addSlot,
+      updateSlot,
       removeSlot,
-      moveSlot,
       toggleWeekday,
       setDayCount,
       toggleDish,
+      setDayDish,
+      addDay,
+      removeDay,
+      pruneDays,
       applySaver,
       confirm,
       skipDay,
       postponeDay,
       clearException,
       cancelSubscription,
+      replaceSubscription,
+      setMealBuild,
     ],
   );
 

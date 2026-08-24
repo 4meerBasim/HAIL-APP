@@ -149,7 +149,21 @@ export const icons = {
   arrowLeft: 'M19 12H5M12 19l-7-7 7-7',
   arrowRight: 'M5 12h14M12 5l7 7-7 7',
   close: 'M18 6 6 18M6 6l12 12',
+  // Nib at the lower left, body running up to the right, with the eraser end
+  // squared off — read at 11px it has to be the silhouette that says "edit".
+  pencil: ['M16.5 3.2a2.55 2.55 0 0 1 3.6 3.6L7.6 19.3 3 20.6l1.3-4.6L16.5 3.2z', 'M14.8 5l4.2 4.2'],
+  // A lid, a tapered body and two ribs — the silhouette that says "delete"
+  // without needing a label. A bare cross says "close" just as loudly.
+  trash: [
+    'M3.5 6h17',
+    'M8.5 6V4.2a1.2 1.2 0 0 1 1.2-1.2h4.6a1.2 1.2 0 0 1 1.2 1.2V6',
+    'M18.6 6l-.9 13.1a2 2 0 0 1-2 1.9H8.3a2 2 0 0 1-2-1.9L5.4 6',
+    'M10.2 10.5v6M13.8 10.5v6',
+  ],
   check: 'M20 6 9 17l-5-5',
+  // Drawn rather than typed: a text "!" sits on its own baseline and rides high
+  // inside a circle, and the dot is a rounded cap on a zero-length line.
+  exclaim: ['M12 5v9', 'M12 18.5v.01'],
   plus: 'M12 5v14M5 12h14',
   minus: 'M5 12h14',
   dot: 'M12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10z',

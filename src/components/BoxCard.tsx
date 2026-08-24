@@ -8,15 +8,9 @@ import Icon from './Icon';
 import { icons } from './icons';
 import { colors, fonts, radius, scrim, shadow, spacing, type } from '../theme';
 import { useLanguage } from '../i18n/LanguageContext';
-import { formatNumber } from '../i18n/digits';
-import {
-  type DietBox,
-  boxDaily,
-  boxPerMeal,
-  boxTotal,
-  formatPrice,
-  groupNumber,
-} from '../data/menu';
+import { planRhythm } from '../i18n/planText';
+import { type DietBox, boxDaily, formatPrice, groupNumber } from '../data/menu';
+import { planFromBox, priceOf } from '../data/plan';
 
 const SCRIM = [scrim.heroFade, scrim.hero] as const;
 
@@ -33,14 +27,14 @@ export default function BoxCard({ box, onPress, variant = 'grid', style }: BoxCa
   const accent = colors[box.accent];
   const tint = colors[box.tint];
   const name = t(`box.${box.id}.name`);
-  // The same two figures the box's own footer leads with, in the same order.
-  // Leading with the per-meal rate here and the total in there meant the number
-  // you tapped was never the number you landed on.
-  const price = formatPrice(groupNumber(boxTotal(box)), lang);
-  const perMeal = t('boxes.avgPerMeal').replace(
-    '{p}',
-    formatPrice(groupNumber(boxPerMeal(box)), lang),
-  );
+  // Priced as the subscription it is, not as one turn of its rotation: the
+  // headline is what a default plan on this box actually costs, so the number
+  // you tap is the number you land on and the span under it is the span it
+  // covers. Same call the box page and Subscribe make, so all three agree.
+  const plan = planFromBox(box);
+  const pricing = priceOf(plan);
+  const price = formatPrice(groupNumber(pricing.total), lang);
+  const rhythm = planRhythm(pricing.mealsPerDay, plan.dayCount, t);
 
   return (
     <TouchableOpacity
@@ -59,12 +53,12 @@ export default function BoxCard({ box, onPress, variant = 'grid', style }: BoxCa
         </View>
 
         {box.popular ? (
-          <View style={styles.popular}>
+          <View style={[styles.popular, !feature && styles.popularSolo, shadow.card]}>
             <Icon
               path={icons.star}
               size={10}
-              color={colors.goldText}
-              fill={colors.goldText}
+              color={colors.gold}
+              fill={colors.gold}
               strokeWidth={1.6}
             />
             {feature ? <Text style={styles.popularText}>{t('boxes.popular')}</Text> : null}
@@ -83,12 +77,15 @@ export default function BoxCard({ box, onPress, variant = 'grid', style }: BoxCa
           {t(`box.${box.id}.tag`)}
         </Text>
 
-        <MacroRow macros={boxDaily(box)} size="sm" />
+        {/* The card carries no heading over these figures, so the block has to
+            say what it covers itself — a calorie count read as one meal's when
+            it is the day's is the whole reason the box looks wrong. */}
+        <MacroRow macros={boxDaily(box)} size="sm" fullDay />
 
         <View style={styles.price}>
           <PricePill value={price} size={feature ? 'md' : 'sm'} />
           <Text style={styles.perMeal} numberOfLines={2}>
-            {`${formatNumber(box.dishes.length)} ${t('plan.mealsUnit')} · ${perMeal}`}
+            {rhythm}
           </Text>
         </View>
       </View>
@@ -125,23 +122,30 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  // White on the photo rather than gold-on-gold with a gold outline: the badge
+  // had three golds stacked on it and read as a sticker. The star carries the
+  // colour; the pill just lifts it off the picture.
   popular: {
     position: 'absolute',
-    top: 11,
-    end: 8,
+    top: spacing.lg,
+    end: spacing.lg,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: spacing.xs,
-    backgroundColor: colors.goldLight,
-    borderWidth: 1,
-    borderColor: colors.goldBorder,
+    height: 24,
+    backgroundColor: colors.card,
     borderRadius: radius.pill,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 3,
+    paddingHorizontal: spacing.lg,
+  },
+  // With no label there is nothing to pad: a circle, not a squashed pill.
+  popularSolo: {
+    width: 24,
+    paddingHorizontal: 0,
   },
   popularText: {
     fontFamily: fonts.bold,
-    fontSize: 11.5,
+    fontSize: 11,
     color: colors.goldText,
   },
   name: {

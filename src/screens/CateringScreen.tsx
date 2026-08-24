@@ -100,7 +100,7 @@ export default function CateringScreen({ navigation }: RootStackScreenProps<'Cat
         showsVerticalScrollIndicator={false}
       >
         <Reveal index={0} style={styles.hero}>
-          <Image source={{ uri: cateringHero }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+          <Image source={cateringHero} style={StyleSheet.absoluteFill} resizeMode="cover" />
           <LinearGradient colors={SCRIM} locations={[0.35, 1]} style={StyleSheet.absoluteFill} />
           <View style={styles.heroText}>
             <Text style={styles.heroTitle}>{t('catering.hero')}</Text>
@@ -157,7 +157,7 @@ export default function CateringScreen({ navigation }: RootStackScreenProps<'Cat
               const n = qty[tray.id] ?? 0;
               return (
                 <View key={tray.id} style={[styles.tray, shadow.card, n > 0 && styles.trayOn]}>
-                  <Image source={{ uri: tray.image }} style={styles.trayImage} />
+                  <Image source={tray.image} style={styles.trayImage} />
                   <View style={styles.trayBody}>
                     <Text style={styles.trayName} numberOfLines={2}>
                       {t(`tray.${tray.id}`)}

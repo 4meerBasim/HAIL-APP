@@ -3,6 +3,15 @@
 
 export type CardBrand = 'visa' | 'mastercard' | 'amex' | 'unknown';
 
+// Brand names are brand names in any language, so they are not translated —
+// and they are here rather than on a screen because two screens now show them.
+export const brandLabel: Record<CardBrand, string> = {
+  visa: 'Visa',
+  mastercard: 'Mastercard',
+  amex: 'Amex',
+  unknown: 'Card',
+};
+
 export const digitsOnly = (value: string): string => value.replace(/\D/g, '');
 
 // Enough of the IIN ranges to name the brands the restaurant actually takes.

@@ -9,9 +9,9 @@ import { formatNumber } from '../i18n/digits';
 import { dayKeys } from '../data/menu';
 
 const DAY_MS = 86400000;
-// The grid runs Saturday-first, the way the week is read here and the way
+// The grid runs Sunday-first, the way the week is read here and the way
 // `dayKeys` and `PlanState.weekdays` are already indexed.
-const WEEK_START = 6; // JS getDay() for Saturday
+const WEEK_START = 0; // JS getDay() for Sunday
 
 export interface CalendarSheetProps {
   visible: boolean;

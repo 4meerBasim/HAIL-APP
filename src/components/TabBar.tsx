@@ -3,25 +3,51 @@ import { Animated, StyleSheet, Text, TouchableOpacity, View } from 'react-native
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { colors, fonts, radius, shadow } from '../theme';
+import { usePulseLoop } from '../animation';
 import { useLanguage } from '../i18n/LanguageContext';
+import { useNotifications } from '../state/NotificationsContext';
+import { useOrders } from '../state/OrdersContext';
+import Badge from './Badge';
+import CartBar from './CartBar';
 import Icon from './Icon';
 import { type IconPath, icons } from './icons';
 
 const TAB_META: Record<string, { icon: IconPath; labelKey: string }> = {
   Plans: { icon: icons.box, labelKey: 'nav.plans' },
-  Menu: { icon: icons.grid, labelKey: 'nav.menu' },
+  Menu: { icon: icons.puzzle, labelKey: 'nav.build' },
   Orders: { icon: icons.receipt, labelKey: 'nav.orders' },
   Profile: { icon: icons.user, labelKey: 'nav.profile' },
 };
+
+// A delivery on its way, on the tab that tracks it: the same breathing dot the
+// order card carries, small enough to sit on an icon.
+function LiveDot() {
+  const anim = usePulseLoop();
+  const halo = {
+    opacity: anim.interpolate({ inputRange: [0, 1], outputRange: [0.5, 0] }),
+    transform: [{ scale: anim.interpolate({ inputRange: [0, 1], outputRange: [1, 2.4] }) }],
+  };
+
+  return (
+    <View style={styles.live} pointerEvents="none">
+      <Animated.View style={[styles.liveDot, styles.liveHalo, halo]} />
+      <View style={styles.liveDot} />
+    </View>
+  );
+}
 
 interface TabButtonProps {
   focused: boolean;
   iconPath: IconPath;
   label: string;
   onPress: () => void;
+  /** Unread notices, shown on the account tab. */
+  badge?: number;
+  /** A delivery in flight, shown on the orders tab. */
+  live?: boolean;
 }
 
-function TabButton({ focused, iconPath, label, onPress }: TabButtonProps) {
+function TabButton({ focused, iconPath, label, onPress, badge = 0, live = false }: TabButtonProps) {
   const anim = useRef(new Animated.Value(focused ? 1 : 0)).current;
 
   useEffect(() => {
@@ -57,6 +83,8 @@ function TabButton({ focused, iconPath, label, onPress }: TabButtonProps) {
             <Icon path={iconPath} size={23} color={colors.white} strokeWidth={1.8} />
           </Animated.View>
         </Animated.View>
+        {live ? <LiveDot /> : null}
+        <Badge count={badge} ringColor={colors.card} style={styles.badge} />
       </View>
       <Text
         numberOfLines={1}
@@ -71,9 +99,20 @@ function TabButton({ focused, iconPath, label, onPress }: TabButtonProps) {
 export default function TabBar({ state, navigation }: BottomTabBarProps) {
   const { t, isRTL } = useLanguage();
   const insets = useSafeAreaInsets();
+  const { unreadCount } = useNotifications();
+  const { orders } = useOrders();
+
+  const delivering = orders.some((order) => order.status === 'active');
+
+  // The build tab ends in a bar of its own — what is in the box and what it
+  // costs — and two bars stacked on top of each other is one too many.
+  const building = state.routes[state.index]?.name === 'Menu';
 
   return (
     <View style={styles.wrap} pointerEvents="box-none">
+      {/* Sits in the bar's own layout rather than floating over the screen, so
+          a full page of dishes is never hidden behind it. */}
+      {building ? null : <CartBar />}
       <View
         style={[
           styles.bar,
@@ -106,6 +145,8 @@ export default function TabBar({ state, navigation }: BottomTabBarProps) {
               iconPath={meta.icon}
               label={t(meta.labelKey)}
               onPress={onPress}
+              badge={route.name === 'Profile' ? unreadCount : 0}
+              live={route.name === 'Orders' && delivering}
             />
           );
         })}
@@ -164,6 +205,28 @@ const styles = StyleSheet.create({
   iconCenter: {
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  live: {
+    position: 'absolute',
+    top: 4,
+    end: 10,
+    width: 7,
+    height: 7,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  liveDot: {
+    width: 7,
+    height: 7,
+    borderRadius: radius.pill,
+    backgroundColor: colors.gold,
+  },
+  liveHalo: {
+    position: 'absolute',
+  },
+  badge: {
+    top: -2,
+    end: 2,
   },
   label: {
     fontSize: 12.5,

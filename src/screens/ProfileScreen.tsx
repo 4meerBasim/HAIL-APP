@@ -1,12 +1,15 @@
-import React, { useMemo } from 'react';
-import { StyleSheet, View } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { StyleSheet, TouchableOpacity, View } from 'react-native';
 import Text from '../components/AppText';
 import Screen from '../components/Screen';
 import Icon from '../components/Icon';
 import PatternFill from '../components/PatternFill';
 import { type IconName, icons } from '../components/icons';
+import Badge from '../components/Badge';
 import Card from '../components/Card';
 import Button from '../components/Button';
+import Dialog from '../components/Dialog';
+import PressScale from '../components/PressScale';
 import SectionHeader from '../components/SectionHeader';
 import SettingRow from '../components/SettingRow';
 import { colors, overlay, radius, shadow, spacing, type } from '../theme';
@@ -14,6 +17,8 @@ import { useLanguage } from '../i18n/LanguageContext';
 import { formatNumber } from '../i18n/digits';
 import { useOrders } from '../state/OrdersContext';
 import { useAuth } from '../state/AuthContext';
+import { useCart } from '../state/CartContext';
+import { useNotifications } from '../state/NotificationsContext';
 import { planProgress, usePlan } from '../state/PlanContext';
 import type { TabScreenProps } from '../navigation/RootNavigator';
 
@@ -40,6 +45,14 @@ export default function ProfileScreen({ navigation }: TabScreenProps<'Profile'>)
   const { status, user, signOut } = useAuth();
   const { subscription } = usePlan();
   const { orders } = useOrders();
+  const { items } = useCart();
+  const { unreadCount } = useNotifications();
+
+  // Signing out clears the session, the basket and the plan on this device, so
+  // it is asked rather than done on one tap of a full-width button.
+  const [confirming, setConfirming] = useState(false);
+
+  const cartCount = items.reduce((sum, it) => sum + it.qty, 0);
   const authed = status === 'authed';
 
   // Keyed by row rather than carried on the row itself, so each destination is
@@ -77,7 +90,15 @@ export default function ProfileScreen({ navigation }: TabScreenProps<'Profile'>)
 
   return (
     <Screen scroll contentContainerStyle={styles.content} texture>
-      <View style={[styles.hero, shadow.raised]}>
+      {/* The hero is the account itself, so tapping it opens the numbers the
+          account is reachable on — and for a guest, the sign-in that creates
+          one. The line under the name is what makes either promise visible. */}
+      <PressScale
+        style={[styles.hero, shadow.raised]}
+        scaleTo={0.985}
+        onPress={() => navigation.navigate(authed ? 'PhoneNumbers' : 'Login')}
+        accessibilityLabel={authed ? t('phones.manage') : t('login.title')}
+      >
         <PatternFill />
         <View style={styles.heroTop}>
           <View style={styles.avatar}>
@@ -93,8 +114,36 @@ export default function ProfileScreen({ navigation }: TabScreenProps<'Profile'>)
               {authed ? user?.phone : t('profile.guest')}
             </Text>
             <Text style={[styles.identitySub, readingSide]} numberOfLines={2}>
-              {authed ? t('profile.member') : t('profile.guest.sub')}
+              {authed ? t('phones.manage') : t('profile.guest.sub')}
             </Text>
+          </View>
+          {/* The account's own two errands, on the account's own card. Nested
+              pressables, so each takes its own tap and the card still opens the
+              phone numbers behind them. */}
+          <View style={styles.heroActions}>
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => navigation.navigate('Inbox')}
+              accessibilityRole="button"
+              accessibilityLabel={t('profile.notifications')}
+              style={styles.heroBtn}
+            >
+              <Icon path={icons.bell} size={17} color={colors.white} strokeWidth={1.8} />
+              <Badge count={unreadCount} ringColor={colors.tealMid} />
+            </TouchableOpacity>
+
+            {cartCount > 0 ? (
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() => navigation.navigate('Cart')}
+                accessibilityRole="button"
+                accessibilityLabel={t('cart.title')}
+                style={styles.heroBtn}
+              >
+                <Icon path={icons.bag} size={17} color={colors.white} strokeWidth={1.8} />
+                <Badge count={cartCount} ringColor={colors.tealMid} />
+              </TouchableOpacity>
+            ) : null}
           </View>
         </View>
 
@@ -122,7 +171,7 @@ export default function ProfileScreen({ navigation }: TabScreenProps<'Profile'>)
             ) : null}
           </View>
         ) : null}
-      </View>
+      </PressScale>
 
       <View style={styles.section}>
         <SectionHeader title={t('profile.account')} />
@@ -145,7 +194,7 @@ export default function ProfileScreen({ navigation }: TabScreenProps<'Profile'>)
           size="lg"
           full
           color={colors.coral}
-          onPress={signOut}
+          onPress={() => setConfirming(true)}
         />
       ) : (
         <Button
@@ -156,6 +205,19 @@ export default function ProfileScreen({ navigation }: TabScreenProps<'Profile'>)
           onPress={() => navigation.navigate('Login')}
         />
       )}
+      <Dialog
+        visible={confirming}
+        title={t('profile.signOut.confirm')}
+        message={t('profile.signOut.message')}
+        primaryLabel={t('profile.signOut')}
+        onPrimary={() => {
+          setConfirming(false);
+          signOut();
+        }}
+        secondaryLabel={t('common.cancel')}
+        onSecondary={() => setConfirming(false)}
+        onClose={() => setConfirming(false)}
+      />
     </Screen>
   );
 }
@@ -195,6 +257,19 @@ const styles = StyleSheet.create({
   identity: {
     flex: 1,
     gap: 2,
+  },
+  heroActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  heroBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: radius.pill,
+    backgroundColor: overlay.white16,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   name: {
     ...type.h2,

@@ -16,6 +16,12 @@ export interface MacroRowProps {
   size?: 'sm' | 'md';
   // On the teal plan gradient ink numerals disappear, so the block goes white.
   onDark?: boolean;
+  // These figures cover a whole day's meals rather than the one dish in front
+  // of the customer. Same numerals either way, and a calorie count read as one
+  // meal's when it is three is the kind of wrong that reaches the plate — so a
+  // block that means a day has to say so, next to the numbers rather than in a
+  // heading above them.
+  fullDay?: boolean;
   style?: StyleProp<ViewStyle>;
 }
 
@@ -25,7 +31,13 @@ export interface MacroRowProps {
 // numerals run at heading weight and the labels are spelled out rather than
 // abbreviated. Calories then get a filled band of their own, because they are
 // the line people actually scan for and a rule alone did not separate them.
-export default function MacroRow({ macros, size = 'md', onDark = false, style }: MacroRowProps) {
+export default function MacroRow({
+  macros,
+  size = 'md',
+  onDark = false,
+  fullDay = false,
+  style,
+}: MacroRowProps) {
   const { t } = useLanguage();
   const small = size === 'sm';
   const gram = t('detail.gram');
@@ -41,9 +53,20 @@ export default function MacroRow({ macros, size = 'md', onDark = false, style }:
               />
             ) : null}
             <View style={styles.cell}>
-              <Text style={[styles.value, small && styles.valueSm, onDark && styles.onDarkValue]}>
-                {`${formatNumber(Math.round(macros[key]))}${gram}`}
-              </Text>
+              {/* The unit is not part of the figure: at the numeral's weight
+                  and size it competed with it, and set inline it rode up on the
+                  numeral's own line box. Its own text, smaller, sat on the
+                  bottom. */}
+              <View style={styles.valueRow}>
+                <Text style={[styles.value, small && styles.valueSm, onDark && styles.onDarkValue]}>
+                  {formatNumber(Math.round(macros[key]))}
+                </Text>
+                <Text
+                  style={[styles.gram, small && styles.gramSm, onDark && styles.onDarkLabel]}
+                >
+                  {gram}
+                </Text>
+              </View>
               <Text
                 style={[styles.label, small && styles.labelSm, onDark && styles.onDarkLabel]}
                 numberOfLines={1}
@@ -66,8 +89,10 @@ export default function MacroRow({ macros, size = 'md', onDark = false, style }:
         <Text
           style={[styles.caloriesLabel, small && styles.labelSm, onDark && styles.onDarkLabel]}
           numberOfLines={1}
+          adjustsFontSizeToFit
+          minimumFontScale={0.75}
         >
-          {t('detail.calories')}
+          {t(fullDay ? 'macros.caloriesFullDay' : 'detail.calories')}
         </Text>
       </View>
     </View>
@@ -88,6 +113,13 @@ const styles = StyleSheet.create({
   cell: {
     flex: 1,
     alignItems: 'center',
+    gap: 2,
+  },
+  valueRow: {
+    flexDirection: 'row',
+    // Bottom, not baseline: the numerals run a line box shorter than the font's
+    // own, so they sit high inside it and a baseline-aligned unit floats.
+    alignItems: 'flex-end',
     gap: 2,
   },
   divider: {
@@ -131,6 +163,18 @@ const styles = StyleSheet.create({
     fontSize: 17,
     lineHeight: 24,
   },
+  gram: {
+    fontFamily: fonts.semibold,
+    fontSize: 11.5,
+    lineHeight: 16,
+    color: colors.muted,
+    paddingBottom: 4,
+  },
+  gramSm: {
+    fontSize: 10.5,
+    lineHeight: 14,
+    paddingBottom: 3,
+  },
   label: {
     fontFamily: fonts.semibold,
     fontSize: 13,
@@ -146,6 +190,9 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 19,
     color: colors.muted,
+    // The full-day wording is long enough to push the numeral off a grid card
+    // if it refuses to give ground; shrinking is what keeps both on the band.
+    flexShrink: 1,
   },
   onDarkValue: {
     color: colors.white,

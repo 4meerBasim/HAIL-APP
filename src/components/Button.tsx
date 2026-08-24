@@ -56,11 +56,9 @@ export default function Button({
   // the printed offer sheets put every price and offer number in. Subscribing
   // and ordering are the same act everywhere in the app, so they wear it
   // everywhere — a per-box accent CTA made the same button mean five things.
-  // The label is near-black rather than white: white on #d6a23e is 2:1 and
-  // unreadable in daylight, ink on gold is 8:1.
   if (variant === 'primary' || variant === 'amber') {
     bg = color ?? colors.gold;
-    fg = colors.amberText;
+    fg = colors.white;
     lift = shadow.cta;
   } else if (variant === 'teal') {
     bg = color ?? colors.teal;
@@ -100,7 +98,17 @@ export default function Button({
       ]}
     >
       <View style={styles.inner}>
-        <Text style={[styles.label, { color: textColor ?? fg, fontSize: s.font }]}>{label}</Text>
+        {/* One line, always: a two-word label that wrapped made the button
+            taller than the one beside it. Shrinking only kicks in when the
+            label would not otherwise fit, so short labels are untouched. */}
+        <Text
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          minimumFontScale={0.8}
+          style={[styles.label, { color: textColor ?? fg, fontSize: s.font }]}
+        >
+          {label}
+        </Text>
         {trailing ? (
           <Icon path={trailing} size={s.font + 2} color={textColor ?? fg} strokeWidth={2.2} />
         ) : null}

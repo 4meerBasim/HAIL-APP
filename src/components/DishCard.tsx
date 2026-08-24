@@ -1,8 +1,11 @@
 import React from 'react';
 import { Image, StyleProp, StyleSheet, TouchableOpacity, View, ViewStyle } from 'react-native';
 import Text from './AppText';
+import Icon from './Icon';
+import { icons } from './icons';
 import { colors, fonts, radius, shadow, spacing } from '../theme';
 import { useLanguage } from '../i18n/LanguageContext';
+import { formatNumber } from '../i18n/digits';
 import { Dish, formatPrice } from '../data/menu';
 import PricePill from './PricePill';
 import Tag from './Tag';
@@ -12,6 +15,9 @@ export interface DishCardProps {
   onPress?: () => void;
   onAdd?: () => void;
   showAdd?: boolean;
+  /** How many are on the order. Above zero the + becomes a stepper. */
+  qty?: number;
+  onRemove?: () => void;
   style?: StyleProp<ViewStyle>;
 }
 
@@ -21,7 +27,15 @@ export interface DishCardProps {
 // card edge, and the shadow is a real one. Inset beats full-bleed here because
 // the offer photographs are shot on pale paper — bled to the edge they merge
 // into the card, framed they read as a picture sitting on it.
-export default function DishCard({ dish, onPress, onAdd, showAdd = false, style }: DishCardProps) {
+export default function DishCard({
+  dish,
+  onPress,
+  onAdd,
+  showAdd = false,
+  qty = 0,
+  onRemove,
+  style,
+}: DishCardProps) {
   const { t, lang } = useLanguage();
   const name = lang === 'ar' ? dish.name : t(`dish.${dish.id}.name`, dish.name);
   const sub = lang === 'ar' ? dish.sub : t(`dish.${dish.id}.sub`, dish.sub);
@@ -45,15 +59,45 @@ export default function DishCard({ dish, onPress, onAdd, showAdd = false, style 
         </Text>
         <View style={styles.priceRow}>
           <PricePill value={formatPrice(dish.price, lang)} size="sm" />
-          {showAdd ? (
+          {showAdd && qty > 0 ? (
+            // Once one is on the order the button becomes the count, so adding
+            // a second never means finding another control.
+            <View style={styles.stepper}>
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={onRemove}
+                hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
+                accessibilityRole="button"
+                accessibilityLabel={t('common.decrease')}
+              >
+                <Icon
+                  path={qty === 1 ? icons.close : icons.minus}
+                  size={12}
+                  color={colors.tealText}
+                  strokeWidth={2.8}
+                />
+              </TouchableOpacity>
+              <Text style={styles.count}>{formatNumber(qty)}</Text>
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={onAdd}
+                hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
+                accessibilityRole="button"
+                accessibilityLabel={t('common.increase')}
+              >
+                <Icon path={icons.plus} size={12} color={colors.tealText} strokeWidth={2.8} />
+              </TouchableOpacity>
+            </View>
+          ) : showAdd ? (
             <TouchableOpacity
               activeOpacity={0.8}
               onPress={onAdd}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               accessibilityRole="button"
+              accessibilityLabel={t('detail.addToCart')}
               style={styles.addBtn}
             >
-              <Text style={styles.addText}>+</Text>
+              <Icon path={icons.plus} size={15} color={colors.white} strokeWidth={3} />
             </TouchableOpacity>
           ) : null}
         </View>
@@ -110,18 +154,28 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginTop: spacing.sm,
   },
+  stepper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    backgroundColor: colors.healthyBg,
+    borderRadius: radius.pill,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  count: {
+    fontFamily: fonts.bold,
+    fontSize: 13.5,
+    color: colors.ink,
+    minWidth: 12,
+    textAlign: 'center',
+  },
   addBtn: {
     width: 32,
     height: 32,
-    borderRadius: 11,
+    borderRadius: radius.pill,
     backgroundColor: colors.gold,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  addText: {
-    fontFamily: fonts.heavy,
-    fontSize: 19,
-    color: colors.amberText,
-    lineHeight: 24,
   },
 });

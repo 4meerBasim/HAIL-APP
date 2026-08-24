@@ -9,6 +9,7 @@ import {
   StyleSheet,
   TextInput,
   TouchableOpacity,
+  TouchableWithoutFeedback,
   useWindowDimensions,
   View,
 } from 'react-native';
@@ -113,21 +114,32 @@ export default function LoginScreen({ navigation }: RootStackScreenProps<'Login'
   };
 
   const lift = Animated.multiply(kb, -1);
+
+  // The screen slides up by the whole keyboard; the brand gives most of that
+  // back and shrinks, so the ring rises into the gap left above the sheet and
+  // stays there while the customer types. Proportional to the real keyboard
+  // rather than a fixed number — the give-back has to match whatever came up.
   const brandStyle = {
-    opacity: kb.interpolate({
-      inputRange: [0, 40, 210],
-      outputRange: [1, 1, 0],
-      extrapolate: 'clamp',
-    }),
     transform: [
+      { translateY: Animated.multiply(kb, 0.62) },
       {
         scale: kb.interpolate({
           inputRange: [0, 210],
-          outputRange: [1, 0.88],
+          outputRange: [1, 0.62],
           extrapolate: 'clamp',
         }),
       },
     ],
+  };
+
+  // The wordmark and the line under it do go: at this size they are unreadable,
+  // and the ring alone is enough to say whose screen this is.
+  const brandTextStyle = {
+    opacity: kb.interpolate({
+      inputRange: [0, 40, 150],
+      outputRange: [1, 1, 0],
+      extrapolate: 'clamp',
+    }),
   };
 
   const phoneReady = phone.replace(/\D/g, '').length >= 10;
@@ -188,124 +200,130 @@ export default function LoginScreen({ navigation }: RootStackScreenProps<'Login'
         <Image source={PATTERN_GOLD} resizeMode="repeat" style={styles.patchSideFill} />
       </Animated.View>
 
-      <Animated.View
-        style={[
-          styles.content,
-          {
-            paddingTop: insets.top,
-            direction: isRTL ? 'rtl' : 'ltr',
-            transform: [{ translateY: lift }],
-          },
-        ]}
-      >
-        <Animated.View style={[styles.brand, brandStyle]}>
-          <View style={styles.logoRing}>
-            <Image source={LOGO} style={styles.logo} resizeMode="cover" />
-          </View>
-          <Text style={styles.title}>{t('brand.name')}</Text>
-          <Text style={styles.tagline}>{t('brand.tagline')}</Text>
-        </Animated.View>
+      {/* A tap anywhere off the field puts the keyboard away. Buttons and the
+          inputs are their own responders, so this only catches the misses. */}
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+        <Animated.View
+          style={[
+            styles.content,
+            {
+              paddingTop: insets.top,
+              direction: isRTL ? 'rtl' : 'ltr',
+              transform: [{ translateY: lift }],
+            },
+          ]}
+        >
+          <Animated.View style={[styles.brand, brandStyle]}>
+            <View style={styles.logoRing}>
+              <Image source={LOGO} style={styles.logo} resizeMode="cover" />
+            </View>
+            <Animated.View style={[styles.brandText, brandTextStyle]}>
+              <Text style={styles.title}>{t('brand.name')}</Text>
+              <Text style={styles.tagline}>{t('brand.tagline')}</Text>
+            </Animated.View>
+          </Animated.View>
 
-        <View style={[styles.sheet, { paddingBottom: spacing.giant + insets.bottom }]}>
-          <Image
-            source={PATTERN}
-            resizeMode="repeat"
-            style={[styles.sheetPattern, { width: windowWidth, height: windowHeight }]}
-          />
-          {sent ? (
-            <>
-              <View style={styles.headingBlock}>
-                <Text style={[styles.heading, readingSide]}>{t('login.codeSent')}</Text>
-                <Text style={[styles.subheading, readingSide]}>{t('login.codeHint')}</Text>
-              </View>
-
-              <View style={styles.field}>
-                <Text style={[styles.fieldLabel, readingSide]}>{phone}</Text>
-                <TextInput
-                  value={code}
-                  onChangeText={(v) => {
-                    setCode(v.replace(/\D/g, '').slice(0, CODE_LENGTH));
-                    setError(false);
-                  }}
-                  keyboardType="number-pad"
-                  maxLength={CODE_LENGTH}
-                  autoFocus
-                  placeholder="••••"
-                  placeholderTextColor={colors.faint2}
-                  accessibilityLabel={t('login.codeHint')}
-                  style={[styles.input, styles.codeInput, error && styles.inputError]}
-                />
-                {error ? (
-                  <Text style={[styles.error, readingSide]}>{t('login.codeError')}</Text>
-                ) : null}
-              </View>
-
-              <View style={styles.actions}>
-                <Button
-                  label={t('common.continue')}
-                  variant="primary"
-                  size="lg"
-                  full
-                  disabled={!codeReady}
-                  onPress={onVerify}
-                        />
-                <TouchableOpacity
-                  activeOpacity={0.7}
-                  onPress={() => setSent(false)}
-                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                  accessibilityRole="button"
-                >
-                  <Text style={styles.link}>{t('login.changeNumber')}</Text>
-                </TouchableOpacity>
-              </View>
-            </>
-          ) : (
-            <>
-              <View style={styles.headingBlock}>
-                <Text style={[styles.heading, readingSide]}>{t('login.title')}</Text>
-                <Text style={[styles.subheading, readingSide]}>{t('login.subtitle')}</Text>
-              </View>
-
-              <View style={styles.field}>
-                <Text style={[styles.fieldLabel, readingSide]}>{t('login.phoneLabel')}</Text>
-                <View style={[styles.phoneRow, phoneRowSide]}>
-                  <View style={styles.prefix}>
-                    <Text style={styles.prefixText}>{DIAL_CODE}</Text>
-                  </View>
-                  <TextInput
-                    value={phone}
-                    onChangeText={setPhone}
-                    keyboardType="phone-pad"
-                    placeholder="770 000 0000"
-                    placeholderTextColor={colors.faint2}
-                    accessibilityLabel={t('login.phoneLabel')}
-                    style={[styles.input, styles.phoneInput]}
-                  />
+          <View style={[styles.sheet, { paddingBottom: spacing.giant + insets.bottom }]}>
+            <Image
+              source={PATTERN}
+              resizeMode="repeat"
+              style={[styles.sheetPattern, { width: windowWidth, height: windowHeight }]}
+            />
+            {sent ? (
+              <>
+                <View style={styles.headingBlock}>
+                  <Text style={[styles.heading, readingSide]}>{t('login.codeSent')}</Text>
+                  <Text style={[styles.subheading, readingSide]}>{t('login.codeHint')}</Text>
                 </View>
-              </View>
 
-              <View style={styles.actions}>
-                <Button
-                  label={t('common.continue')}
-                  variant="primary"
-                  size="lg"
-                  full
-                  disabled={!phoneReady}
-                  onPress={onSend}
-                        />
-                <TouchableOpacity
-                  activeOpacity={0.7}
-                  onPress={onGuest}
-                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                  accessibilityRole="button"
-                >
-                  <Text style={styles.link}>{t('login.browse')}</Text>
-                </TouchableOpacity>
-              </View>
-            </>
-          )}
-        </View>
-      </Animated.View>
+                <View style={styles.field}>
+                  <Text style={[styles.fieldLabel, readingSide]}>{phone}</Text>
+                  <TextInput
+                    value={code}
+                    onChangeText={(v) => {
+                      setCode(v.replace(/\D/g, '').slice(0, CODE_LENGTH));
+                      setError(false);
+                    }}
+                    keyboardType="number-pad"
+                    maxLength={CODE_LENGTH}
+                    autoFocus
+                    placeholder="••••"
+                    placeholderTextColor={colors.faint2}
+                    accessibilityLabel={t('login.codeHint')}
+                    style={[styles.input, styles.codeInput, error && styles.inputError]}
+                  />
+                  {error ? (
+                    <Text style={[styles.error, readingSide]}>{t('login.codeError')}</Text>
+                  ) : null}
+                </View>
+
+                <View style={styles.actions}>
+                  <Button
+                    label={t('common.continue')}
+                    variant="primary"
+                    size="lg"
+                    full
+                    disabled={!codeReady}
+                    onPress={onVerify}
+                          />
+                  <TouchableOpacity
+                    activeOpacity={0.7}
+                    onPress={() => setSent(false)}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    accessibilityRole="button"
+                  >
+                    <Text style={styles.link}>{t('login.changeNumber')}</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            ) : (
+              <>
+                <View style={styles.headingBlock}>
+                  <Text style={[styles.heading, readingSide]}>{t('login.title')}</Text>
+                  <Text style={[styles.subheading, readingSide]}>{t('login.subtitle')}</Text>
+                </View>
+
+                <View style={styles.field}>
+                  <Text style={[styles.fieldLabel, readingSide]}>{t('login.phoneLabel')}</Text>
+                  <View style={[styles.phoneRow, phoneRowSide]}>
+                    <View style={styles.prefix}>
+                      <Text style={styles.prefixText}>{DIAL_CODE}</Text>
+                    </View>
+                    <TextInput
+                      value={phone}
+                      onChangeText={setPhone}
+                      keyboardType="phone-pad"
+                      placeholder="770 000 0000"
+                      placeholderTextColor={colors.faint2}
+                      accessibilityLabel={t('login.phoneLabel')}
+                      style={[styles.input, styles.phoneInput]}
+                    />
+                  </View>
+                </View>
+
+                <View style={styles.actions}>
+                  <Button
+                    label={t('common.continue')}
+                    variant="primary"
+                    size="lg"
+                    full
+                    disabled={!phoneReady}
+                    onPress={onSend}
+                          />
+                  <TouchableOpacity
+                    activeOpacity={0.7}
+                    onPress={onGuest}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    accessibilityRole="button"
+                  >
+                    <Text style={styles.link}>{t('login.browse')}</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
+          </View>
+        </Animated.View>
+      </TouchableWithoutFeedback>
     </View>
   );
 }
@@ -364,6 +382,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.sm,
+  },
+  brandText: {
+    alignItems: 'center',
   },
   logoRing: {
     width: 96,

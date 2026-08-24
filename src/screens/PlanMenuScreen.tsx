@@ -104,7 +104,7 @@ export default function PlanMenuScreen({ navigation }: RootStackScreenProps<'Pla
               <Reveal key={meal.dishId} index={i}>
                 <MealRow
                   meal={meal}
-                  onPress={() => navigation.navigate('DishDetail', { id: meal.dishId })}
+                  onPress={() => navigation.navigate('DishDetail', { id: meal.dishId, fromPlan: true })}
                 />
               </Reveal>
             ))}

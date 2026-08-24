@@ -1,4 +1,4 @@
-import React, { useMemo, useRef } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { Animated, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Text from '../components/AppText';
@@ -8,6 +8,7 @@ import { type IconPath, icons } from '../components/icons';
 import Card from '../components/Card';
 import Button from '../components/Button';
 import Chip from '../components/Chip';
+import Dialog from '../components/Dialog';
 import Stepper from '../components/Stepper';
 import MacroRow from '../components/MacroRow';
 import PressScale from '../components/PressScale';
@@ -87,11 +88,15 @@ export default function SubscribeScreen({ navigation }: RootStackScreenProps<'Su
     meals,
     pricing,
     dailyMacros,
+    subscription,
+    replaceSubscription,
     setDayCount,
     toggleWeekday,
     applySaver,
     confirm,
   } = usePlan();
+
+  const [alreadySubscribed, setAlreadySubscribed] = useState(false);
 
   const chevron = isRTL ? icons.chevronLeft : icons.chevronRight;
   const scrollY = useRef(new Animated.Value(0)).current;
@@ -129,16 +134,27 @@ export default function SubscribeScreen({ navigation }: RootStackScreenProps<'Su
     extrapolate: 'clamp',
   });
 
+  // The plan lives on the Plans tab now, so that is where confirming lands.
+  const toPlans = () =>
+    navigation.reset({
+      index: 0,
+      routes: [{ name: 'Tabs', params: { screen: 'Plans' } }],
+    });
+
   const onConfirm = () => {
+    // One plan at a time: a second subscription would run its own deliveries
+    // against the same days, and nothing downstream — the tracker, the upcoming
+    // list, the progress bar — is built to show two.
+    if (subscription) {
+      setAlreadySubscribed(true);
+      return;
+    }
     if (status !== 'authed') {
       navigation.navigate('Login');
       return;
     }
     confirm();
-    navigation.reset({
-      index: 0,
-      routes: [{ name: 'Tabs', params: { screen: 'Orders' } }],
-    });
+    toPlans();
   };
 
   return (
@@ -245,16 +261,16 @@ export default function SubscribeScreen({ navigation }: RootStackScreenProps<'Su
             <UpcomingMeals
               plan={plan}
               meals={meals}
-              onPressMeal={(id) => navigation.navigate('DishDetail', { id })}
+              onPressMeal={(id) => navigation.navigate('DishDetail', { id, fromPlan: true })}
             />
           </Reveal>
         ) : null}
 
         {pricing.mealCount > 0 ? (
           <Reveal index={3} style={styles.group}>
-            <Text style={styles.groupLabel}>{t('planMacros.perDay')}</Text>
+            <Text style={styles.groupLabel}>{t('macros.fullDayTitle')}</Text>
             <Card padding={spacing.xl}>
-              <MacroRow macros={dailyMacros} />
+              <MacroRow macros={dailyMacros} fullDay />
             </Card>
           </Reveal>
         ) : null}
@@ -346,6 +362,21 @@ export default function SubscribeScreen({ navigation }: RootStackScreenProps<'Su
           />
         </LinearGradient>
       </Reveal>
+
+      <Dialog
+        visible={alreadySubscribed}
+        title={t('subscribe.exists.title')}
+        message={t('subscribe.exists.message')}
+        primaryLabel={t('subscribe.exists.keep')}
+        onPrimary={() => setAlreadySubscribed(false)}
+        secondaryLabel={t('subscribe.exists.replace')}
+        onSecondary={() => {
+          setAlreadySubscribed(false);
+          replaceSubscription();
+          toPlans();
+        }}
+        onClose={() => setAlreadySubscribed(false)}
+      />
     </Screen>
   );
 }
@@ -581,7 +612,10 @@ const styles = StyleSheet.create({
   },
   totalRow: {
     flexDirection: 'row',
-    alignItems: 'baseline',
+    // Bottom rather than baseline: `type.money` runs a line box shorter than
+    // the font's own, so its digits sit high inside it and a baseline-aligned
+    // unit floats up with them.
+    alignItems: 'flex-end',
     gap: spacing.sm,
     alignSelf: 'flex-start',
   },
@@ -590,8 +624,11 @@ const styles = StyleSheet.create({
     color: colors.white,
   },
   totalUnit: {
-    ...type.body,
-    color: overlay.white80,
+    fontFamily: fonts.medium,
+    fontSize: 13,
+    lineHeight: 18,
+    color: overlay.white75,
+    paddingBottom: 7,
   },
   compare: {
     ...type.caption,
