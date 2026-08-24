@@ -42,3 +42,7 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# Obsidian per-user UI state — churns on every pane move
+vault/.obsidian/workspace.json
+vault/.obsidian/workspace-mobile.json
