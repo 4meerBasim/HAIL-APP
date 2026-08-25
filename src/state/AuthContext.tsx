@@ -3,6 +3,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const SESSION_KEY = '@jareesh/session';
 
+// Set in .env.local — see .env.example. On a device this has to be the Mac's
+// LAN address, never localhost: the phone's localhost is the phone.
+const API_URL = process.env.EXPO_PUBLIC_API_URL ?? '';
+
 export interface User {
   phone: string;
   name: string;
@@ -11,14 +15,36 @@ export interface User {
   secondary: string[];
 }
 
+// What is written to AsyncStorage. The token is the session: a stored user
+// without one cannot talk to the API at all, so it is dropped on boot rather
+// than restored into a state that looks signed in and fails on first request.
+interface Session {
+  user: User;
+  token: string;
+}
+
 export type AuthStatus = 'loading' | 'guest' | 'authed';
+
+/**
+ * Why a code request or a verification did not go through.
+ *
+ * `wrong-code` is deliberately the only verification failure. The API answers
+ * a wrong code, an expired one, one guessed at too many times and a number it
+ * has never seen with the same 422 — telling them apart would say which numbers
+ * have accounts — so the app has nothing finer to report.
+ */
+export type OtpFailure = 'invalid-phone' | 'throttled' | 'wrong-code' | 'network';
+
+export type OtpResult = { ok: true } | { ok: false; reason: OtpFailure; retryAfter?: number };
 
 interface AuthValue {
   status: AuthStatus;
   user: User | null;
+  /** Bearer token for the API. Null unless status is 'authed'. */
+  token: string | null;
   pendingPhone: string | null;
-  requestOtp: (phone: string) => void;
-  verifyOtp: (code: string) => boolean;
+  requestOtp: (phone: string) => Promise<OtpResult>;
+  verifyOtp: (code: string) => Promise<OtpResult>;
   continueAsGuest: () => void;
   signOut: () => void;
   /** True if the number is already on the account, primary or secondary. */
@@ -37,15 +63,25 @@ interface AuthValue {
 // trunk zero and the country code taken off.
 const key = (phone: string) => phone.replace(/\D/g, '').replace(/^(964)?0?/, '');
 
+const post = (path: string, body: Record<string, string>) =>
+  fetch(`${API_URL}${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify(body),
+  });
+
 const AuthContext = createContext<AuthValue | undefined>(undefined);
 
-// Mock auth: no backend. Any 4-digit code verifies, and the session lives in
-// AsyncStorage. Everything the rest of the app touches goes through this value,
-// so swapping in a real provider later is a change to this file only.
+// Sign-in runs against the Laravel API: the phone gets a code, the code is
+// exchanged for a Sanctum token, and that token is the session. Everything the
+// rest of the app touches goes through this value.
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [status, setStatus] = useState<AuthStatus>('loading');
-  const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [pendingPhone, setPendingPhone] = useState<string | null>(null);
+
+  const user = session?.user ?? null;
+  const token = session?.token ?? null;
 
   useEffect(() => {
     let alive = true;
@@ -53,10 +89,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         const raw = await AsyncStorage.getItem(SESSION_KEY);
         if (!alive) return;
-        const saved = raw ? (JSON.parse(raw) as User) : null;
-        // Sessions written before secondary numbers existed have no array.
-        setUser(saved?.phone ? { ...saved, secondary: saved.secondary ?? [] } : null);
-        setStatus(saved?.phone ? 'authed' : 'guest');
+        const saved = raw ? (JSON.parse(raw) as Partial<Session>) : null;
+        // A session saved by the mock build has no token, and one saved before
+        // secondary numbers existed has no array. The first cannot authenticate
+        // and is dropped; the second is repaired.
+        if (saved?.token && saved.user?.phone) {
+          setSession({
+            user: { ...saved.user, secondary: saved.user.secondary ?? [] },
+            token: saved.token,
+          });
+          setStatus('authed');
+        } else {
+          setStatus('guest');
+        }
       } catch {
         if (alive) setStatus('guest');
       }
@@ -66,24 +111,75 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  const requestOtp = useCallback((phone: string) => {
-    setPendingPhone(phone);
-  }, []);
-
-  // One place writes the session, so no caller can update the user in state and
+  // One place writes the session, so no caller can update it in state and
   // forget to persist it.
-  const save = useCallback((next: User) => {
-    setUser(next);
+  const save = useCallback((next: Session) => {
+    setSession(next);
     void AsyncStorage.setItem(SESSION_KEY, JSON.stringify(next));
   }, []);
 
+  // Changing the numbers on the account keeps the token that was already issued.
+  const saveUser = useCallback(
+    (next: User) => {
+      if (!session) return;
+      save({ ...session, user: next });
+    },
+    [session, save],
+  );
+
+  const requestOtp = useCallback(async (phone: string): Promise<OtpResult> => {
+    try {
+      const res = await post('/api/auth/otp/request', { phone });
+
+      if (res.status === 429) {
+        const body = (await res.json()) as { retry_after?: number };
+        return { ok: false, reason: 'throttled', retryAfter: Number(body.retry_after) || 0 };
+      }
+      if (res.status === 422) return { ok: false, reason: 'invalid-phone' };
+      if (!res.ok) return { ok: false, reason: 'network' };
+
+      // Only now: the code-entry step is meaningless if nothing was sent.
+      setPendingPhone(phone);
+      return { ok: true };
+    } catch {
+      return { ok: false, reason: 'network' };
+    }
+  }, []);
+
   const verifyOtp = useCallback(
-    (code: string) => {
-      if (!pendingPhone || !/^\d{4}$/.test(code)) return false;
-      save({ phone: pendingPhone, name: '', secondary: [] });
-      setStatus('authed');
-      setPendingPhone(null);
-      return true;
+    async (code: string): Promise<OtpResult> => {
+      if (!pendingPhone) return { ok: false, reason: 'wrong-code' };
+
+      try {
+        const res = await post('/api/auth/otp/verify', { phone: pendingPhone, code });
+        if (!res.ok) {
+          return { ok: false, reason: res.status === 422 ? 'wrong-code' : 'network' };
+        }
+
+        const body = (await res.json()) as {
+          token?: string;
+          user?: { phone?: string; name?: string | null };
+        };
+        if (!body.token) return { ok: false, reason: 'network' };
+
+        save({
+          user: {
+            // The API is the source of truth for the number: it stores E.164,
+            // so the account is keyed on +9647… whatever the customer typed.
+            phone: body.user?.phone ?? pendingPhone,
+            // A customer who has only ever signed in has no name yet, and the
+            // rest of the app expects a string rather than a null to render.
+            name: body.user?.name ?? '',
+            secondary: [],
+          },
+          token: body.token,
+        });
+        setStatus('authed');
+        setPendingPhone(null);
+        return { ok: true };
+      } catch {
+        return { ok: false, reason: 'network' };
+      }
     },
     [pendingPhone, save],
   );
@@ -97,39 +193,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const changePrimary = useCallback(
     (phone: string) => {
       if (!user || hasPhone(phone)) return false;
-      save({ ...user, phone: phone.trim() });
+      saveUser({ ...user, phone: phone.trim() });
       return true;
     },
-    [user, hasPhone, save],
+    [user, hasPhone, saveUser],
   );
 
   const addSecondary = useCallback(
     (phone: string) => {
       if (!user || hasPhone(phone)) return false;
-      save({ ...user, secondary: [...user.secondary, phone.trim()] });
+      saveUser({ ...user, secondary: [...user.secondary, phone.trim()] });
       return true;
     },
-    [user, hasPhone, save],
+    [user, hasPhone, saveUser],
   );
 
   const removeSecondary = useCallback(
     (phone: string) => {
       if (!user) return;
-      save({ ...user, secondary: user.secondary.filter((p) => key(p) !== key(phone)) });
+      saveUser({ ...user, secondary: user.secondary.filter((p) => key(p) !== key(phone)) });
     },
-    [user, save],
+    [user, saveUser],
   );
 
   const makePrimary = useCallback(
     (phone: string) => {
       if (!user || key(phone) === key(user.phone)) return;
-      save({
+      saveUser({
         ...user,
         phone,
         secondary: [user.phone, ...user.secondary.filter((p) => key(p) !== key(phone))],
       });
     },
-    [user, save],
+    [user, saveUser],
   );
 
   const continueAsGuest = useCallback(() => {
@@ -138,7 +234,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signOut = useCallback(() => {
-    setUser(null);
+    setSession(null);
     setStatus('guest');
     void AsyncStorage.removeItem(SESSION_KEY);
   }, []);
@@ -147,6 +243,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     () => ({
       status,
       user,
+      token,
       pendingPhone,
       requestOtp,
       verifyOtp,
@@ -161,6 +258,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [
       status,
       user,
+      token,
       pendingPhone,
       requestOtp,
       verifyOtp,

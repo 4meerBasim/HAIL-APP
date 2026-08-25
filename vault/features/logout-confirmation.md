@@ -10,4 +10,5 @@ Worth asking because sign-out does more than end a session — it clears the car
 
 ## Related
 - Page: [[profile]]
-- Feature: [[guest-mode]], [[confirm-before-deleting-meal-time]]
+- Feature: [[guest-mode]], [[confirm-before-deleting-meal-time]], [[phone-otp-sign-in]]
+- Enhancements: [[revoke-token-on-sign-out]]

@@ -20,7 +20,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Button from '../components/Button';
 import { colors, fonts, overlay, radius, shadow, spacing, type } from '../theme';
 import { useLanguage } from '../i18n/LanguageContext';
-import { useAuth } from '../state/AuthContext';
+import { count } from '../i18n/count';
+import { useAuth, type OtpFailure } from '../state/AuthContext';
 import type { RootStackScreenProps } from '../navigation/RootNavigator';
 
 const GRADIENT_COLORS = [colors.tealDark, colors.teal, colors.tealMid] as const;
@@ -56,7 +57,11 @@ export default function LoginScreen({ navigation }: RootStackScreenProps<'Login'
   const [phone, setPhone] = useState('');
   const [code, setCode] = useState('');
   const [sent, setSent] = useState(false);
-  const [error, setError] = useState(false);
+  const [failure, setFailure] = useState<{ reason: OtpFailure; retryAfter?: number } | null>(null);
+  // Both calls hit the network, so the button has to stop being pressable while
+  // one is in flight — otherwise a second tap burns the customer's resend
+  // allowance on a code that was already on its way.
+  const [pending, setPending] = useState(false);
 
   // KeyboardAvoidingView's `padding` behaviour squeezed the flex:1 brand block
   // as the keyboard came up, so the logo and title snapped smaller in one frame.
@@ -145,10 +150,18 @@ export default function LoginScreen({ navigation }: RootStackScreenProps<'Login'
   const phoneReady = phone.replace(/\D/g, '').length >= 10;
   const codeReady = code.length === CODE_LENGTH;
 
-  const onSend = () => {
-    requestOtp(phone);
-    setSent(true);
-    setError(false);
+  const onSend = async () => {
+    if (pending) return;
+    setPending(true);
+    setFailure(null);
+    const result = await requestOtp(phone);
+    setPending(false);
+    if (result.ok) {
+      setSent(true);
+      setCode('');
+    } else {
+      setFailure({ reason: result.reason, retryAfter: result.retryAfter });
+    }
   };
 
   // Reached from the checkout gate, sign-in returns the customer to the screen
@@ -159,12 +172,42 @@ export default function LoginScreen({ navigation }: RootStackScreenProps<'Login'
     else navigation.replace('Tabs');
   };
 
-  const onVerify = () => {
-    if (verifyOtp(code)) {
+  const onVerify = async () => {
+    if (pending) return;
+    setPending(true);
+    setFailure(null);
+    const result = await verifyOtp(code);
+    setPending(false);
+    if (result.ok) {
       proceed();
     } else {
-      setError(true);
+      setFailure({ reason: result.reason, retryAfter: result.retryAfter });
     }
+  };
+
+  // Resolved at render rather than stored, so the message follows the language
+  // rather than whichever one was active when the request failed.
+  const errorText = ((): string | null => {
+    if (!failure) return null;
+    switch (failure.reason) {
+      case 'throttled':
+        return t('login.errorThrottled').replace(
+          '{n}',
+          count('count.seconds', failure.retryAfter ?? 0, t),
+        );
+      case 'invalid-phone':
+        return t('login.errorPhone');
+      case 'network':
+        return t('login.errorNetwork');
+      default:
+        return t('login.codeError');
+    }
+  })();
+
+  const onChangeNumber = () => {
+    setSent(false);
+    setCode('');
+    setFailure(null);
   };
 
   const onGuest = () => {
@@ -242,7 +285,7 @@ export default function LoginScreen({ navigation }: RootStackScreenProps<'Login'
                     value={code}
                     onChangeText={(v) => {
                       setCode(v.replace(/\D/g, '').slice(0, CODE_LENGTH));
-                      setError(false);
+                      setFailure(null);
                     }}
                     keyboardType="number-pad"
                     maxLength={CODE_LENGTH}
@@ -250,25 +293,25 @@ export default function LoginScreen({ navigation }: RootStackScreenProps<'Login'
                     placeholder="••••"
                     placeholderTextColor={colors.faint2}
                     accessibilityLabel={t('login.codeHint')}
-                    style={[styles.input, styles.codeInput, error && styles.inputError]}
+                    style={[styles.input, styles.codeInput, !!errorText && styles.inputError]}
                   />
-                  {error ? (
-                    <Text style={[styles.error, readingSide]}>{t('login.codeError')}</Text>
+                  {errorText ? (
+                    <Text style={[styles.error, readingSide]}>{errorText}</Text>
                   ) : null}
                 </View>
 
                 <View style={styles.actions}>
                   <Button
-                    label={t('common.continue')}
+                    label={pending ? t('login.verifying') : t('common.continue')}
                     variant="primary"
                     size="lg"
                     full
-                    disabled={!codeReady}
+                    disabled={!codeReady || pending}
                     onPress={onVerify}
                           />
                   <TouchableOpacity
                     activeOpacity={0.7}
-                    onPress={() => setSent(false)}
+                    onPress={onChangeNumber}
                     hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                     accessibilityRole="button"
                   >
@@ -291,23 +334,29 @@ export default function LoginScreen({ navigation }: RootStackScreenProps<'Login'
                     </View>
                     <TextInput
                       value={phone}
-                      onChangeText={setPhone}
+                      onChangeText={(v) => {
+                        setPhone(v);
+                        setFailure(null);
+                      }}
                       keyboardType="phone-pad"
                       placeholder="770 000 0000"
                       placeholderTextColor={colors.faint2}
                       accessibilityLabel={t('login.phoneLabel')}
-                      style={[styles.input, styles.phoneInput]}
+                      style={[styles.input, styles.phoneInput, !!errorText && styles.inputError]}
                     />
                   </View>
+                  {errorText ? (
+                    <Text style={[styles.error, readingSide]}>{errorText}</Text>
+                  ) : null}
                 </View>
 
                 <View style={styles.actions}>
                   <Button
-                    label={t('common.continue')}
+                    label={pending ? t('login.sending') : t('common.continue')}
                     variant="primary"
                     size="lg"
                     full
-                    disabled={!phoneReady}
+                    disabled={!phoneReady || pending}
                     onPress={onSend}
                           />
                   <TouchableOpacity

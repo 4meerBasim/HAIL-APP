@@ -270,6 +270,10 @@ export const ar: Dict = {
   'count.items.two': 'صنفان',
   'count.items.few': '{n} أصناف',
   'count.items.many': '{n} صنفاً',
+  'count.seconds.one': 'ثانية واحدة',
+  'count.seconds.two': 'ثانيتين',
+  'count.seconds.few': '{n} ثوانٍ',
+  'count.seconds.many': '{n} ثانية',
   'unit.perWeek': 'بالأسبوع',
 
   'menu.searchPlaceholder': 'ابحث في القائمة',
@@ -678,6 +682,11 @@ export const ar: Dict = {
   'login.codeError': 'الرمز غير صحيح',
   'login.changeNumber': 'تغيير الرقم',
   'login.browse': 'تصفح بدون تسجيل',
+  'login.sending': 'جارٍ الإرسال…',
+  'login.verifying': 'جارٍ التحقق…',
+  'login.errorPhone': 'رقم الهاتف غير صحيح',
+  'login.errorThrottled': 'أرسلنا لك رمزاً للتو. أعد المحاولة بعد {n}',
+  'login.errorNetwork': 'تعذّر الاتصال بالخادم. تحقق من الإنترنت وأعد المحاولة',
 };
 
 export const en: Dict = {
@@ -949,6 +958,10 @@ export const en: Dict = {
   'count.items.two': '2 items',
   'count.items.few': '{n} items',
   'count.items.many': '{n} items',
+  'count.seconds.one': '1 second',
+  'count.seconds.two': '2 seconds',
+  'count.seconds.few': '{n} seconds',
+  'count.seconds.many': '{n} seconds',
   'unit.perWeek': '/week',
 
   'menu.searchPlaceholder': 'Search the menu',
@@ -1357,6 +1370,11 @@ export const en: Dict = {
   'login.codeError': 'Wrong code',
   'login.changeNumber': 'Change number',
   'login.browse': 'Browse without signing in',
+  'login.sending': 'Sending…',
+  'login.verifying': 'Verifying…',
+  'login.errorPhone': 'That phone number is not valid',
+  'login.errorThrottled': 'We just sent you a code. Try again in {n}',
+  'login.errorNetwork': 'Could not reach the server. Check your connection and try again',
 };
 
 export const strings: Record<'ar' | 'en', Dict> = { ar, en };

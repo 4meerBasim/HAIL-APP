@@ -25,4 +25,4 @@ The Orders tab renders a sign-in prompt rather than a generic empty state — "y
 
 ## Related
 - Page: [[login]], [[plans]], [[boxes]], [[box-detail]], [[subscribe]], [[cart]], [[orders]], [[profile]], [[menu]], [[plan-builder]]
-- Feature: [[logout-confirmation]]
+- Feature: [[logout-confirmation]], [[phone-otp-sign-in]]
