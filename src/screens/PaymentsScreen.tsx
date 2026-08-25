@@ -9,7 +9,7 @@ import SettingRow from '../components/SettingRow';
 import { colors, radius, spacing, type } from '../theme';
 import { useLanguage } from '../i18n/LanguageContext';
 import { useStoredState } from '../state/useStoredState';
-import type { CardBrand, StoredCard } from '../data/card';
+import { type StoredCard, brandLabel } from '../data/card';
 import type { RootStackScreenProps } from '../navigation/RootNavigator';
 
 // Cash first because it is how most orders in Baghdad are actually paid, and a
@@ -19,13 +19,6 @@ const METHODS: { id: string; icon: IconName }[] = [
   { id: 'zain', icon: 'phone' },
   { id: 'card', icon: 'creditCard' },
 ];
-
-const BRAND_LABEL: Record<CardBrand, string> = {
-  visa: 'Visa',
-  mastercard: 'Mastercard',
-  amex: 'Amex',
-  unknown: 'Card',
-};
 
 export default function PaymentsScreen({ navigation }: RootStackScreenProps<'Payments'>) {
   const { t } = useLanguage();
@@ -55,7 +48,7 @@ export default function PaymentsScreen({ navigation }: RootStackScreenProps<'Pay
 
   const subFor = (id: string) =>
     id === 'card' && card
-      ? `${BRAND_LABEL[card.brand]} •••• ${card.last4} · ${card.expiry}`
+      ? `${brandLabel[card.brand]} •••• ${card.last4} · ${card.expiry}`
       : t(`payments.${id}.sub`);
 
   return (

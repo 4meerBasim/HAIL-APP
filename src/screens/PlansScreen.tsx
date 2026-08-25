@@ -1,12 +1,19 @@
-import React, { useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { Image, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useScrollToTop } from '@react-navigation/native';
 import Text from '../components/AppText';
 import Screen from '../components/Screen';
 import Icon from '../components/Icon';
+import Badge from '../components/Badge';
 import PatternFill from '../components/PatternFill';
+import RotatingHint from '../components/RotatingHint';
+import SubscriptionPanel from '../components/SubscriptionPanel';
+import { SkeletonCard } from '../components/Skeleton';
 import DashedOutline from '../components/DashedOutline';
+import CustomPlanCard from '../components/CustomPlanCard';
+import PressScale from '../components/PressScale';
 import { icons } from '../components/icons';
 import Button from '../components/Button';
 import BoxCard from '../components/BoxCard';
@@ -14,17 +21,12 @@ import SectionHeader from '../components/SectionHeader';
 import LocationPicker from '../components/LocationPicker';
 import { colors, overlay, radius, shadow, spacing, type } from '../theme';
 import { useLanguage } from '../i18n/LanguageContext';
-import { formatNumber } from '../i18n/digits';
 import { useCart } from '../state/CartContext';
+import { useNotifications } from '../state/NotificationsContext';
 import { usePlan } from '../state/PlanContext';
+import { useAuth } from '../state/AuthContext';
 import { useLocations } from '../state/LocationContext';
-import {
-  type BoxGoal,
-  MAX_DISCOUNT,
-  dietBoxes,
-  formatPrice,
-  groupNumber,
-} from '../data/menu';
+import { type BoxGoal, dietBoxes, searchHints } from '../data/menu';
 import type { TabScreenProps } from '../navigation/RootNavigator';
 
 // Same girih tile the login hero uses, alpha-cut so only the gold lines land on
@@ -34,7 +36,6 @@ import type { TabScreenProps } from '../navigation/RootNavigator';
 const PATTERN_GOLD = require('../../assets/pattern-arabic-gold.png');
 const LOGO = require('../../assets/logo-jareesh.jpg');
 const PATCH_SM = 128;
-const PATCH_LG = 210;
 
 const HEADER_GRADIENT = [colors.tealDark, colors.tealMid] as const;
 const PLAN_GRADIENT = [colors.tealDark, colors.teal] as const;
@@ -43,13 +44,22 @@ export default function PlansScreen({ navigation }: TabScreenProps<'Plans'>) {
   const { t, lang, isRTL } = useLanguage();
   const { items } = useCart();
   const insets = useSafeAreaInsets();
-  const { subscription, subscriptionPricing, startFromBox, startCustom } = usePlan();
+  const { subscription, subscriptionPricing, hydrated, startFromBox, startCustom } = usePlan();
+  const { status } = useAuth();
+  const { unreadCount } = useNotifications();
   const { selected } = useLocations();
   const [pickerOpen, setPickerOpen] = useState(false);
+  const scroller = useRef<ScrollView>(null);
+  useScrollToTop(scroller);
 
   const cartCount = items.reduce((sum, it) => sum + it.qty, 0);
   const chevron = isRTL ? icons.chevronLeft : icons.chevronRight;
   const arrow = isRTL ? icons.arrowLeft : icons.arrowRight;
+
+  const hints = useMemo(
+    () => searchHints().map((d) => `${t('home.searchPrefix')} ${lang === 'ar' ? d.name : t(`dish.${d.id}.name`, d.name)}`),
+    [t, lang],
+  );
 
   const feature = dietBoxes.find((b) => b.popular) ?? dietBoxes[0];
   const rest = dietBoxes.filter((b) => b.id !== feature.id);
@@ -60,6 +70,13 @@ export default function PlansScreen({ navigation }: TabScreenProps<'Plans'>) {
   };
 
   const openCustom = () => {
+    // Building a plan is the first half of subscribing to one — it ends at a
+    // checkout that needs a number to deliver to. Same gate as Subscribe, the
+    // cart and catering, asked here rather than after the work is done.
+    if (status !== 'authed') {
+      navigation.navigate('Login');
+      return;
+    }
     startCustom();
     navigation.navigate('PlanBuilder');
   };
@@ -87,10 +104,6 @@ export default function PlansScreen({ navigation }: TabScreenProps<'Plans'>) {
         <View style={[styles.patch, styles.patchTopStart]} pointerEvents="none">
           <Image source={PATTERN_GOLD} resizeMode="repeat" style={styles.fillSm} />
         </View>
-        <View style={[styles.patch, styles.patchBottomEnd]} pointerEvents="none">
-          <Image source={PATTERN_GOLD} resizeMode="repeat" style={styles.fillLg} />
-        </View>
-
         <View style={styles.headerRow}>
           <View style={styles.identity}>
             <Text style={styles.greeting} numberOfLines={1}>
@@ -111,80 +124,83 @@ export default function PlansScreen({ navigation }: TabScreenProps<'Plans'>) {
             </TouchableOpacity>
           </View>
 
-          <TouchableOpacity
-            activeOpacity={0.8}
-            onPress={() => navigation.navigate('Cart')}
-            accessibilityRole="button"
-            accessibilityLabel={t('cart.title')}
-            style={styles.cartBtn}
-          >
-            <Icon path={icons.bag} size={18} color={colors.white} strokeWidth={1.8} />
+          <View style={styles.headerActions}>
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => navigation.navigate('Inbox')}
+              accessibilityRole="button"
+              accessibilityLabel={t('profile.notifications')}
+              style={styles.cartBtn}
+            >
+              <Icon path={icons.bell} size={18} color={colors.white} strokeWidth={1.8} />
+              <Badge count={unreadCount} ringColor={colors.tealDark} />
+            </TouchableOpacity>
+
+            {/* No basket until there is something in it — an empty one is a
+                button that can only disappoint. */}
             {cartCount > 0 ? (
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>{formatNumber(cartCount)}</Text>
-              </View>
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() => navigation.navigate('Cart')}
+                accessibilityRole="button"
+                accessibilityLabel={t('cart.title')}
+                style={styles.cartBtn}
+              >
+                <Icon path={icons.bag} size={18} color={colors.white} strokeWidth={1.8} />
+                <Badge count={cartCount} ringColor={colors.tealDark} />
+              </TouchableOpacity>
             ) : null}
-          </TouchableOpacity>
+          </View>
         </View>
 
         <TouchableOpacity
           activeOpacity={0.9}
-          onPress={() => navigation.navigate('Menu', { cat: 'all', focusSearch: true })}
+          onPress={() => navigation.navigate('SingleMeals', { cat: 'all', focusSearch: true })}
           accessibilityRole="search"
           accessibilityLabel={t('home.searchPlaceholder')}
           style={styles.search}
         >
           <Icon path={icons.search} size={17} color={colors.muted2} strokeWidth={2} />
-          <Text style={styles.searchText} numberOfLines={1}>
-            {t('home.searchPlaceholder')}
-          </Text>
+          {/* One example at a time, falling through the field: a search box
+              that names three dishes at once is a sentence to read, and this
+              one is meant to be glanced at. */}
+          <RotatingHint phrases={hints} style={styles.searchText} />
         </TouchableOpacity>
       </LinearGradient>
 
       <ScrollView
+        ref={scroller}
         style={styles.body}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        {subscription && subscriptionPricing ? (
-          <TouchableOpacity
-            activeOpacity={0.9}
-            onPress={() => navigation.navigate('Orders')}
-            accessibilityRole="button"
-            accessibilityLabel={t('plans.active')}
-            style={shadow.raised}
-          >
-            <LinearGradient
-              colors={PLAN_GRADIENT}
-              start={{ x: 0.15, y: 0 }}
-              end={{ x: 0.85, y: 1 }}
-              style={styles.active}
-            >
-              <PatternFill />
-              <View style={styles.activeTile}>
-                <Icon path={icons.box} size={20} color={colors.white} strokeWidth={1.9} />
-              </View>
-              <View style={styles.activeText}>
-                <Text style={styles.activeLabel}>{t('plans.active')}</Text>
-                <Text style={styles.activeValue}>
-                  {formatPrice(groupNumber(subscriptionPricing.total), lang)}
-                </Text>
-              </View>
-              <Icon path={chevron} size={15} color={overlay.white70} strokeWidth={2.2} />
-            </LinearGradient>
-          </TouchableOpacity>
+        {/* Which of the two cards belongs here is not known until storage
+            answers, and they say opposite things — so neither is guessed. */}
+        {!hydrated ? (
+          <SkeletonCard height={132} />
+        ) : subscription && subscriptionPricing ? (
+          <SubscriptionPanel />
         ) : (
+          /* The whole card opens the builder, not just the pill inside it: at
+             this size the card reads as one target, and a tap landing on the
+             headline and doing nothing reads as the app being broken. The pill
+             stays because it is what names the action — it just no longer has
+             to be hit. */
+          <PressScale
+            onPress={openCustom}
+            scaleTo={0.985}
+            accessibilityLabel={`${t('home.hero.title')} — ${t('home.hero.cta')}`}
+          >
           <LinearGradient
             colors={PLAN_GRADIENT}
             start={{ x: 0.15, y: 0 }}
             end={{ x: 0.85, y: 1 }}
             style={styles.promo}
           >
-            <PatternFill />
+            {/* Heavier than the default: this card is the brand's own pitch and
+                carries no photograph, so the girih is what fills it. */}
+            <PatternFill opacity={0.5} />
             <View style={styles.promoText}>
-              <Text style={styles.promoKicker}>
-                {`${t('home.hero.kicker')} ${formatNumber(Math.round(MAX_DISCOUNT * 100))}${t('common.percent')}`}
-              </Text>
               <Text style={styles.promoTitle}>{t('home.hero.title')}</Text>
               <Button
                 label={t('home.hero.cta')}
@@ -202,46 +218,65 @@ export default function PlansScreen({ navigation }: TabScreenProps<'Plans'>) {
               <Image source={LOGO} style={styles.promoLogo} resizeMode="cover" />
             </View>
           </LinearGradient>
+          </PressScale>
         )}
 
-        <View style={styles.section}>
-          <SectionHeader title={t('plans.forYou')} subtitle={t(`box.${feature.id}.for`)} />
-          <BoxCard box={feature} variant="feature" onPress={() => openBox(feature.id)} />
-        </View>
-
-        <View style={styles.section}>
-          <SectionHeader title={t('plans.boxes')} />
-          <View style={styles.grid}>
-            {rest.map((box) => (
-              <BoxCard key={box.id} box={box} onPress={() => openBox(box.id)} style={styles.gridItem} />
-            ))}
+        {subscription ? (
+          /* One door to the catalogue rather than the catalogue itself: a
+             customer already on a plan is browsing, not shopping, and the
+             swap happens at the checkout gate. */
+          <View style={styles.section}>
+            <SectionHeader title={t('plans.others')} subtitle={t('plans.others.sub')} />
+            <TouchableOpacity
+              activeOpacity={0.9}
+              onPress={() => navigation.navigate('Boxes')}
+              accessibilityRole="button"
+              accessibilityLabel={t('plans.boxes')}
+              style={[styles.custom, shadow.card]}
+            >
+              <DashedOutline />
+              <View style={[styles.tile, { backgroundColor: colors.tile }]}>
+                <Icon path={icons.box} size={19} color={colors.teal} strokeWidth={1.8} />
+              </View>
+              <View style={styles.linkText}>
+                <Text style={styles.linkLabel}>{t('plans.boxes')}</Text>
+                <Text style={styles.linkSub}>{t('boxes.subtitle')}</Text>
+              </View>
+              <Icon path={chevron} size={15} color={colors.faint2} strokeWidth={2.2} />
+            </TouchableOpacity>
           </View>
-        </View>
+        ) : (
+          <>
+          <View style={styles.section}>
+            <SectionHeader title={t('plans.forYou')} subtitle={t(`box.${feature.id}.for`)} />
+            <BoxCard box={feature} variant="feature" onPress={() => openBox(feature.id)} />
+          </View>
 
+          <View style={styles.section}>
+            <SectionHeader title={t('plans.boxes')} />
+            <View style={styles.grid}>
+              {rest.map((box) => (
+                <BoxCard key={box.id} box={box} onPress={() => openBox(box.id)} style={styles.gridItem} />
+              ))}
+            </View>
+          </View>
+
+          <View style={styles.section}>
+            <SectionHeader title={t('plans.orBuild')} />
+
+            <CustomPlanCard onPress={openCustom} />
+          </View>
+          </>
+        )}
+
+        {/* Neither of these is a subscription, so both stay in the open whether
+            or not one is running. */}
         <View style={styles.section}>
-          <SectionHeader title={t('plans.orBuild')} />
+          <SectionHeader title={t('plans.more')} />
 
           <TouchableOpacity
             activeOpacity={0.9}
-            onPress={openCustom}
-            accessibilityRole="button"
-            accessibilityLabel={t('plans.custom')}
-            style={[styles.custom, shadow.card]}
-          >
-            <DashedOutline />
-            <View style={[styles.tile, { backgroundColor: colors.tile }]}>
-              <Icon path={icons.puzzle} size={19} color={colors.teal} strokeWidth={1.8} />
-            </View>
-            <View style={styles.linkText}>
-              <Text style={styles.linkLabel}>{t('plans.custom')}</Text>
-              <Text style={styles.linkSub}>{t('boxes.custom.sub')}</Text>
-            </View>
-            <Icon path={chevron} size={15} color={colors.faint2} strokeWidth={2.2} />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            activeOpacity={0.9}
-            onPress={() => navigation.navigate('Menu', { cat: 'all' })}
+            onPress={() => navigation.navigate('SingleMeals')}
             accessibilityRole="button"
             accessibilityLabel={t('plans.single')}
             style={styles.single}
@@ -318,21 +353,9 @@ const styles = StyleSheet.create({
     height: PATCH_SM,
     borderRadius: PATCH_SM / 2,
   },
-  patchBottomEnd: {
-    bottom: -86,
-    end: -64,
-    width: PATCH_LG,
-    height: PATCH_LG,
-    borderRadius: PATCH_LG / 2,
-    opacity: 0.42,
-  },
   fillSm: {
     width: PATCH_SM,
     height: PATCH_SM,
-  },
-  fillLg: {
-    width: PATCH_LG,
-    height: PATCH_LG,
   },
   headerRow: {
     flexDirection: 'row',
@@ -356,6 +379,11 @@ const styles = StyleSheet.create({
     ...type.bodyStrong,
     color: colors.white,
   },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.lg,
+  },
   cartBtn: {
     width: 38,
     height: 38,
@@ -363,26 +391,6 @@ const styles = StyleSheet.create({
     backgroundColor: overlay.white14,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  badge: {
-    position: 'absolute',
-    top: -2,
-    end: -2,
-    minWidth: 18,
-    height: 18,
-    borderRadius: radius.pill,
-    backgroundColor: colors.gold,
-    borderWidth: 1.5,
-    borderColor: colors.tealDark,
-    paddingHorizontal: 4,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  badgeText: {
-    ...type.micro,
-    fontSize: 9.5,
-    lineHeight: 13,
-    color: colors.amberText,
   },
   search: {
     flexDirection: 'row',
@@ -441,11 +449,6 @@ const styles = StyleSheet.create({
     height: 72,
     borderRadius: 36,
   },
-  promoKicker: {
-    ...type.captionStrong,
-    color: colors.gold,
-    letterSpacing: 0.5,
-  },
   promoTitle: {
     ...type.h2,
     fontSize: 19,
@@ -455,36 +458,6 @@ const styles = StyleSheet.create({
   promoCta: {
     borderRadius: radius.pill,
     paddingVertical: 6,
-  },
-  active: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xl,
-    borderRadius: radius.xl,
-    paddingHorizontal: spacing.xxl,
-    paddingVertical: spacing.xxl,
-  },
-  activeTile: {
-    width: 38,
-    height: 38,
-    borderRadius: radius.sm,
-    backgroundColor: overlay.white14,
-    borderWidth: 1,
-    borderColor: overlay.white22,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  activeText: {
-    flex: 1,
-    gap: 1,
-  },
-  activeLabel: {
-    ...type.caption,
-    color: overlay.white75,
-  },
-  activeValue: {
-    ...type.h3,
-    color: colors.white,
   },
   section: {
     gap: spacing.xl,

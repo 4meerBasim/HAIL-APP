@@ -19,6 +19,8 @@ const TOPICS: { id: string; icon: IconName; on: boolean }[] = [
   { id: 'offers', icon: 'star', on: false },
 ];
 
+// Which notices the app may send. What it has already sent is the inbox behind
+// the bell — a settings screen that also lists messages is two screens.
 export default function NotificationsScreen({
   navigation,
 }: RootStackScreenProps<'Notifications'>) {
@@ -42,7 +44,7 @@ export default function NotificationsScreen({
           <Icon path={icons.close} size={16} color={colors.ink} strokeWidth={2.4} />
         </TouchableOpacity>
         <View style={styles.headerText}>
-          <Text style={styles.title}>{t('profile.notifications')}</Text>
+          <Text style={styles.title}>{t('notifications.prefs')}</Text>
           <Text style={styles.subtitle}>{t('notifications.subtitle')}</Text>
         </View>
       </View>

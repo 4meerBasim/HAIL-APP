@@ -51,9 +51,9 @@ export default function UpcomingMeals({
   const dayMeals = days.length > 0 ? days[index % days.length] : [];
 
   const date = new Date(startAt + offset * DAY_MS);
-  // `dayKeys` runs Saturday-first; JS getDay() runs Sunday-first.
+  // `dayKeys` runs Sunday-first, the same order JS getDay() numbers the week in.
   const label = `${t('rotation.day').replace('{n}', formatNumber(index + 1))} · ${t(
-    dayKeys[(date.getDay() + 1) % 7],
+    dayKeys[date.getDay()],
   )} ${formatNumber(date.getDate())} ${t(`month.${date.getMonth()}`)}`;
 
   const atStart = index <= 0;

@@ -20,7 +20,18 @@ import {
 
 export interface PlanState {
   boxId: BoxGoal | null;
+  // The rotation as the customer builds it: one row per day, one cell per meal
+  // slot, holding every dish chosen for that meal on that day. A cell is a list
+  // because a meal time can carry more than one dish — two things at breakfast
+  // are two meals delivered that morning, not one meal with two parts, and they
+  // are priced and counted as two.
+  //
+  // `dishIds` below is this grid flattened, kept in step on every edit, so
+  // pricing, macros and the schedule never had to learn about days.
+  grid?: string[][][];
   dishIds: string[];
+  /** Per-dish tailoring, by dish id. Absent until something is changed. */
+  mealBuilds?: Record<string, MealBuildState>;
   // Which meal slot each chosen dish belongs to: dishId -> MealSlot.id.
   // `dishIds` stays the flat source of truth for pricing and macros, so nothing
   // downstream had to learn about slots; this only tells the builder which step
@@ -29,13 +40,23 @@ export interface PlanState {
   // The daily rotation's eating occasions, in order. How many there are is the
   // meals-per-day count, so adding a slot reprices the plan.
   mealSlots: MealSlot[];
-  weekdays: number[]; // indices into `dayKeys`, Sat-to-Fri
+  weekdays: number[]; // indices into `dayKeys`, Sun-to-Sat
   dayCount: number;
   exceptions: ScheduleException[];
   // Epoch ms the subscription was confirmed. Every "what is left" figure is
   // measured from here — without it `dayIndex` offsets have no anchor in real
   // time and the plan can only ever describe itself from day zero.
   startedAt: number;
+}
+
+// How one meal of the plan was tailored: the size it is cooked at and what the
+// customer asked to be added to it. Keyed by dish, because a plan carries one
+// line per dish and the kitchen cooks that dish the same way every time it
+// comes round in the rotation.
+export interface MealBuildState {
+  size: string;
+  extras: string[];
+  items: Record<string, number>;
 }
 
 export interface MealLine {
@@ -70,8 +91,10 @@ export const emptyPlan = (): PlanState => ({
   startedAt: 0,
 });
 
-// A box is designed around all three meal times — its advertised daily macros
-// assume the full set — so subscribing to one seeds every slot.
+// A box seeds whatever the default meal times are — one, today. Its advertised
+// daily macros were written for a three-meal day, so a plan opened from a box
+// delivers less than the box's own headline until the customer adds the other
+// meal times back.
 export const planFromBox = (box: DietBox): PlanState => ({
   ...emptyPlan(),
   boxId: box.id,
@@ -95,19 +118,149 @@ export const spreadOverSlots = (
   return out;
 };
 
-export const dishesForSlot = (plan: PlanState, slotId: string): string[] =>
-  plan.dishIds.filter((id) => plan.slots[id] === slotId);
+// ── The day grid ────────────────────────────────────────────────────────────
+// A plan of one or two built days repeats for the length of the subscription:
+// `rotationDays` already chunks the flat list into days and the schedule starts
+// it again once it runs out, so building three days and running for a month is
+// the same machinery as building one.
 
-// Order is meaningful — it is the sequence the builder walks and the order the
-// day's meals are listed in — so moving a slot only touches `mealSlots`.
-// `slots` keys off slot id, not position, so no dish has to be rehomed.
-export const reorderSlots = (p: PlanState, from: number, to: number): PlanState => {
-  if (from === to || from < 0 || to < 0) return p;
-  if (from >= p.mealSlots.length || to >= p.mealSlots.length) return p;
-  const mealSlots = [...p.mealSlots];
-  const [moved] = mealSlots.splice(from, 1);
-  mealSlots.splice(to, 0, moved);
-  return { ...p, mealSlots };
+const emptyRow = (slots: number): string[][] => Array.from({ length: slots }, () => []);
+
+/**
+ * A cell as it comes off storage. Grids written before a meal time could hold
+ * more than one dish stored `string | null` per cell; both shapes have to read
+ * the same way here or a stored plan is a launch crash.
+ */
+const cellOf = (value: unknown): string[] => {
+  if (Array.isArray(value)) return value.filter((id): id is string => typeof id === 'string');
+  return typeof value === 'string' ? [value] : [];
+};
+
+/** How many meal times a day has. Structure — not the number of dishes in it. */
+export const slotCountOf = (plan: PlanState): number => plan.mealSlots.length;
+
+// Two days is what a rotation looks like: one is "the same thing every day",
+// which nobody sets out to build, and asking for the second to be added by hand
+// made it feel like an advanced option rather than the normal case.
+export const ROTATION_DAYS = 2;
+
+/** The grid as it stands, derived from the flat list for plans built before it. */
+export const gridOf = (plan: PlanState): string[][][] => {
+  const slots = slotCountOf(plan);
+  if (slots <= 0) return [];
+  if (plan.grid?.length) {
+    // A meal time added or removed since the grid was written changes the row
+    // width, and an older build wrote one dish per cell rather than a list.
+    return plan.grid.map((row) => {
+      const next = emptyRow(slots);
+      (row as unknown[]).slice(0, slots).forEach((value, i) => {
+        next[i] = cellOf(value);
+      });
+      return next;
+    });
+  }
+  // No grid yet: the flat rotation was dealt round-robin across the meal times,
+  // so it rebuilds a day at a time.
+  const rows: string[][][] = [];
+  for (let i = 0; i < plan.dishIds.length; i += slots) {
+    const row = emptyRow(slots);
+    plan.dishIds.slice(i, i + slots).forEach((id, j) => {
+      row[j] = [id];
+    });
+    rows.push(row);
+  }
+  // A plan with nothing picked yet still has days to pick into.
+  while (rows.length < ROTATION_DAYS) rows.push(emptyRow(slots));
+  return rows;
+};
+
+/** Writes a grid back onto the plan, keeping the flat list and slot map in step. */
+export const withGrid = (plan: PlanState, grid: string[][][]): PlanState => {
+  const slotIds = plan.mealSlots.map((s) => s.id);
+  const dishIds: string[] = [];
+  const slots: Record<string, string> = {};
+  grid.forEach((row) => {
+    row.forEach((cell, i) => {
+      cell.forEach((id) => {
+        // One entry per pick, duplicates included: two of the same dish across
+        // the rotation are two meals to cook and two to pay for.
+        dishIds.push(id);
+        slots[id] = slotIds[i] ?? slotIds[0];
+      });
+    });
+  });
+  return { ...plan, grid, dishIds, slots };
+};
+
+export const dayCountOf = (plan: PlanState): number => gridOf(plan).length;
+
+/**
+ * Adds a dish to one meal time on one day, or takes it back out if it is
+ * already there. A meal time holds as many as the customer picks.
+ */
+export const setGridDish = (
+  plan: PlanState,
+  day: number,
+  slotIndex: number,
+  dishId: string,
+): PlanState => {
+  const grid = gridOf(plan);
+  const cell = grid[day]?.[slotIndex];
+  if (!cell) return plan;
+  const next = grid.map((row) => row.map((c) => [...c]));
+  next[day][slotIndex] = cell.includes(dishId)
+    ? cell.filter((id) => id !== dishId)
+    : [...cell, dishId];
+  return withGrid(plan, next);
+};
+
+export const addGridDay = (plan: PlanState): PlanState =>
+  withGrid(plan, [...gridOf(plan), emptyRow(slotCountOf(plan))]);
+
+/** Days with a meal time still empty. A day is delivered whole or not at all. */
+export const incompleteDays = (plan: PlanState): number[] =>
+  gridOf(plan)
+    .map((row, i) => (row.some((cell) => cell.length === 0) ? i : -1))
+    .filter((i) => i >= 0);
+
+/** Keeps the finished days and throws the rest away. */
+export const pruneGrid = (plan: PlanState): PlanState => {
+  const kept = gridOf(plan).filter((row) => row.every((cell) => cell.length > 0));
+  return kept.length > 0 ? withGrid(plan, kept) : plan;
+};
+
+export const removeGridDay = (plan: PlanState, day: number): PlanState => {
+  const grid = gridOf(plan);
+  // The rotation cannot be empty: one day is the floor.
+  if (grid.length <= 1) return plan;
+  return withGrid(
+    plan,
+    grid.filter((_r, i) => i !== day),
+  );
+};
+
+/**
+ * Puts the meal times in clock order, and moves each day's cells with them.
+ *
+ * Order is meaningful — it is the sequence the builder walks and the order a
+ * day's meals are listed in — and once a slot carries a delivery time there is
+ * only one order that can be right. Dragging them by hand could put dinner at
+ * 20:00 ahead of breakfast at 08:00, and the hand reorder it replaced moved
+ * `mealSlots` without moving the grid columns that index into them, so it
+ * quietly rehomed the dishes as well. Sorting on the time settles both: the
+ * customer rearranges the day by changing when a meal arrives.
+ *
+ * Stable on equal times, so two meals set to the same hour keep the order they
+ * were added in rather than swapping about on every edit.
+ */
+export const sortSlotsByTime = (p: PlanState): PlanState => {
+  const order = p.mealSlots
+    .map((slot, i) => ({ slot, i }))
+    .sort((a, b) => a.slot.time - b.slot.time || a.i - b.i);
+  if (order.every((entry, i) => entry.i === i)) return p;
+  const mealSlots = order.map((entry) => entry.slot);
+  const grid = gridOf(p).map((row) => order.map((entry) => row[entry.i] ?? null));
+  return withGrid({ ...p, mealSlots }, grid);
 };
 
 // Drops a slot and rehomes whatever was picked for it onto a surviving one, so
@@ -127,7 +280,25 @@ export const withoutSlot = (p: PlanState, slotId: string): PlanState => {
 
 const baseOf = (dishId: string): Macros => dishMacros[dishId] ?? ZERO_MACROS;
 
-export const mealsPerDayOf = (plan: PlanState): number => plan.mealSlots.length;
+/**
+ * Dishes delivered on an average day of the rotation — what the plan costs and
+ * what the app calls "meals a day". Not the number of meal times: a meal time
+ * can carry more than one dish, and each of those is a meal.
+ *
+ * Averaged because rotation days need not match — day one can carry a snack
+ * that day two does not.
+ */
+export const mealsPerDayOf = (plan: PlanState): number => {
+  const rows = gridOf(plan);
+  if (rows.length === 0) return 0;
+  return Math.round(dishesInGrid(rows) / rows.length);
+};
+
+const dishesPerDay = (rows: string[][][]): number[] =>
+  rows.map((row) => row.reduce((n, cell) => n + cell.length, 0));
+
+const dishesInGrid = (rows: string[][][]): number =>
+  dishesPerDay(rows).reduce((sum, n) => sum + n, 0);
 
 const dishPrice = (dishId: string): number => parsePrice(getDish(dishId)?.price ?? '0');
 
@@ -154,15 +325,27 @@ export const buildMeals = (plan: PlanState): MealLine[] =>
 // A rotation that doesn't divide evenly leaves the last day short rather than
 // borrowing from the next lap; that is the shape of the box, not a rounding
 // choice to make here.
-export const rotationDays = (plan: PlanState, meals: MealLine[]): MealLine[][] => {
-  const perDay = mealsPerDayOf(plan);
-  if (perDay <= 0) return [];
-  const days: MealLine[][] = [];
-  for (let i = 0; i < meals.length; i += perDay) {
-    days.push(meals.slice(i, i + perDay));
-  }
-  return days;
+/**
+ * The rotation kept in its meal-slot shape: day → slot → the meals that arrive
+ * at that time. `rotationDays` flattens this, which is what a caller listing a
+ * day's food wants — but anything that labels each meal with the time it comes
+ * at needs the nesting, because once a slot can hold two dishes a meal's
+ * position in the flat list is no longer its slot's index.
+ */
+export const rotationDaySlots = (plan: PlanState, meals: MealLine[]): MealLine[][][] => {
+  const byId = new Map<string, MealLine>();
+  meals.forEach((meal) => {
+    if (!byId.has(meal.dishId)) byId.set(meal.dishId, meal);
+  });
+  return gridOf(plan).map((row) =>
+    row.map((cell) =>
+      cell.map((id) => byId.get(id)).filter((meal): meal is MealLine => Boolean(meal)),
+    ),
+  );
 };
+
+export const rotationDays = (plan: PlanState, meals: MealLine[]): MealLine[][] =>
+  rotationDaySlots(plan, meals).map((row) => row.flat());
 
 // Which sentence describes a rotation of this many days. Arabic counts two as a
 // dual rather than as "2 days", so the cases are separate strings instead of one
@@ -221,7 +404,17 @@ export const postponedOffPlan = (plan: PlanState, dayIndex: number): boolean => 
 export const priceOf = (plan: PlanState): PlanPricing => {
   const activeDays = countActiveDays(plan);
   const mealsPerDay = mealsPerDayOf(plan);
-  const mealCount = activeDays * mealsPerDay;
+  // Counted by walking the rotation over the delivery days rather than
+  // multiplying an average: days need not carry the same number of dishes, and
+  // an average would over- or under-charge whichever day the plan ends on.
+  const perDay = dishesPerDay(gridOf(plan));
+  const mealCount =
+    perDay.length > 0
+      ? Array.from({ length: activeDays }, (_v, i) => perDay[i % perDay.length]).reduce(
+          (sum, n) => sum + n,
+          0,
+        )
+      : 0;
   const perMeal = perMealOf(plan);
   const subtotal = perMeal * mealCount;
   const discount = discountForDays(plan.dayCount);
@@ -331,13 +524,18 @@ export const deliveryDays = (plan: PlanState): number[] => {
     else if (e.kind === 'postpone') moved.set(e.dayIndex, e.movedTo ?? e.dayIndex);
   });
 
-  const out: number[] = [];
+  // A Set, because a postponed day can land on one the plan already delivers
+  // on — Sunday pushed onto Monday when Monday was already a delivery. Two
+  // entries for one date is not two deliveries: it is one day listed twice,
+  // and every list that renders these keys off the offset ends up with a
+  // duplicate key for it.
+  const out = new Set<number>();
   for (let i = 0; i < plan.dayCount; i += 1) {
     if (!plan.weekdays.includes(i % 7) || skipped.has(i)) continue;
     const at = moved.get(i) ?? i;
-    if (at < plan.dayCount) out.push(at);
+    if (at < plan.dayCount) out.add(at);
   }
-  return out.sort((a, b) => a - b);
+  return [...out].sort((a, b) => a - b);
 };
 
 /** The next `count` delivery offsets at or after `from`. */

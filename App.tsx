@@ -20,6 +20,8 @@ import { CartProvider } from './src/state/CartContext';
 import { OrdersProvider } from './src/state/OrdersContext';
 import { PlanProvider } from './src/state/PlanContext';
 import { LocationProvider } from './src/state/LocationContext';
+import { NotificationsProvider } from './src/state/NotificationsContext';
+import { MealBuildProvider } from './src/state/MealBuildContext';
 import RootNavigator from './src/navigation/RootNavigator';
 
 SplashScreen.preventAutoHideAsync();
@@ -52,12 +54,16 @@ export default function App() {
             <OrdersProvider>
               <PlanProvider>
                 <LocationProvider>
-                  <SafeAreaProvider>
-                    <NavigationContainer>
-                      <StatusBar style="dark" />
-                      <RootNavigator />
-                    </NavigationContainer>
-                  </SafeAreaProvider>
+                  <NotificationsProvider>
+                    <MealBuildProvider>
+                    <SafeAreaProvider>
+                      <NavigationContainer>
+                        <StatusBar style="dark" />
+                        <RootNavigator />
+                      </NavigationContainer>
+                    </SafeAreaProvider>
+                    </MealBuildProvider>
+                  </NotificationsProvider>
                 </LocationProvider>
               </PlanProvider>
             </OrdersProvider>

@@ -1,5 +1,12 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Image, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
+import {
+  Image,
+  InteractionManager,
+  ScrollView,
+  StyleSheet,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Text from '../components/AppText';
 import Screen from '../components/Screen';
@@ -7,42 +14,76 @@ import Icon from '../components/Icon';
 import { icons } from '../components/icons';
 import Card from '../components/Card';
 import Chip from '../components/Chip';
-import Dialog from '../components/Dialog';
 import Button from '../components/Button';
 import MealRow from '../components/MealRow';
 import MacroRow from '../components/MacroRow';
 import PricePill from '../components/PricePill';
+import Dialog from '../components/Dialog';
 import PressScale from '../components/PressScale';
 import SlotBar from '../components/SlotBar';
+import SlotSheet from '../components/SlotSheet';
 import { colors, fonts, radius, scrim, shadow, spacing, type } from '../theme';
 import { useLanguage } from '../i18n/LanguageContext';
 import { formatNumber } from '../i18n/digits';
-import { cycleNoteKey, rotationDays, usePlan } from '../state/PlanContext';
+import { cycleNoteKey, gridOf, usePlan } from '../state/PlanContext';
 import {
   type BoxGoal,
-  type Course,
   MAX_SLOTS,
-  dishes,
+  dishesOfCourse,
   formatPrice,
   getDish,
   groupNumber,
   macros as dishMacros,
-  menuCourses,
   slotLabel,
 } from '../data/menu';
 import type { RootStackScreenProps } from '../navigation/RootNavigator';
 
 const SCRIM = [scrim.heroFade, scrim.hero] as const;
 
-type Filter = Course | 'all';
+// A plan is built out of meals. Sweets, drinks and the build-your-own line are
+// dishes too, and listing them here put juice cards in the meal picker.
+const MAINS = dishesOfCourse('main');
+
+// How many dish cards mount with the screen. Each one carries a photo, a scrim
+// and a full macro block — about 26 views — so all 21 at once is ~550 views
+// built on the JS thread before the new screen can paint, which is what made
+// the tap that navigates here feel like it did nothing. Three rows cover the
+// fold; the rest arrive the moment the transition is over, which is also the
+// first moment they could be scrolled to.
+const FIRST_PICKS = 6;
+
+// Diet, not course: with only mains on offer, a course filter has one bucket.
+// These are the same four the menu filters by, so the vocabulary matches.
+const FILTERS = ['all', 'h', 'r', 'pop'] as const;
+type PickFilter = (typeof FILTERS)[number];
+
+const FILTER_LABEL: Record<PickFilter, string> = {
+  all: 'filter.all',
+  h: 'filter.healthy',
+  r: 'filter.regular',
+  pop: 'filter.mostOrdered',
+};
+
 
 export default function PlanBuilderScreen({
   route,
   navigation,
 }: RootStackScreenProps<'PlanBuilder'>) {
   const boxId = route.params?.boxId;
-  const { t, lang, isRTL } = useLanguage();
-  const { plan, meals, pricing, startFromBox, toggleDish, addSlot, removeSlot, moveSlot } =
+  const { t, lang } = useLanguage();
+  const {
+    plan,
+    meals,
+    pricing,
+    startFromBox,
+    setDayDish,
+    addDay,
+    removeDay,
+    pruneDays,
+    addSlot,
+    updateSlot,
+    removeSlot,
+  } =
     usePlan();
 
   const scroller = useRef<ScrollView>(null);
@@ -51,9 +92,9 @@ export default function PlanBuilderScreen({
   // customer is only ever answering "what do I eat at this time of day".
   const steps = plan.mealSlots;
   const [step, setStep] = useState(0);
-  const [filter, setFilter] = useState<Filter>('all');
-  const [naming, setNaming] = useState(false);
-  const [draft, setDraft] = useState('');
+  const [filter, setFilter] = useState<PickFilter>('all');
+  // null = the sheet is closed; 'new' = adding; otherwise the slot id edited.
+  const [editing, setEditing] = useState<string | null>(null);
 
   useEffect(() => {
     if (boxId && plan.boxId !== boxId) startFromBox(boxId as BoxGoal);
@@ -69,26 +110,71 @@ export default function PlanBuilderScreen({
   const slotName = current ? slotLabel(current, t) : '';
   const last = step >= steps.length - 1;
 
+  // The rotation as a grid: one row per day, one cell per meal time. Picking a
+  // dish fills the cell for the day on screen, so the same dish can come round
+  // again on another day without the two competing for one slot.
+  const grid = useMemo(() => gridOf(plan), [plan]);
+  const [day, setDay] = useState(0);
+  const activeDay = Math.min(day, Math.max(0, grid.length - 1));
+  const cell = useMemo(() => grid[activeDay]?.[step] ?? [], [grid, activeDay, step]);
+
+  // Everything on this day at this meal time, in the order it was picked. A
+  // meal time holds as many dishes as the customer chooses, and each is its own
+  // meal — so a dish picked twice appears twice.
   const forSlot = useMemo(
-    () => meals.filter((meal) => plan.slots[meal.dishId] === slot),
-    [meals, plan.slots, slot],
+    () =>
+      cell
+        .map((id) => meals.find((meal) => meal.dishId === id))
+        .filter((meal): meal is (typeof meals)[number] => Boolean(meal)),
+    [meals, cell],
   );
 
-  // What the picks add up to, read as the customer will eat them: the rotation
-  // dealt into days. It sits under the picker so choosing a dish for one meal
-  // time immediately shows which day it lands on.
-  const [day, setDay] = useState(0);
-  const days = useMemo(() => rotationDays(plan, meals), [plan, meals]);
-  const activeDay = Math.min(day, Math.max(0, days.length - 1));
-  const cycleNote = t(cycleNoteKey(days.length)).replace('{n}', formatNumber(days.length));
+  const cycleNote = t(cycleNoteKey(grid.length)).replace('{n}', formatNumber(grid.length));
+
+  // A day is delivered whole or not at all, so a day with a meal time still
+  // empty cannot go to checkout as it stands.
+  // An empty cell is an empty array, not a null — truthiness would say every
+  // meal time was filled the moment the grid existed.
+  const unfinished = useMemo(
+    () => grid.filter((row) => row.some((cell) => cell.length === 0)).length,
+    [grid],
+  );
+  const [asking, setAsking] = useState<'prune' | 'none' | null>(null);
+
+  // The walk runs along the day, then down to the next one: day one's lunch,
+  // day one's dinner, day two's lunch. The last meal of the last day is the end
+  // of the build.
+  const onLastCell = last && activeDay >= grid.length - 1;
+
+  const advance = () => {
+    if (!last) {
+      goto(step + 1);
+      return;
+    }
+    if (activeDay < grid.length - 1) {
+      setDay(activeDay + 1);
+      goto(0);
+      return;
+    }
+    finish();
+  };
+
+  const finish = () => {
+    if (unfinished === grid.length) {
+      setAsking('none');
+      return;
+    }
+    if (unfinished > 0) {
+      setAsking('prune');
+      return;
+    }
+    navigation.navigate('Subscribe');
+  };
 
   // Finishing is a fork, not an exit: the rotation can either stay as it is and
   // repeat, or grow another day. What the customer has already assembled counts
   // as a day even if they skipped a meal time, so the offer is always the next
   // day up — `rotationDays` rounds up for exactly that reason.
-  const [finishing, setFinishing] = useState(false);
-  const perDay = steps.length;
-  const builtDays = Math.max(1, days.length);
 
   const slotMacros = useMemo(
     () =>
@@ -105,9 +191,24 @@ export default function PlanBuilderScreen({
   );
 
   const shown = useMemo(
-    () => (filter === 'all' ? dishes : dishes.filter((d) => d.course === filter)),
+    () =>
+      MAINS.filter((d) => {
+        if (filter === 'all') return true;
+        if (filter === 'pop') return d.pop;
+        return d.cat === filter;
+      }),
     [filter],
   );
+
+  // Held back only for the first paint. Once the navigation animation has
+  // finished there is nothing left to compete with, so the rest of the grid
+  // costs the customer nothing to build.
+  const [allPicks, setAllPicks] = useState(false);
+  useEffect(() => {
+    const task = InteractionManager.runAfterInteractions(() => setAllPicks(true));
+    return () => task.cancel();
+  }, []);
+  const picks = allPicks ? shown : shown.slice(0, FIRST_PICKS);
 
   const goto = (next: number) => {
     setStep(next);
@@ -115,15 +216,18 @@ export default function PlanBuilderScreen({
     scroller.current?.scrollTo({ y: 0, animated: true });
   };
 
-  const commitSlot = () => {
-    const label = draft.trim();
-    if (!label) return;
-    addSlot(label);
-    setDraft('');
-    setNaming(false);
-    // The new slot is appended, so land on it — naming a time and then having
-    // to hunt for it would be the wrong reward for the effort.
-    goto(steps.length);
+  const editingSlot = editing && editing !== 'new' ? steps.find((s) => s.id === editing) : null;
+
+  const commitSlot = (name: string, time: number) => {
+    if (editing === 'new') {
+      addSlot(name, time);
+      // The new slot is appended, so land on it — naming a time and then having
+      // to hunt for it would be the wrong reward for the effort.
+      goto(steps.length);
+    } else if (editing) {
+      updateSlot(editing, { name, time });
+    }
+    setEditing(null);
   };
 
   return (
@@ -149,83 +253,119 @@ export default function PlanBuilderScreen({
         </View>
       </View>
 
-      {/* Tappable so a slot that is already filled can be revisited without
-          walking the whole sequence backwards. */}
-      <SlotBar
-        slots={steps}
-        activeIndex={step}
-        filled={(slot) => plan.dishIds.some((id) => plan.slots[id] === slot.id)}
-        onSelect={goto}
-        onMove={(from, to) => {
-          moveSlot(from, to);
-          // Follow the pill that moved rather than staying on whatever slid
-          // into the old position.
-          setStep(step === from ? to : step);
-        }}
-        onDelete={(slotId) => {
-          removeSlot(slotId);
-          setStep((i) => Math.max(0, Math.min(i, steps.length - 2)));
-        }}
-        onAdd={() => setNaming(true)}
-        canAdd={steps.length < MAX_SLOTS}
-      />
-
-      {naming ? (
-        <View style={styles.namer}>
-          <TextInput
-            value={draft}
-            onChangeText={setDraft}
-            placeholder={t('builder.slotName')}
-            placeholderTextColor={colors.faint}
-            autoFocus
-            returnKeyType="done"
-            onSubmitEditing={commitSlot}
-            accessibilityLabel={t('builder.addSlot')}
-            style={[styles.namerInput, { writingDirection: isRTL ? 'rtl' : 'ltr' }]}
-          />
-          <Button label={t('builder.slotAdd')} size="sm" disabled={!draft.trim()} onPress={commitSlot} />
-          <Button
-            label={t('builder.slotCancel')}
-            variant="ghost"
-            size="sm"
-            onPress={() => {
-              setDraft('');
-              setNaming(false);
-            }}
-          />
-        </View>
-      ) : null}
-
+      {/* Everything but the title and the price bar scrolls: with a row of days
+          over a row of meal times over the picker, pinning them left the list
+          itself a letterbox. */}
       <ScrollView
         ref={scroller}
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
+        {/* Days first, meal times under them: the customer builds Sunday's
+            lunch and Sunday's dinner, then moves to the next day. One or two
+            days built is a rotation that repeats for the length of the
+            subscription — the schedule starts it again once it runs out. */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.days}
+          contentContainerStyle={styles.daysContent}
+        >
+          {grid.map((row, i) => (
+            <Chip
+              key={`day-${i}`}
+              label={t('builder.day').replace('{n}', formatNumber(i + 1))}
+              sublabel={t('builder.dayFilled')
+                .replace('{n}', formatNumber(row.filter((cell) => cell.length > 0).length))
+                .replace('{total}', formatNumber(steps.length))}
+              selected={i === activeDay}
+              onPress={() => setDay(i)}
+              shape="rounded"
+            />
+          ))}
+
+          <PressScale
+            onPress={addDay}
+            accessibilityRole="button"
+            accessibilityLabel={t('builder.addDay')}
+            style={styles.addDay}
+          >
+            <Icon path={icons.plus} size={14} color={colors.tealText} strokeWidth={2.6} />
+          </PressScale>
+
+          {grid.length > 1 ? (
+            <PressScale
+              onPress={() => {
+                removeDay(activeDay);
+                setDay((d) => Math.max(0, d - 1));
+              }}
+              accessibilityRole="button"
+              accessibilityLabel={t('builder.removeDay')}
+              style={styles.dropDay}
+            >
+              <Icon path={icons.close} size={13} color={colors.coral} strokeWidth={2.6} />
+            </PressScale>
+          ) : null}
+        </ScrollView>
+
+        {/* Tappable so a slot that is already filled can be revisited without
+            walking the whole sequence backwards. */}
+        <View style={styles.bleed}>
+        <SlotBar
+          slots={steps}
+          activeIndex={step}
+          filled={(_slot, i) => (grid[activeDay]?.[i]?.length ?? 0) > 0}
+          // Tapping a pill that is not the current step selects it; tapping the
+          // one already selected opens its name and time. The row has to stay
+          // the step navigator, so "edit" only gets the tap once there is
+          // nothing left for it to select.
+          onSelect={(i) => (i === step ? setEditing(steps[i].id) : goto(i))}
+          onAdd={() => setEditing('new')}
+          canAdd={steps.length < MAX_SLOTS}
+        />
+        </View>
+
         <View style={styles.section}>
-          <View style={styles.slotHead}>
-            <Text style={styles.slotTitle}>
-              {t('builder.forSlot').replace('{slot}', slotName)}
-            </Text>
-            <View style={styles.slotActions}>
-              <Text style={styles.slotCount}>
-                {t('builder.chosen').replace('{n}', formatNumber(forSlot.length))}
+          {/* Title and delete share one line, so the control is plainly on the
+              same row as the thing it acts on. The delivery time is not
+              repeated here — the pill above already carries it. */}
+          <View style={styles.slotTitleRow}>
+            {/* Tapping a pill above selects it, so renaming and re-timing needs
+                an affordance of its own rather than a second meaning for a
+                tap. */}
+            <PressScale
+              onPress={() => setEditing(slot)}
+              scaleTo={0.98}
+              accessibilityRole="button"
+              accessibilityLabel={t('slot.edit')}
+              style={styles.slotTitleTap}
+            >
+              <Text style={styles.slotTitle} numberOfLines={1}>
+                {t('builder.forSlot').replace('{slot}', slotName)}
               </Text>
-              {steps.length > 1 ? (
-                <PressScale
-                  onPress={() => {
-                    removeSlot(slot);
-                    goto(Math.max(0, step - 1));
-                  }}
-                  scaleTo={0.9}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                  accessibilityLabel={t('builder.removeSlot')}
-                  style={styles.slotRemove}
-                >
-                  <Icon path={icons.close} size={12} color={colors.muted} strokeWidth={2.6} />
-                </PressScale>
-              ) : null}
-            </View>
+            </PressScale>
+
+            {/* Named, not just drawn: a trash glyph on its own could as easily
+                mean "clear the dishes I picked" or "drop this day". Spelling
+                out the meal it removes is the whole difference. */}
+            {steps.length > 1 ? (
+              <PressScale
+                onPress={() => {
+                  removeSlot(slot);
+                  goto(Math.max(0, step - 1));
+                }}
+                scaleTo={0.94}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                accessibilityLabel={t('builder.removeSlot').replace('{slot}', slotName)}
+                style={styles.slotRemove}
+              >
+                <Icon path={icons.trash} size={13} color={colors.coral} strokeWidth={1.9} />
+                <Text style={styles.slotRemoveText} numberOfLines={1}>
+                  {t('builder.removeSlot').replace('{slot}', slotName)}
+                </Text>
+              </PressScale>
+            ) : null}
           </View>
 
           {forSlot.length > 0 ? (
@@ -240,8 +380,8 @@ export default function PlanBuilderScreen({
                   key={meal.dishId}
                   meal={meal}
                   style={styles.mealCard}
-                  onPress={() => navigation.navigate('DishDetail', { id: meal.dishId })}
-                  onRemove={() => toggleDish(meal.dishId, slot)}
+                  onPress={() => navigation.navigate('DishDetail', { id: meal.dishId, fromPlan: true })}
+                  onRemove={() => setDayDish(activeDay, step, meal.dishId)}
                 />
               ))}
             </ScrollView>
@@ -262,37 +402,32 @@ export default function PlanBuilderScreen({
         </View>
 
         <View style={styles.section}>
-          {menuCourses.length > 1 ? (
+          {FILTERS.length > 1 ? (
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
               style={styles.filters}
               contentContainerStyle={styles.filtersContent}
             >
-              <Chip
-                label={t('course.all')}
-                selected={filter === 'all'}
-                onPress={() => setFilter('all')}
-              />
-              {menuCourses.map((course) => (
+              {FILTERS.map((key) => (
                 <Chip
-                  key={course}
-                  label={t(`course.${course}`)}
-                  selected={filter === course}
-                  onPress={() => setFilter(course)}
+                  key={key}
+                  label={t(FILTER_LABEL[key])}
+                  selected={filter === key}
+                  onPress={() => setFilter(key)}
                 />
               ))}
             </ScrollView>
           ) : null}
 
           <View style={styles.pickerGrid}>
-            {shown.map((dish) => {
-              const held = plan.dishIds.includes(dish.id);
-              const on = held && plan.slots[dish.id] === slot;
-              // Held by a different meal time: tapping moves it here.
-              const elsewhere = held && !on;
+            {picks.map((dish) => {
+              const on = cell.includes(dish.id);
+              // On the plan, but at another meal time or on another day: the
+              // rotation may repeat a dish, so this is a note, not a warning.
+              const elsewhere = !on && plan.dishIds.includes(dish.id);
               const heldBy = elsewhere
-                ? steps.find((s) => s.id === plan.slots[dish.id])
+                ? steps.find((st) => st.id === plan.slots[dish.id])
                 : undefined;
               const m = dishMacros[dish.id];
               const name = lang === 'ar' ? dish.name : t(`dish.${dish.id}.name`, dish.name);
@@ -300,7 +435,7 @@ export default function PlanBuilderScreen({
                 <TouchableOpacity
                   key={dish.id}
                   activeOpacity={0.85}
-                  onPress={() => toggleDish(dish.id, slot)}
+                  onPress={() => setDayDish(activeDay, step, dish.id)}
                   accessibilityRole="button"
                   accessibilityState={{ selected: on }}
                   accessibilityLabel={name}
@@ -339,18 +474,18 @@ export default function PlanBuilderScreen({
           </View>
         </View>
 
-        {days.length > 0 ? (
+        {grid.length > 0 ? (
           <View style={styles.section}>
             <Text style={styles.rotationLabel}>{t('rotation.preview')}</Text>
 
-            {days.length > 1 ? (
+            {grid.length > 1 ? (
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
                 style={styles.filters}
                 contentContainerStyle={styles.filtersContent}
               >
-                {days.map((_, i) => (
+                {grid.map((_r, i) => (
                   <Chip
                     key={`day-${i}`}
                     label={t('rotation.day').replace('{n}', formatNumber(i + 1))}
@@ -364,19 +499,26 @@ export default function PlanBuilderScreen({
             <Text style={styles.rotationCycle}>{cycleNote}</Text>
 
             <Card padding={spacing.xl} style={styles.rotationCard}>
-              {(days[activeDay] ?? []).map((meal, slotIndex) => {
+              {/* Read off the grid, not off the flattened rotation: a day with
+                  a meal time still empty would otherwise borrow the next day's
+                  dish to fill the gap. */}
+              {(grid[activeDay] ?? []).flatMap((slotCell, slotIndex) =>
+                (slotCell.length > 0 ? slotCell : [null]).map((dishId, withinSlot) => {
                 const daySlot = steps[slotIndex];
-                const dish = getDish(meal.dishId);
+                const dish = dishId ? getDish(dishId) : undefined;
                 const dishName = dish
                   ? lang === 'ar'
                     ? dish.name
-                    : t(`dish.${meal.dishId}.name`, dish.name)
-                  : meal.dishId;
+                    : t(`dish.${dish.id}.name`, dish.name)
+                  : t('builder.slotEmptyShort');
                 return (
                   <TouchableOpacity
-                    key={meal.dishId}
+                    key={`${daySlot?.id ?? slotIndex}-${dishId ?? 'empty'}-${withinSlot}`}
                     activeOpacity={0.7}
-                    onPress={() => navigation.navigate('DishDetail', { id: meal.dishId })}
+                    disabled={!dishId}
+                    onPress={() =>
+                      dishId && navigation.navigate('DishDetail', { id: dishId, fromPlan: true })
+                    }
                     accessibilityRole="button"
                     accessibilityLabel={dishName}
                     style={styles.rotationRow}
@@ -390,12 +532,16 @@ export default function PlanBuilderScreen({
                     <Text style={styles.rotationSlot} numberOfLines={1}>
                       {daySlot ? slotLabel(daySlot, t) : ''}
                     </Text>
-                    <Text style={styles.rotationDish} numberOfLines={1}>
+                    <Text
+                      style={[styles.rotationDish, !dishId && styles.rotationEmpty]}
+                      numberOfLines={1}
+                    >
                       {dishName}
                     </Text>
                   </TouchableOpacity>
                 );
-              })}
+                }),
+              )}
             </Card>
           </View>
         ) : null}
@@ -411,43 +557,67 @@ export default function PlanBuilderScreen({
           )}
         </View>
         <View style={styles.navRow}>
-          {step > 0 ? (
-            <Button
-              label={t('builder.prev')}
-              variant="outline"
-              size="lg"
-              onPress={() => goto(step - 1)}
-              style={styles.navPrev}
-            />
-          ) : null}
+          {/* Two buttons, not three: going back is a tap on the day or the meal
+              time above, both of which are on screen and both of which say
+              where you are. */}
           <Button
-            label={last ? t('builder.finish') : t('builder.next')}
+            label={t('builder.skip')}
+            variant="outline"
+            size="lg"
+            onPress={finish}
+            style={styles.navPrev}
+          />
+          <Button
+            label={onLastCell ? t('builder.finish') : t('builder.next')}
             variant="primary"
             size="lg"
             disabled={plan.dishIds.length === 0}
-            onPress={() => (last ? setFinishing(true) : goto(step + 1))}
+            onPress={advance}
             style={styles.navNext}
           />
         </View>
       </View>
 
       <Dialog
-        visible={finishing}
-        title={t('builder.dayDone').replace('{n}', formatNumber(builtDays))}
-        message={t('builder.dayDoneSub').replace('{n}', formatNumber(perDay))}
-        primaryLabel={t('builder.addAnotherDay').replace('{n}', formatNumber(builtDays + 1))}
+        visible={asking !== null}
+        title={t(asking === 'none' ? 'builder.none.title' : 'builder.incomplete.title')}
+        message={
+          asking === 'none'
+            ? t('builder.none.message')
+            : t('builder.incomplete.message').replace('{n}', formatNumber(unfinished))
+        }
+        primaryLabel={t(asking === 'none' ? 'common.close' : 'builder.incomplete.confirm')}
         onPrimary={() => {
-          setFinishing(false);
-          // Back to the first meal time — another day is another pick in each
-          // slot, walked in the same order as the first.
-          goto(0);
+          if (asking === 'prune') {
+            pruneDays();
+            setDay(0);
+            navigation.navigate('Subscribe');
+          }
+          setAsking(null);
         }}
-        secondaryLabel={t('builder.repeatDay')}
-        onSecondary={() => {
-          setFinishing(false);
-          navigation.navigate('Subscribe');
-        }}
-        onClose={() => setFinishing(false)}
+        secondaryLabel={asking === 'prune' ? t('common.cancel') : undefined}
+        onSecondary={asking === 'prune' ? () => setAsking(null) : undefined}
+        onClose={() => setAsking(null)}
+      />
+
+      <SlotSheet
+        visible={editing !== null}
+        initial={
+          editingSlot ? { name: slotLabel(editingSlot, t), time: editingSlot.time } : null
+        }
+        onClose={() => setEditing(null)}
+        onSave={(draft) => commitSlot(draft.name, draft.time)}
+        // The last meal time cannot go: a day with none is not a plan, and the
+        // pill row would have nothing left to select.
+        onDelete={
+          editingSlot && steps.length > 1
+            ? () => {
+                removeSlot(editingSlot.id);
+                setStep((i) => Math.max(0, Math.min(i, steps.length - 2)));
+                setEditing(null);
+              }
+            : undefined
+        }
       />
     </Screen>
   );
@@ -483,38 +653,57 @@ const styles = StyleSheet.create({
     ...type.caption,
     color: colors.muted,
   },
-  namer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
+  days: {
+    flexGrow: 0,
+    marginHorizontal: -spacing.huge,
+  },
+  daysContent: {
     paddingHorizontal: spacing.huge,
-    paddingBottom: spacing.xl,
-  },
-  namerInput: {
-    flex: 1,
-    borderRadius: radius.control,
-    backgroundColor: colors.card,
-    paddingHorizontal: spacing.xxl,
-    paddingVertical: spacing.xl,
-    fontFamily: fonts.semibold,
-    fontSize: 14.5,
-    color: colors.ink,
-  },
-  slotActions: {
-    flexDirection: 'row',
+    paddingBottom: spacing.md,
+    gap: spacing.md,
     alignItems: 'center',
-    gap: spacing.lg,
   },
-  slotRemove: {
-    width: 24,
-    height: 24,
+  addDay: {
+    width: 40,
+    height: 40,
     borderRadius: radius.pill,
-    backgroundColor: colors.sandChip,
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    borderColor: colors.sand,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  dropDay: {
+    width: 34,
+    height: 34,
+    borderRadius: radius.pill,
+    backgroundColor: colors.coralBg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  // Coral, not sand: a muted glyph on a beige chip read as decoration. A
+  // destructive control is the one thing in this app that should not blend in.
+  slotRemove: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    borderRadius: radius.pill,
+    backgroundColor: colors.coralBg,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.lg,
+  },
+  slotRemoveText: {
+    ...type.caption,
+    color: colors.coral,
+    textAlign: 'auto',
+  },
   scroll: {
     flex: 1,
+  },
+  // The two rows above the picker are laid out edge to edge; the page pads its
+  // content, so they take that padding back off.
+  bleed: {
+    marginHorizontal: -spacing.huge,
   },
   scrollContent: {
     paddingHorizontal: spacing.huge,
@@ -548,24 +737,27 @@ const styles = StyleSheet.create({
     color: colors.muted2,
     minWidth: 54,
   },
+  rotationEmpty: {
+    color: colors.faint,
+  },
   rotationDish: {
     ...type.bodyStrong,
     color: colors.ink,
     flex: 1,
   },
-  slotHead: {
+  slotTitleRow: {
     flexDirection: 'row',
-    alignItems: 'baseline',
+    alignItems: 'center',
     justifyContent: 'space-between',
     gap: spacing.lg,
+  },
+  slotTitleTap: {
+    flex: 1,
   },
   slotTitle: {
     ...type.h3,
     color: colors.ink,
-  },
-  slotCount: {
-    ...type.caption,
-    color: colors.muted2,
+    textAlign: 'auto',
   },
   slotEmpty: {
     ...type.body,

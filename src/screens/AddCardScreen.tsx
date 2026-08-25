@@ -22,10 +22,8 @@ import {
   cvvLength,
   detectBrand,
   digitsOnly,
-  expiryValid,
   formatExpiryInput,
   formatNumberInput,
-  luhnValid,
   numberLength,
 } from '../data/card';
 import type { RootStackScreenProps } from '../navigation/RootNavigator';
@@ -44,12 +42,10 @@ export default function AddCardScreen({ navigation }: RootStackScreenProps<'AddC
 
   const brand = useMemo(() => detectBrand(number), [number]);
 
-  const complete =
-    luhnValid(number) &&
-    number.length === numberLength(brand) &&
-    holder.trim().length > 1 &&
-    expiryValid(expiry, new Date()) &&
-    cvv.length === cvvLength(brand);
+  // Nothing is checked beyond "there is a number here". A card that fails the
+  // Luhn test is the bank's answer to give, not this screen's, and refusing to
+  // save one is how a customer ends up with no payment method at all.
+  const complete = number.length > 0;
 
   // Every field is kept as bare digits in state and formatted on the way out,
   // so a paste with spaces or dashes lands the same as typing does. The brand is

@@ -12,9 +12,11 @@ import Tabs from './Tabs';
 import SplashScreen from '../screens/SplashScreen';
 import LoginScreen from '../screens/LoginScreen';
 import BoxDetailScreen from '../screens/BoxDetailScreen';
+import BoxesScreen from '../screens/BoxesScreen';
 import PlanBuilderScreen from '../screens/PlanBuilderScreen';
 import SubscribeScreen from '../screens/SubscribeScreen';
 import DishDetailScreen from '../screens/DishDetailScreen';
+import MealExtrasScreen from '../screens/MealExtrasScreen';
 import CartScreen from '../screens/CartScreen';
 import PastOrdersScreen from '../screens/PastOrdersScreen';
 import OrderDetailScreen from '../screens/OrderDetailScreen';
@@ -22,9 +24,13 @@ import TrackingScreen from '../screens/TrackingScreen';
 import MapScreen from '../screens/MapScreen';
 import CateringScreen from '../screens/CateringScreen';
 import PlanMenuScreen from '../screens/PlanMenuScreen';
+import SingleMealsScreen from '../screens/SingleMealsScreen';
 import AddressesScreen from '../screens/AddressesScreen';
+import PhoneNumbersScreen from '../screens/PhoneNumbersScreen';
+import UpcomingScreen from '../screens/UpcomingScreen';
 import PaymentsScreen from '../screens/PaymentsScreen';
 import NotificationsScreen from '../screens/NotificationsScreen';
+import InboxScreen from '../screens/InboxScreen';
 import SupportScreen from '../screens/SupportScreen';
 import AddCardScreen from '../screens/AddCardScreen';
 
@@ -45,19 +51,29 @@ export type RootStackParamList = {
   Catering: undefined;
   PlanMenu: undefined;
   Tabs: NavigatorScreenParams<TabParamList> | undefined;
+  Boxes: undefined;
+  // Ready meals, ordered one at a time. The Menu tab builds one from parts.
+  SingleMeals: { cat?: MenuCategory; focusSearch?: boolean } | undefined;
   BoxDetail: { id: BoxGoal };
   PlanBuilder: { boxId?: BoxGoal } | undefined;
   Subscribe: undefined;
-  DishDetail: { id: string };
+  // `siblings` is the day's whole rotation and `fromPlan` marks a meal that
+  // arrives under a subscription — those are cooked as specified, so they are
+  // not customisable.
+  DishDetail: { id: string; siblings?: string[]; fromPlan?: boolean };
+  MealExtras: undefined;
   Cart: undefined;
   PastOrders: undefined;
   OrderDetail: { id: string };
   Tracking: { status?: TrackingStatus } | undefined;
   Map: undefined;
   Addresses: undefined;
+  PhoneNumbers: undefined;
+  Upcoming: undefined;
   Payments: undefined;
   AddCard: undefined;
   Notifications: undefined;
+  Inbox: undefined;
   Support: undefined;
 };
 
@@ -93,10 +109,19 @@ export default function RootNavigator() {
         <Stack.Navigator initialRouteName={initialRouteName} screenOptions={{ headerShown: false }}>
           <Stack.Screen name="Login" component={LoginScreen} />
           <Stack.Screen name="Tabs" component={Tabs} />
+          <Stack.Screen name="Boxes" component={BoxesScreen} />
+          <Stack.Screen name="SingleMeals" component={SingleMealsScreen} />
           <Stack.Screen name="BoxDetail" component={BoxDetailScreen} />
           <Stack.Screen name="PlanBuilder" component={PlanBuilderScreen} />
           <Stack.Screen name="Subscribe" component={SubscribeScreen} />
-          <Stack.Screen name="DishDetail" component={DishDetailScreen} />
+          <Stack.Screen
+            name="DishDetail"
+            component={DishDetailScreen}
+            // The page owns horizontal swipes — it uses them to move through a
+            // day's meals — so the stack must not read one as a back gesture.
+            options={{ gestureEnabled: false }}
+          />
+          <Stack.Screen name="MealExtras" component={MealExtrasScreen} />
           <Stack.Screen name="Cart" component={CartScreen} />
           <Stack.Screen name="PastOrders" component={PastOrdersScreen} />
           <Stack.Screen name="OrderDetail" component={OrderDetailScreen} />
@@ -105,9 +130,12 @@ export default function RootNavigator() {
           <Stack.Screen name="Catering" component={CateringScreen} />
           <Stack.Screen name="PlanMenu" component={PlanMenuScreen} />
           <Stack.Screen name="Addresses" component={AddressesScreen} />
+          <Stack.Screen name="PhoneNumbers" component={PhoneNumbersScreen} />
+          <Stack.Screen name="Upcoming" component={UpcomingScreen} />
           <Stack.Screen name="Payments" component={PaymentsScreen} />
           <Stack.Screen name="AddCard" component={AddCardScreen} />
           <Stack.Screen name="Notifications" component={NotificationsScreen} />
+          <Stack.Screen name="Inbox" component={InboxScreen} />
           <Stack.Screen name="Support" component={SupportScreen} />
         </Stack.Navigator>
       ) : null}

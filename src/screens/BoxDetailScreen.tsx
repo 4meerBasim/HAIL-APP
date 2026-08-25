@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Text from '../components/AppText';
@@ -15,13 +15,15 @@ import PricePill from '../components/PricePill';
 import { colors, radius, shadow, spacing, type } from '../theme';
 import { useLanguage } from '../i18n/LanguageContext';
 import { formatNumber } from '../i18n/digits';
+import { planRhythm } from '../i18n/planText';
 import { cycleNoteKey, rotationDays, usePlan } from '../state/PlanContext';
+import { useAuth } from '../state/AuthContext';
+import { planFromBox, priceOf, rotationDaySlots } from '../data/plan';
 import {
   type BoxGoal,
   boxDaily,
-  boxPerMeal,
-  boxTotal,
   formatPrice,
+  formatTime,
   getBox,
   groupNumber,
   slotLabel,
@@ -34,6 +36,7 @@ export default function BoxDetailScreen({ route, navigation }: RootStackScreenPr
   const { t, lang, isRTL } = useLanguage();
   const insets = useSafeAreaInsets();
   const { plan, meals, pricing, dailyMacros, startFromBox } = usePlan();
+  const { status } = useAuth();
   const [day, setDay] = useState(0);
 
   const box = getBox(id);
@@ -55,64 +58,70 @@ export default function BoxDetailScreen({ route, navigation }: RootStackScreenPr
   const name = t(`box.${box.id}.name`);
   const seeded = plan.boxId === box.id && plan.dishIds.length > 0;
   const daily = seeded ? dailyMacros : boxDaily(box);
-  // The headline is the sum of the very meals listed above it, so the footer can
-  // be checked against the list by eye. Once the plan is seeded from this box
-  // both sides are the same figures anyway; tuning the rotation moves both.
-  const mealCount = seeded ? meals.length : box.dishes.length;
-  const total = seeded ? meals.reduce((sum, m) => sum + m.price, 0) : boxTotal(box);
-  const perMeal = seeded ? pricing.perMeal : boxPerMeal(box);
+  // The headline is the whole subscription, not one turn of the rotation listed
+  // above it: the line under it names a span, and a rotation total under "for a
+  // month" reads as a month costing two days' worth. `priceOf` is the same call
+  // Subscribe makes, so the price does not move when the customer gets there.
+  const fallback = useMemo(() => priceOf(planFromBox(box)), [box]);
+  const money = seeded ? pricing : fallback;
   // The rotation broken into days, shown one day at a time: six cards in a row
   // is a pile of dishes, three under a day tab is a schedule.
   const days = rotationDays(plan, meals);
+  // Kept in slot shape for the list below, which prints the meal time above the
+  // dishes that arrive at it.
+  const daySlots = rotationDaySlots(plan, meals);
   const activeDay = Math.min(day, Math.max(0, days.length - 1));
   const cycleNote = t(cycleNoteKey(days.length)).replace('{n}', formatNumber(days.length));
 
+  // Read off the live plan rather than the box, since the meal times and the
+  // length on screen are the ones the customer may already have tuned.
+  const rhythm = planRhythm(money.mealsPerDay, plan.dayCount, t);
+
+  // Tuning a box is building a plan, and a plan ends at a checkout that needs a
+  // number to deliver to. Browsing the box stays open to everyone.
+  const openBuilder = () => {
+    if (status !== 'authed') {
+      navigation.navigate('Login');
+      return;
+    }
+    navigation.navigate('PlanBuilder', { boxId: box.id });
+  };
+
   return (
     <Screen scroll={false} edges={['bottom', 'left', 'right']} texture>
-      <Hero source={box.image} scrim style={styles.hero}>
-        <TouchableOpacity
-          activeOpacity={0.85}
-          onPress={() => navigation.goBack()}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          accessibilityRole="button"
-          accessibilityLabel={t('common.back')}
-          style={[styles.backBtn, { top: insets.top + 12 }]}
-        >
-          <Icon
-            path={isRTL ? icons.chevronRight : icons.chevronLeft}
-            size={14}
-            color={colors.ink}
-            strokeWidth={2.4}
-          />
-        </TouchableOpacity>
-
-        <View style={styles.heroFoot}>
-          <View style={[styles.heroTile, { backgroundColor: colors[box.tint] }]}>
-            <Icon path={icons[box.icon]} size={22} color={accent} strokeWidth={1.9} />
-          </View>
-          <View style={styles.heroText}>
-            <Text style={styles.heroTag} numberOfLines={1}>
-              {t(`box.${box.id}.tag`)}
-            </Text>
-            <Text style={styles.heroName} numberOfLines={2}>
-              {name}
-            </Text>
-          </View>
-        </View>
-      </Hero>
-
-      <View style={styles.sheet}>
+      <View style={styles.page}>
         <ScrollView
-          style={styles.sheetScroll}
-          contentContainerStyle={styles.sheetContent}
+          style={styles.scroller}
+          contentContainerStyle={styles.scrollBody}
           showsVerticalScrollIndicator={false}
         >
+          {/* Inside the scroller, like the meal page: reading about the box puts
+              the photo away instead of holding it on screen the whole time. The
+              name sits on the photo, so it travels with it. */}
+          <Hero source={box.image} scrim style={styles.hero}>
+            <View style={styles.heroFoot}>
+              <View style={[styles.heroTile, { backgroundColor: colors[box.tint] }]}>
+                <Icon path={icons[box.icon]} size={22} color={accent} strokeWidth={1.9} />
+              </View>
+              <View style={styles.heroText}>
+                <Text style={styles.heroTag} numberOfLines={1}>
+                  {t(`box.${box.id}.tag`)}
+                </Text>
+                <Text style={styles.heroName} numberOfLines={2}>
+                  {name}
+                </Text>
+              </View>
+            </View>
+          </Hero>
+
+          <View style={styles.sheet}>
           <Text style={styles.desc}>{t(`box.${box.id}.desc`)}</Text>
 
+          {/* "Per day" alone read as if it could be one meal's figures. */}
           <View style={styles.group}>
-            <Text style={styles.groupLabel}>{t('planMacros.perDay')}</Text>
+            <Text style={styles.groupLabel}>{t('macros.fullDayTitle')}</Text>
             <Card padding={spacing.xl}>
-              <MacroRow macros={daily} />
+              <MacroRow macros={daily} fullDay />
             </Card>
           </View>
 
@@ -140,10 +149,15 @@ export default function BoxDetailScreen({ route, navigation }: RootStackScreenPr
             {days.length > 0 ? <Text style={styles.cycle}>{cycleNote}</Text> : null}
 
             <View style={styles.meals}>
-              {(days[activeDay] ?? []).map((meal, slotIndex) => {
+              {/* Grouped by meal time rather than run together: a slot can carry
+                  more than one dish, so a meal's place in the day's flat list is
+                  no longer its slot's index. The heading is printed once and the
+                  dishes that arrive at that hour sit under it. */}
+              {(daySlots[activeDay] ?? []).map((slotMeals, slotIndex) => {
                 const slot = plan.mealSlots[slotIndex];
+                if (slotMeals.length === 0) return null;
                 return (
-                  <View key={meal.dishId} style={styles.slot}>
+                  <View key={slot?.id ?? slotIndex} style={styles.slot}>
                     {slot ? (
                       <View style={styles.slotHead}>
                         <Icon
@@ -153,12 +167,18 @@ export default function BoxDetailScreen({ route, navigation }: RootStackScreenPr
                           strokeWidth={2}
                         />
                         <Text style={styles.slotLabel}>{slotLabel(slot, t)}</Text>
+                        <Text style={styles.slotTime}>{formatTime(slot.time, t)}</Text>
                       </View>
                     ) : null}
-                    <MealRow
-                      meal={meal}
-                      onPress={() => navigation.navigate('DishDetail', { id: meal.dishId })}
-                    />
+                    {slotMeals.map((meal, i) => (
+                      <MealRow
+                        key={`${meal.dishId}-${i}`}
+                        meal={meal}
+                        onPress={() =>
+                          navigation.navigate('DishDetail', { id: meal.dishId, fromPlan: true })
+                        }
+                      />
+                    ))}
                   </View>
                 );
               })}
@@ -167,7 +187,7 @@ export default function BoxDetailScreen({ route, navigation }: RootStackScreenPr
 
           <TouchableOpacity
             activeOpacity={0.85}
-            onPress={() => navigation.navigate('PlanBuilder', { boxId: box.id })}
+            onPress={openBuilder}
             accessibilityRole="button"
             accessibilityLabel={t('box.detail.tune')}
             style={styles.tune}
@@ -186,19 +206,36 @@ export default function BoxDetailScreen({ route, navigation }: RootStackScreenPr
               strokeWidth={2.2}
             />
           </TouchableOpacity>
+          </View>
         </ScrollView>
+
+        {/* The two things that do not travel: the way back, and the price the
+            customer is deciding on. */}
+        <TouchableOpacity
+          activeOpacity={0.85}
+          onPress={() => navigation.goBack()}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          accessibilityRole="button"
+          accessibilityLabel={t('common.back')}
+          style={[styles.backBtn, { top: insets.top + 12 }]}
+        >
+          <Icon
+            path={isRTL ? icons.chevronRight : icons.chevronLeft}
+            size={14}
+            color={colors.ink}
+            strokeWidth={2.4}
+          />
+        </TouchableOpacity>
 
         <View style={styles.footer}>
           <View style={styles.priceRow}>
             <View style={styles.priceText}>
               <Text style={styles.priceLabel}>{t('box.detail.total')}</Text>
               <Text style={styles.priceMeta} numberOfLines={2}>
-                {`${formatNumber(mealCount)} ${t('plan.mealsUnit')} · ${t(
-                  'boxes.avgPerMeal',
-                ).replace('{p}', formatPrice(groupNumber(perMeal), lang))}`}
+                {rhythm}
               </Text>
             </View>
-            <PricePill value={formatPrice(groupNumber(total), lang)} />
+            <PricePill value={formatPrice(groupNumber(money.total), lang)} />
           </View>
           <Button
             label={t('box.detail.subscribe')}
@@ -214,6 +251,19 @@ export default function BoxDetailScreen({ route, navigation }: RootStackScreenPr
 }
 
 const styles = StyleSheet.create({
+  page: {
+    flex: 1,
+    overflow: 'hidden',
+  },
+  scroller: {
+    flex: 1,
+  },
+  // Grows to the viewport so a short box still fills the page — without it the
+  // sheet stops where its content does and the screen texture shows through
+  // between it and the footer.
+  scrollBody: {
+    flexGrow: 1,
+  },
   hero: {
     // Height is the photo's own, set by Hero — only the fallback colour is
     // ours, for the moment before the image decodes.
@@ -258,22 +308,19 @@ const styles = StyleSheet.create({
     ...type.h1,
     color: colors.white,
   },
+  // Rides up over the photo and keeps going: the picture is part of the scroll,
+  // so reading about the box puts it away.
   sheet: {
-    flex: 1,
+    flexGrow: 1,
     backgroundColor: colors.cream,
     borderTopLeftRadius: radius.sheet2,
     borderTopRightRadius: radius.sheet2,
     marginTop: -24,
-    ...shadow.sheet,
-  },
-  sheetScroll: {
-    flex: 1,
-  },
-  sheetContent: {
     paddingHorizontal: spacing.huge,
     paddingTop: spacing.huge,
     paddingBottom: spacing.huge,
     gap: spacing.giant,
+    ...shadow.sheet,
   },
   desc: {
     ...type.body,
@@ -310,6 +357,11 @@ const styles = StyleSheet.create({
   slotLabel: {
     ...type.captionStrong,
     color: colors.muted2,
+  },
+  slotTime: {
+    ...type.micro,
+    color: colors.tealText,
+    textAlign: 'auto',
   },
   tune: {
     flexDirection: 'row',
