@@ -687,6 +687,12 @@ export const ar: Dict = {
   'login.errorPhone': 'رقم الهاتف غير صحيح',
   'login.errorThrottled': 'أرسلنا لك رمزاً للتو. أعد المحاولة بعد {n}',
   'login.errorNetwork': 'تعذّر الاتصال بالخادم. تحقق من الإنترنت وأعد المحاولة',
+  'login.subtitleEmail': 'سجّل ببريدك ونوصلك وجباتك',
+  'login.emailLabel': 'البريد الإلكتروني',
+  'login.emailPlaceholder': 'name@example.com',
+  'login.useEmail': 'استخدم البريد الإلكتروني',
+  'login.usePhone': 'استخدم رقم الهاتف',
+  'login.errorEmail': 'البريد الإلكتروني غير صحيح',
 };
 
 export const en: Dict = {
@@ -1375,6 +1381,12 @@ export const en: Dict = {
   'login.errorPhone': 'That phone number is not valid',
   'login.errorThrottled': 'We just sent you a code. Try again in {n}',
   'login.errorNetwork': 'Could not reach the server. Check your connection and try again',
+  'login.subtitleEmail': 'Sign in with your email and we deliver',
+  'login.emailLabel': 'Email address',
+  'login.emailPlaceholder': 'name@example.com',
+  'login.useEmail': 'Use your email instead',
+  'login.usePhone': 'Use your phone number instead',
+  'login.errorEmail': 'That email address is not valid',
 };
 
 export const strings: Record<'ar' | 'en', Dict> = { ar, en };

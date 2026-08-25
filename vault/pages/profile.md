@@ -6,4 +6,5 @@ Summary: The account — phone numbers, addresses, payments, support, language, 
 ## Related
 - Connects to: [[login]], [[orders]], [[cart]], [[upcoming]]
 - Features: [[guest-mode]], [[logout-confirmation]]
-- Enhancements: [[revoke-token-on-sign-out]]
+- Features: [[email-sign-in]]
+- Enhancements: [[revoke-token-on-sign-out]], [[phone-screen-assumes-a-phone]]

@@ -21,7 +21,7 @@ import Button from '../components/Button';
 import { colors, fonts, overlay, radius, shadow, spacing, type } from '../theme';
 import { useLanguage } from '../i18n/LanguageContext';
 import { count } from '../i18n/count';
-import { useAuth, type OtpFailure } from '../state/AuthContext';
+import { useAuth, type IdentityChannel, type OtpFailure } from '../state/AuthContext';
 import type { RootStackScreenProps } from '../navigation/RootNavigator';
 
 const GRADIENT_COLORS = [colors.tealDark, colors.teal, colors.tealMid] as const;
@@ -55,6 +55,10 @@ export default function LoginScreen({ navigation }: RootStackScreenProps<'Login'
   const { requestOtp, verifyOtp, continueAsGuest } = useAuth();
 
   const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
+  // Which identity the customer is signing in with. Phone stays the default:
+  // it is what most people have, and the other route is one tap away.
+  const [channel, setChannel] = useState<IdentityChannel>('phone');
   const [code, setCode] = useState('');
   const [sent, setSent] = useState(false);
   const [failure, setFailure] = useState<{ reason: OtpFailure; retryAfter?: number } | null>(null);
@@ -147,7 +151,12 @@ export default function LoginScreen({ navigation }: RootStackScreenProps<'Login'
     }),
   };
 
-  const phoneReady = phone.replace(/\D/g, '').length >= 10;
+  const isEmail = channel === 'email';
+  const identityReady = isEmail
+    // Deliberately loose: the API decides what a real address is, and a stricter
+    // guess here only ever refuses somebody's perfectly good mailbox.
+    ? /^\S+@\S+\.\S+$/.test(email.trim())
+    : phone.replace(/\D/g, '').length >= 10;
   const codeReady = code.length === CODE_LENGTH;
 
   // The field sits behind a +964 chip, so what the customer types is the local
@@ -159,11 +168,16 @@ export default function LoginScreen({ navigation }: RootStackScreenProps<'Login'
   // 781… and 964781… are one customer rather than three accounts.
   const e164 = `${DIAL_CODE}${phone.replace(/\D/g, '').replace(/^964/, '').replace(/^0+/, '')}`;
 
+  // What the code is actually sent to, and what the code step shows back.
+  const identity = isEmail
+    ? { channel: 'email' as const, value: email.trim() }
+    : { channel: 'phone' as const, value: e164 };
+
   const onSend = async () => {
     if (pending) return;
     setPending(true);
     setFailure(null);
-    const result = await requestOtp(e164);
+    const result = await requestOtp(identity);
     setPending(false);
     if (result.ok) {
       setSent(true);
@@ -204,8 +218,8 @@ export default function LoginScreen({ navigation }: RootStackScreenProps<'Login'
           '{n}',
           count('count.seconds', failure.retryAfter ?? 0, t),
         );
-      case 'invalid-phone':
-        return t('login.errorPhone');
+      case 'invalid-identity':
+        return t(isEmail ? 'login.errorEmail' : 'login.errorPhone');
       case 'network':
         return t('login.errorNetwork');
       default:
@@ -216,6 +230,16 @@ export default function LoginScreen({ navigation }: RootStackScreenProps<'Login'
   const onChangeNumber = () => {
     setSent(false);
     setCode('');
+    setFailure(null);
+  };
+
+  // Swapping the route clears the other field: carrying a half-typed number
+  // into the email step and back is how a customer ends up sending the one they
+  // had already abandoned.
+  const onSwapChannel = () => {
+    setChannel(isEmail ? 'phone' : 'email');
+    setPhone('');
+    setEmail('');
     setFailure(null);
   };
 
@@ -289,7 +313,7 @@ export default function LoginScreen({ navigation }: RootStackScreenProps<'Login'
                 </View>
 
                 <View style={styles.field}>
-                  <Text style={[styles.fieldLabel, readingSide]}>{e164}</Text>
+                  <Text style={[styles.fieldLabel, readingSide]}>{identity.value}</Text>
                   <TextInput
                     value={code}
                     onChangeText={(v) => {
@@ -332,28 +356,52 @@ export default function LoginScreen({ navigation }: RootStackScreenProps<'Login'
               <>
                 <View style={styles.headingBlock}>
                   <Text style={[styles.heading, readingSide]}>{t('login.title')}</Text>
-                  <Text style={[styles.subheading, readingSide]}>{t('login.subtitle')}</Text>
+                  <Text style={[styles.subheading, readingSide]}>
+                    {t(isEmail ? 'login.subtitleEmail' : 'login.subtitle')}
+                  </Text>
                 </View>
 
                 <View style={styles.field}>
-                  <Text style={[styles.fieldLabel, readingSide]}>{t('login.phoneLabel')}</Text>
-                  <View style={[styles.phoneRow, phoneRowSide]}>
-                    <View style={styles.prefix}>
-                      <Text style={styles.prefixText}>{DIAL_CODE}</Text>
-                    </View>
+                  <Text style={[styles.fieldLabel, readingSide]}>
+                    {t(isEmail ? 'login.emailLabel' : 'login.phoneLabel')}
+                  </Text>
+
+                  {isEmail ? (
                     <TextInput
-                      value={phone}
+                      value={email}
                       onChangeText={(v) => {
-                        setPhone(v);
+                        setEmail(v);
                         setFailure(null);
                       }}
-                      keyboardType="phone-pad"
-                      placeholder="770 000 0000"
+                      keyboardType="email-address"
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                      textContentType="emailAddress"
+                      placeholder={t('login.emailPlaceholder')}
                       placeholderTextColor={colors.faint2}
-                      accessibilityLabel={t('login.phoneLabel')}
-                      style={[styles.input, styles.phoneInput, !!errorText && styles.inputError]}
+                      accessibilityLabel={t('login.emailLabel')}
+                      style={[styles.input, styles.emailInput, !!errorText && styles.inputError]}
                     />
-                  </View>
+                  ) : (
+                    <View style={[styles.phoneRow, phoneRowSide]}>
+                      <View style={styles.prefix}>
+                        <Text style={styles.prefixText}>{DIAL_CODE}</Text>
+                      </View>
+                      <TextInput
+                        value={phone}
+                        onChangeText={(v) => {
+                          setPhone(v);
+                          setFailure(null);
+                        }}
+                        keyboardType="phone-pad"
+                        placeholder="770 000 0000"
+                        placeholderTextColor={colors.faint2}
+                        accessibilityLabel={t('login.phoneLabel')}
+                        style={[styles.input, styles.phoneInput, !!errorText && styles.inputError]}
+                      />
+                    </View>
+                  )}
+
                   {errorText ? (
                     <Text style={[styles.error, readingSide]}>{errorText}</Text>
                   ) : null}
@@ -365,9 +413,19 @@ export default function LoginScreen({ navigation }: RootStackScreenProps<'Login'
                     variant="primary"
                     size="lg"
                     full
-                    disabled={!phoneReady || pending}
+                    disabled={!identityReady || pending}
                     onPress={onSend}
                           />
+                  <TouchableOpacity
+                    activeOpacity={0.7}
+                    onPress={onSwapChannel}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    accessibilityRole="button"
+                  >
+                    <Text style={styles.link}>
+                      {t(isEmail ? 'login.usePhone' : 'login.useEmail')}
+                    </Text>
+                  </TouchableOpacity>
                   <TouchableOpacity
                     activeOpacity={0.7}
                     onPress={onGuest}
@@ -546,6 +604,12 @@ const styles = StyleSheet.create({
   },
   phoneInput: {
     flex: 1,
+    textAlign: 'left',
+    writingDirection: 'ltr',
+  },
+  // An address is a Latin run, so it reads left-to-right even in Arabic —
+  // the same exception the number above relies on.
+  emailInput: {
     textAlign: 'left',
     writingDirection: 'ltr',
   },

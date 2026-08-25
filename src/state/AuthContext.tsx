@@ -8,7 +8,10 @@ const SESSION_KEY = '@jareesh/session';
 const API_URL = process.env.EXPO_PUBLIC_API_URL ?? '';
 
 export interface User {
+  /** Empty when the customer signed up with an email and has no number yet. */
   phone: string;
+  /** Empty when the customer signed up with a phone and has no address yet. */
+  email: string;
   name: string;
   // Backup numbers the courier can try. The primary stays on `phone` so every
   // screen that only needs "the customer's number" is untouched.
@@ -25,6 +28,18 @@ interface Session {
 
 export type AuthStatus = 'loading' | 'guest' | 'authed';
 
+export type IdentityChannel = 'phone' | 'email';
+
+/**
+ * What the customer is signing in with. Not everyone has WhatsApp, so a phone
+ * cannot be the only way in — the API takes either, and which one is being used
+ * has to travel with the value rather than being guessed from its shape.
+ */
+export interface Identity {
+  channel: IdentityChannel;
+  value: string;
+}
+
 /**
  * Why a code request or a verification did not go through.
  *
@@ -33,7 +48,7 @@ export type AuthStatus = 'loading' | 'guest' | 'authed';
  * has never seen with the same 422 — telling them apart would say which numbers
  * have accounts — so the app has nothing finer to report.
  */
-export type OtpFailure = 'invalid-phone' | 'throttled' | 'wrong-code' | 'network';
+export type OtpFailure = 'invalid-identity' | 'throttled' | 'wrong-code' | 'network';
 
 export type OtpResult = { ok: true } | { ok: false; reason: OtpFailure; retryAfter?: number };
 
@@ -42,8 +57,8 @@ interface AuthValue {
   user: User | null;
   /** Bearer token for the API. Null unless status is 'authed'. */
   token: string | null;
-  pendingPhone: string | null;
-  requestOtp: (phone: string) => Promise<OtpResult>;
+  pendingIdentity: Identity | null;
+  requestOtp: (identity: Identity) => Promise<OtpResult>;
   verifyOtp: (code: string) => Promise<OtpResult>;
   continueAsGuest: () => void;
   signOut: () => void;
@@ -78,7 +93,7 @@ const AuthContext = createContext<AuthValue | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [status, setStatus] = useState<AuthStatus>('loading');
   const [session, setSession] = useState<Session | null>(null);
-  const [pendingPhone, setPendingPhone] = useState<string | null>(null);
+  const [pendingIdentity, setPendingIdentity] = useState<Identity | null>(null);
 
   const user = session?.user ?? null;
   const token = session?.token ?? null;
@@ -93,9 +108,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // A session saved by the mock build has no token, and one saved before
         // secondary numbers existed has no array. The first cannot authenticate
         // and is dropped; the second is repaired.
-        if (saved?.token && saved.user?.phone) {
+        if (saved?.token && (saved.user?.phone || saved.user?.email)) {
           setSession({
-            user: { ...saved.user, secondary: saved.user.secondary ?? [] },
+            user: {
+              ...saved.user,
+              phone: saved.user.phone ?? '',
+              email: saved.user.email ?? '',
+              secondary: saved.user.secondary ?? [],
+            },
             token: saved.token,
           });
           setStatus('authed');
@@ -127,19 +147,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [session, save],
   );
 
-  const requestOtp = useCallback(async (phone: string): Promise<OtpResult> => {
+  const requestOtp = useCallback(async (identity: Identity): Promise<OtpResult> => {
     try {
-      const res = await post('/api/auth/otp/request', { phone });
+      // The API takes `phone` or `email`, never both, and decides the transport
+      // from whichever arrived.
+      const res = await post('/api/auth/otp/request', { [identity.channel]: identity.value });
 
       if (res.status === 429) {
         const body = (await res.json()) as { retry_after?: number };
         return { ok: false, reason: 'throttled', retryAfter: Number(body.retry_after) || 0 };
       }
-      if (res.status === 422) return { ok: false, reason: 'invalid-phone' };
+      if (res.status === 422) return { ok: false, reason: 'invalid-identity' };
       if (!res.ok) return { ok: false, reason: 'network' };
 
       // Only now: the code-entry step is meaningless if nothing was sent.
-      setPendingPhone(phone);
+      setPendingIdentity(identity);
       return { ok: true };
     } catch {
       return { ok: false, reason: 'network' };
@@ -148,40 +170,49 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const verifyOtp = useCallback(
     async (code: string): Promise<OtpResult> => {
-      if (!pendingPhone) return { ok: false, reason: 'wrong-code' };
+      if (!pendingIdentity) return { ok: false, reason: 'wrong-code' };
 
       try {
-        const res = await post('/api/auth/otp/verify', { phone: pendingPhone, code });
+        const res = await post('/api/auth/otp/verify', {
+          [pendingIdentity.channel]: pendingIdentity.value,
+          code,
+        });
         if (!res.ok) {
           return { ok: false, reason: res.status === 422 ? 'wrong-code' : 'network' };
         }
 
         const body = (await res.json()) as {
           token?: string;
-          user?: { phone?: string; name?: string | null };
+          user?: { phone?: string | null; email?: string | null; name?: string | null };
         };
         if (!body.token) return { ok: false, reason: 'network' };
 
         save({
           user: {
-            // The API is the source of truth for the number: it stores E.164,
-            // so the account is keyed on +9647… whatever the customer typed.
-            phone: body.user?.phone ?? pendingPhone,
-            // A customer who has only ever signed in has no name yet, and the
-            // rest of the app expects a string rather than a null to render.
+            /*
+             * The API is the source of truth for both identities: it stores
+             * E.164 and lowercased addresses, so the account is keyed on
+             * +9647… and on the address however the customer typed it.
+             *
+             * Either can be absent — a customer who signed in with an email has
+             * no number yet, and vice versa — and the rest of the app renders
+             * these as strings rather than handling a null.
+             */
+            phone: body.user?.phone ?? '',
+            email: body.user?.email ?? '',
             name: body.user?.name ?? '',
             secondary: [],
           },
           token: body.token,
         });
         setStatus('authed');
-        setPendingPhone(null);
+        setPendingIdentity(null);
         return { ok: true };
       } catch {
         return { ok: false, reason: 'network' };
       }
     },
-    [pendingPhone, save],
+    [pendingIdentity, save],
   );
 
   const hasPhone = useCallback(
@@ -230,7 +261,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const continueAsGuest = useCallback(() => {
     setStatus('guest');
-    setPendingPhone(null);
+    setPendingIdentity(null);
   }, []);
 
   const signOut = useCallback(() => {
@@ -244,7 +275,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       status,
       user,
       token,
-      pendingPhone,
+      pendingIdentity,
       requestOtp,
       verifyOtp,
       continueAsGuest,
@@ -259,7 +290,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       status,
       user,
       token,
-      pendingPhone,
+      pendingIdentity,
       requestOtp,
       verifyOtp,
       continueAsGuest,

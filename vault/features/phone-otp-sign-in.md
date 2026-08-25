@@ -46,6 +46,6 @@ allowance on a code already on its way.
 
 ## Related
 - Page: [[login]]
-- Feature: [[guest-mode]], [[logout-confirmation]]
+- Feature: [[guest-mode]], [[logout-confirmation]], [[email-sign-in]]
 - Bugs: [[dial-code-chip-not-sent]]
 - Enhancements: [[revoke-token-on-sign-out]], [[resend-code-button]]
