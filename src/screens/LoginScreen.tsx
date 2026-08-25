@@ -20,7 +20,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Button from '../components/Button';
 import { colors, fonts, overlay, radius, shadow, spacing, type } from '../theme';
 import { useLanguage } from '../i18n/LanguageContext';
-import { useAuth } from '../state/AuthContext';
+import { count } from '../i18n/count';
+import { useAuth, type IdentityChannel, type OtpFailure } from '../state/AuthContext';
 import type { RootStackScreenProps } from '../navigation/RootNavigator';
 
 const GRADIENT_COLORS = [colors.tealDark, colors.teal, colors.tealMid] as const;
@@ -54,9 +55,17 @@ export default function LoginScreen({ navigation }: RootStackScreenProps<'Login'
   const { requestOtp, verifyOtp, continueAsGuest } = useAuth();
 
   const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
+  // Which identity the customer is signing in with. Phone stays the default:
+  // it is what most people have, and the other route is one tap away.
+  const [channel, setChannel] = useState<IdentityChannel>('phone');
   const [code, setCode] = useState('');
   const [sent, setSent] = useState(false);
-  const [error, setError] = useState(false);
+  const [failure, setFailure] = useState<{ reason: OtpFailure; retryAfter?: number } | null>(null);
+  // Both calls hit the network, so the button has to stop being pressable while
+  // one is in flight — otherwise a second tap burns the customer's resend
+  // allowance on a code that was already on its way.
+  const [pending, setPending] = useState(false);
 
   // KeyboardAvoidingView's `padding` behaviour squeezed the flex:1 brand block
   // as the keyboard came up, so the logo and title snapped smaller in one frame.
@@ -142,13 +151,40 @@ export default function LoginScreen({ navigation }: RootStackScreenProps<'Login'
     }),
   };
 
-  const phoneReady = phone.replace(/\D/g, '').length >= 10;
+  const isEmail = channel === 'email';
+  const identityReady = isEmail
+    // Deliberately loose: the API decides what a real address is, and a stricter
+    // guess here only ever refuses somebody's perfectly good mailbox.
+    ? /^\S+@\S+\.\S+$/.test(email.trim())
+    : phone.replace(/\D/g, '').length >= 10;
   const codeReady = code.length === CODE_LENGTH;
 
-  const onSend = () => {
-    requestOtp(phone);
-    setSent(true);
-    setError(false);
+  // The field sits behind a +964 chip, so what the customer types is the local
+  // part of the number and the dial code has to be put back before it is sent.
+  // Sending the field raw is how 7817768081 reaches the API as an already
+  // international number: +7 is Russia, and the code goes to a stranger.
+  //
+  // The trunk zero and a repeated country code are both stripped, so 0781…,
+  // 781… and 964781… are one customer rather than three accounts.
+  const e164 = `${DIAL_CODE}${phone.replace(/\D/g, '').replace(/^964/, '').replace(/^0+/, '')}`;
+
+  // What the code is actually sent to, and what the code step shows back.
+  const identity = isEmail
+    ? { channel: 'email' as const, value: email.trim() }
+    : { channel: 'phone' as const, value: e164 };
+
+  const onSend = async () => {
+    if (pending) return;
+    setPending(true);
+    setFailure(null);
+    const result = await requestOtp(identity);
+    setPending(false);
+    if (result.ok) {
+      setSent(true);
+      setCode('');
+    } else {
+      setFailure({ reason: result.reason, retryAfter: result.retryAfter });
+    }
   };
 
   // Reached from the checkout gate, sign-in returns the customer to the screen
@@ -159,12 +195,52 @@ export default function LoginScreen({ navigation }: RootStackScreenProps<'Login'
     else navigation.replace('Tabs');
   };
 
-  const onVerify = () => {
-    if (verifyOtp(code)) {
+  const onVerify = async () => {
+    if (pending) return;
+    setPending(true);
+    setFailure(null);
+    const result = await verifyOtp(code);
+    setPending(false);
+    if (result.ok) {
       proceed();
     } else {
-      setError(true);
+      setFailure({ reason: result.reason, retryAfter: result.retryAfter });
     }
+  };
+
+  // Resolved at render rather than stored, so the message follows the language
+  // rather than whichever one was active when the request failed.
+  const errorText = ((): string | null => {
+    if (!failure) return null;
+    switch (failure.reason) {
+      case 'throttled':
+        return t('login.errorThrottled').replace(
+          '{n}',
+          count('count.seconds', failure.retryAfter ?? 0, t),
+        );
+      case 'invalid-identity':
+        return t(isEmail ? 'login.errorEmail' : 'login.errorPhone');
+      case 'network':
+        return t('login.errorNetwork');
+      default:
+        return t('login.codeError');
+    }
+  })();
+
+  const onChangeNumber = () => {
+    setSent(false);
+    setCode('');
+    setFailure(null);
+  };
+
+  // Swapping the route clears the other field: carrying a half-typed number
+  // into the email step and back is how a customer ends up sending the one they
+  // had already abandoned.
+  const onSwapChannel = () => {
+    setChannel(isEmail ? 'phone' : 'email');
+    setPhone('');
+    setEmail('');
+    setFailure(null);
   };
 
   const onGuest = () => {
@@ -237,12 +313,12 @@ export default function LoginScreen({ navigation }: RootStackScreenProps<'Login'
                 </View>
 
                 <View style={styles.field}>
-                  <Text style={[styles.fieldLabel, readingSide]}>{phone}</Text>
+                  <Text style={[styles.fieldLabel, readingSide]}>{identity.value}</Text>
                   <TextInput
                     value={code}
                     onChangeText={(v) => {
                       setCode(v.replace(/\D/g, '').slice(0, CODE_LENGTH));
-                      setError(false);
+                      setFailure(null);
                     }}
                     keyboardType="number-pad"
                     maxLength={CODE_LENGTH}
@@ -250,25 +326,25 @@ export default function LoginScreen({ navigation }: RootStackScreenProps<'Login'
                     placeholder="••••"
                     placeholderTextColor={colors.faint2}
                     accessibilityLabel={t('login.codeHint')}
-                    style={[styles.input, styles.codeInput, error && styles.inputError]}
+                    style={[styles.input, styles.codeInput, !!errorText && styles.inputError]}
                   />
-                  {error ? (
-                    <Text style={[styles.error, readingSide]}>{t('login.codeError')}</Text>
+                  {errorText ? (
+                    <Text style={[styles.error, readingSide]}>{errorText}</Text>
                   ) : null}
                 </View>
 
                 <View style={styles.actions}>
                   <Button
-                    label={t('common.continue')}
+                    label={pending ? t('login.verifying') : t('common.continue')}
                     variant="primary"
                     size="lg"
                     full
-                    disabled={!codeReady}
+                    disabled={!codeReady || pending}
                     onPress={onVerify}
                           />
                   <TouchableOpacity
                     activeOpacity={0.7}
-                    onPress={() => setSent(false)}
+                    onPress={onChangeNumber}
                     hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                     accessibilityRole="button"
                   >
@@ -280,36 +356,76 @@ export default function LoginScreen({ navigation }: RootStackScreenProps<'Login'
               <>
                 <View style={styles.headingBlock}>
                   <Text style={[styles.heading, readingSide]}>{t('login.title')}</Text>
-                  <Text style={[styles.subheading, readingSide]}>{t('login.subtitle')}</Text>
+                  <Text style={[styles.subheading, readingSide]}>
+                    {t(isEmail ? 'login.subtitleEmail' : 'login.subtitle')}
+                  </Text>
                 </View>
 
                 <View style={styles.field}>
-                  <Text style={[styles.fieldLabel, readingSide]}>{t('login.phoneLabel')}</Text>
-                  <View style={[styles.phoneRow, phoneRowSide]}>
-                    <View style={styles.prefix}>
-                      <Text style={styles.prefixText}>{DIAL_CODE}</Text>
-                    </View>
+                  <Text style={[styles.fieldLabel, readingSide]}>
+                    {t(isEmail ? 'login.emailLabel' : 'login.phoneLabel')}
+                  </Text>
+
+                  {isEmail ? (
                     <TextInput
-                      value={phone}
-                      onChangeText={setPhone}
-                      keyboardType="phone-pad"
-                      placeholder="770 000 0000"
+                      value={email}
+                      onChangeText={(v) => {
+                        setEmail(v);
+                        setFailure(null);
+                      }}
+                      keyboardType="email-address"
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                      textContentType="emailAddress"
+                      placeholder={t('login.emailPlaceholder')}
                       placeholderTextColor={colors.faint2}
-                      accessibilityLabel={t('login.phoneLabel')}
-                      style={[styles.input, styles.phoneInput]}
+                      accessibilityLabel={t('login.emailLabel')}
+                      style={[styles.input, styles.emailInput, !!errorText && styles.inputError]}
                     />
-                  </View>
+                  ) : (
+                    <View style={[styles.phoneRow, phoneRowSide]}>
+                      <View style={styles.prefix}>
+                        <Text style={styles.prefixText}>{DIAL_CODE}</Text>
+                      </View>
+                      <TextInput
+                        value={phone}
+                        onChangeText={(v) => {
+                          setPhone(v);
+                          setFailure(null);
+                        }}
+                        keyboardType="phone-pad"
+                        placeholder="770 000 0000"
+                        placeholderTextColor={colors.faint2}
+                        accessibilityLabel={t('login.phoneLabel')}
+                        style={[styles.input, styles.phoneInput, !!errorText && styles.inputError]}
+                      />
+                    </View>
+                  )}
+
+                  {errorText ? (
+                    <Text style={[styles.error, readingSide]}>{errorText}</Text>
+                  ) : null}
                 </View>
 
                 <View style={styles.actions}>
                   <Button
-                    label={t('common.continue')}
+                    label={pending ? t('login.sending') : t('common.continue')}
                     variant="primary"
                     size="lg"
                     full
-                    disabled={!phoneReady}
+                    disabled={!identityReady || pending}
                     onPress={onSend}
                           />
+                  <TouchableOpacity
+                    activeOpacity={0.7}
+                    onPress={onSwapChannel}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    accessibilityRole="button"
+                  >
+                    <Text style={styles.link}>
+                      {t(isEmail ? 'login.usePhone' : 'login.useEmail')}
+                    </Text>
+                  </TouchableOpacity>
                   <TouchableOpacity
                     activeOpacity={0.7}
                     onPress={onGuest}
@@ -488,6 +604,12 @@ const styles = StyleSheet.create({
   },
   phoneInput: {
     flex: 1,
+    textAlign: 'left',
+    writingDirection: 'ltr',
+  },
+  // An address is a Latin run, so it reads left-to-right even in Arabic —
+  // the same exception the number above relies on.
+  emailInput: {
     textAlign: 'left',
     writingDirection: 'ltr',
   },

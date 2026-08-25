@@ -4,21 +4,11 @@ import React, {
   useContext,
   useEffect,
   useMemo,
-  useRef,
   useState,
 } from 'react';
 import { getDish, groupNumber, parsePrice } from '../data/menu';
 import { useAuth } from './AuthContext';
 import type { CartItem } from '../components/CartRow';
-
-// Placeholder lines so a signed-in account opens onto a cart with something in
-// it. A guest never gets them: they cannot order, so a basket they did not fill
-// is three things to remove before the app makes sense.
-const SEED: { id: string; qty: number }[] = [
-  { id: 'dolma', qty: 1 },
-  { id: 'noodles', qty: 2 },
-  { id: 'lasagna', qty: 1 },
-];
 
 // A built meal is its own line: two lots of the same dish with different extras
 // are two different things to cook and two different prices, so the line's key
@@ -44,11 +34,6 @@ const buildItem = (dishId: string, qty: number, build?: Build): CartItem | null 
   };
 };
 
-const INITIAL_ITEMS: CartItem[] = SEED.flatMap(({ id, qty }) => {
-  const item = buildItem(id, qty);
-  return item ? [item] : [];
-});
-
 export interface CartContextValue {
   items: CartItem[];
   addItem: (dishId: string, qty?: number, build?: Build) => void;
@@ -61,24 +46,14 @@ const CartContext = createContext<CartContextValue | undefined>(undefined);
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const { status } = useAuth();
-  // Starts empty for everyone: `status` is 'loading' on the first render, so
-  // seeding here would put the placeholder lines in front of a guest for the
-  // moment before auth resolves.
+  // Empty for everyone. Nothing is seeded — the basket only ever holds what the
+  // customer put in it, and that carries across a guest signing in to order it.
   const [items, setItems] = useState<CartItem[]>([]);
-  const seeded = useRef(false);
 
   useEffect(() => {
-    if (status === 'authed' && !seeded.current) {
-      seeded.current = true;
-      // Only into an empty cart, so a guest who filled one and then signed in to
-      // order it keeps what they chose instead of being handed the placeholders.
-      setItems((prev) => (prev.length > 0 ? prev : INITIAL_ITEMS));
-      return;
-    }
     // Signing out hands the app to a different person — the previous account's
     // basket must not still be sitting there.
     if (status === 'guest') {
-      seeded.current = false;
       setItems([]);
     }
   }, [status]);

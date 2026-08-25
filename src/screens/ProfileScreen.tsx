@@ -111,7 +111,10 @@ export default function ProfileScreen({ navigation }: TabScreenProps<'Profile'>)
           </View>
           <View style={styles.identity}>
             <Text style={[styles.name, readingSide]} numberOfLines={1}>
-              {authed ? user?.phone : t('profile.guest')}
+              {/* A customer who signed in with an email has no number, so the
+                  address is what identifies them here. Falling through to the
+                  phone alone would leave this line blank. */}
+              {authed ? user?.phone || user?.email : t('profile.guest')}
             </Text>
             <Text style={[styles.identitySub, readingSide]} numberOfLines={2}>
               {authed ? t('phones.manage') : t('profile.guest.sub')}

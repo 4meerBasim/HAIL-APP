@@ -45,9 +45,9 @@ export default function PlansScreen({ navigation }: TabScreenProps<'Plans'>) {
   const { items } = useCart();
   const insets = useSafeAreaInsets();
   const { subscription, subscriptionPricing, hydrated, startFromBox, startCustom } = usePlan();
-  const { status } = useAuth();
+  const { status, user } = useAuth();
   const { unreadCount } = useNotifications();
-  const { selected } = useLocations();
+  const { selected, hydrated: locHydrated } = useLocations();
   const [pickerOpen, setPickerOpen] = useState(false);
   const scroller = useRef<ScrollView>(null);
   useScrollToTop(scroller);
@@ -55,6 +55,11 @@ export default function PlansScreen({ navigation }: TabScreenProps<'Plans'>) {
   const cartCount = items.reduce((sum, it) => sum + it.qty, 0);
   const chevron = isRTL ? icons.chevronLeft : icons.chevronRight;
   const arrow = isRTL ? icons.arrowLeft : icons.arrowRight;
+
+  // The API supplies the name; a phone-only sign-in may not, so a nameless
+  // greeting is the fallback rather than a made-up name.
+  const name = user?.name.trim();
+  const greeting = name ? t('home.greeting').replace('{name}', name) : t('home.greeting.plain');
 
   const hints = useMemo(
     () => searchHints().map((d) => `${t('home.searchPrefix')} ${lang === 'ar' ? d.name : t(`dish.${d.id}.name`, d.name)}`),
@@ -107,7 +112,7 @@ export default function PlansScreen({ navigation }: TabScreenProps<'Plans'>) {
         <View style={styles.headerRow}>
           <View style={styles.identity}>
             <Text style={styles.greeting} numberOfLines={1}>
-              {t('home.greeting')}
+              {greeting}
             </Text>
             <TouchableOpacity
               activeOpacity={0.8}
@@ -118,7 +123,7 @@ export default function PlansScreen({ navigation }: TabScreenProps<'Plans'>) {
             >
               <Icon path={icons.pin} size={13} color={colors.gold} strokeWidth={2} />
               <Text style={styles.location} numberOfLines={1}>
-                {selected?.labelKey ? t(selected.labelKey) : selected?.label}
+                {selected ? selected.label || t('location.pinned') : locHydrated ? t('location.add') : ''}
               </Text>
               <Icon path={icons.chevronDown} size={13} color={overlay.white70} strokeWidth={2.2} />
             </TouchableOpacity>

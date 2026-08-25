@@ -1,14 +1,15 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const STORAGE_KEY = '@jareesh/locations';
-const SELECTED_KEY = '@jareesh/location-selected';
+// v2 namespace: the v1 keys still hold the fabricated Karrada/Al-Mansour seed on
+// any install that ran the old build and saved or starred an address. Reading a
+// fresh key drops those rows for good rather than hydrating them back blank.
+const STORAGE_KEY = '@jareesh/locations.v2';
+const SELECTED_KEY = '@jareesh/location-selected.v2';
 
 export interface SavedLocation {
   id: string;
-  // Seeded entries carry a key so they follow the language; ones the customer
-  // names on the map carry the literal they typed.
-  labelKey?: string;
+  // The name the customer typed for this pin on the map.
   label?: string;
   address: string;
   lat: number;
@@ -16,30 +17,13 @@ export interface SavedLocation {
   favourite: boolean;
 }
 
-// Karrada and Al-Mansour, matching the addresses the cart and profile already
-// show. Coordinates are the district centres.
-const SEEDED: SavedLocation[] = [
-  {
-    id: 'home',
-    labelKey: 'location.home',
-    address: 'بغداد، الكرادة، شارع 62',
-    lat: 33.2986,
-    lng: 44.4297,
-    favourite: true,
-  },
-  {
-    id: 'work',
-    labelKey: 'location.work',
-    address: 'بغداد، المنصور',
-    lat: 33.3128,
-    lng: 44.3277,
-    favourite: false,
-  },
-];
-
 export interface LocationContextValue {
   locations: SavedLocation[];
-  selected: SavedLocation;
+  // Null until the customer saves their first delivery address.
+  selected: SavedLocation | null;
+  /** False until stored addresses have been read back — lets a screen tell
+   *  "no address yet" apart from "not loaded yet". */
+  hydrated: boolean;
   selectLocation: (id: string) => void;
   saveLocation: (loc: Omit<SavedLocation, 'id'>) => SavedLocation;
   toggleFavourite: (id: string) => void;
@@ -49,8 +33,9 @@ export interface LocationContextValue {
 const LocationContext = createContext<LocationContextValue | undefined>(undefined);
 
 export function LocationProvider({ children }: { children: React.ReactNode }) {
-  const [locations, setLocations] = useState<SavedLocation[]>(SEEDED);
-  const [selectedId, setSelectedId] = useState<string>(SEEDED[0].id);
+  const [locations, setLocations] = useState<SavedLocation[]>([]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -65,6 +50,7 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
         const id = rawSelected[1];
         setSelectedId(id && stored.some((l) => l.id === id) ? id : stored[0].id);
       }
+      setHydrated(true);
     })();
     return () => {
       active = false;
@@ -104,9 +90,16 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
   const removeLocation = useCallback(
     (id: string) => {
       const next = locations.filter((l) => l.id !== id);
-      if (!next.length) return;
       persist(next);
-      if (id === selectedId) selectLocation(next[0].id);
+      // Deleting the selected address moves the pointer to whatever remains, or
+      // clears it entirely once the last one is gone.
+      if (id === selectedId) {
+        if (next.length) selectLocation(next[0].id);
+        else {
+          setSelectedId(null);
+          void AsyncStorage.removeItem(SELECTED_KEY);
+        }
+      }
     },
     [locations, persist, selectedId, selectLocation],
   );
@@ -116,13 +109,14 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
     const ordered = [...locations].sort((a, b) => Number(b.favourite) - Number(a.favourite));
     return {
       locations: ordered,
-      selected: locations.find((l) => l.id === selectedId) ?? locations[0],
+      selected: locations.find((l) => l.id === selectedId) ?? locations[0] ?? null,
+      hydrated,
       selectLocation,
       saveLocation,
       toggleFavourite,
       removeLocation,
     };
-  }, [locations, selectedId, selectLocation, saveLocation, toggleFavourite, removeLocation]);
+  }, [locations, selectedId, hydrated, selectLocation, saveLocation, toggleFavourite, removeLocation]);
 
   return <LocationContext.Provider value={value}>{children}</LocationContext.Provider>;
 }

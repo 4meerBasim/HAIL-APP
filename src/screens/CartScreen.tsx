@@ -57,7 +57,7 @@ export default function CartScreen({ navigation }: RootStackScreenProps<'Cart'>)
   const { items, changeQty, clearCart, subtotal } = useCart();
   const { placeOrder } = useOrders();
   const { status } = useAuth();
-  const { selected } = useLocations();
+  const { selected, hydrated: locHydrated } = useLocations();
   const { subscription } = usePlan();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
@@ -100,6 +100,14 @@ export default function CartScreen({ navigation }: RootStackScreenProps<'Cart'>)
     // order needs a number to deliver to.
     if (status !== 'authed') {
       navigation.navigate('Login');
+      return;
+    }
+    // An order needs somewhere to go: with no saved address, send the customer
+    // to pick one before the order is placed rather than after. Until location
+    // storage has hydrated, `null` means "not loaded yet", not "no address" —
+    // so we wait rather than bounce a customer who does have one.
+    if (!selected) {
+      if (locHydrated) navigation.navigate('Map');
       return;
     }
     placeOrder(
@@ -181,22 +189,26 @@ export default function CartScreen({ navigation }: RootStackScreenProps<'Cart'>)
           {/* Where it is going, when it lands, and what the driver should do
               when it does — one card, because it is one question. */}
           <Card padding={0} style={styles.mapCard}>
-            <PressScale
-              onPress={() => navigation.navigate('Map')}
-              scaleTo={0.99}
-              accessibilityLabel={t('location.openMap')}
-            >
-              <MapPreview />
-            </PressScale>
+            {/* A drawn pin is only honest once there is a place it points at —
+                with no address set, the card is the prompt to add one. */}
+            {selected ? (
+              <PressScale
+                onPress={() => navigation.navigate('Map')}
+                scaleTo={0.99}
+                accessibilityLabel={t('location.openMap')}
+              >
+                <MapPreview />
+              </PressScale>
+            ) : null}
 
             <View style={styles.mapBody}>
               <View style={styles.addressRow}>
                 <View style={styles.addressText}>
                   <Text style={[styles.addressTitle, readingSide]} numberOfLines={1}>
-                    {selected?.labelKey ? t(selected.labelKey) : (selected?.label ?? '')}
+                    {selected ? selected.label || t('location.pinned') : t('location.add')}
                   </Text>
                   <Text style={[styles.addressSub, readingSide]} numberOfLines={2}>
-                    {selected?.address ?? t('cart.address')}
+                    {selected?.address ?? t('location.openMap.sub')}
                   </Text>
                 </View>
                 <TouchableOpacity
@@ -206,7 +218,9 @@ export default function CartScreen({ navigation }: RootStackScreenProps<'Cart'>)
                   accessibilityRole="button"
                   accessibilityLabel={t('location.deliverTo')}
                 >
-                  <Text style={styles.changeLink}>{t('common.change')}</Text>
+                  <Text style={styles.changeLink}>
+                    {selected ? t('common.change') : t('common.add')}
+                  </Text>
                 </TouchableOpacity>
               </View>
 

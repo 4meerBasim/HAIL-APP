@@ -518,11 +518,6 @@ export const trackingProgress: Record<TrackingStatus, number> = {
   delivered: 1,
 };
 
-export const trackingDriver = {
-  name: 'كرار محمد',
-  role: 'سائق جريش · دراجة كهربائية',
-} as const;
-
 // ── Schedule exceptions ─────────────────────────────────────────────────────
 // A subscription runs on its selected weekdays, minus any one-off dates the
 // customer skips, plus any deliveries they've pushed to a later date.
