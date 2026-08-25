@@ -22,3 +22,4 @@ API has no revoke endpoint yet.
 ## Related
 - Page: [[login]], [[profile]]
 - Feature: [[phone-otp-sign-in]], [[logout-confirmation]]
+- Bugs: [[customer-data-survives-sign-out]]

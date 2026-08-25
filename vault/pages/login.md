@@ -5,6 +5,6 @@ Summary: Phone plus a four-digit code sent by the API, or "browse without signin
 
 ## Related
 - Connects to: [[profile]], [[plans]], [[cart]], [[subscribe]], [[plan-builder]], [[orders]], [[box-detail]], [[boxes]]
-- Features: [[guest-mode]], [[phone-otp-sign-in]], [[email-sign-in]]
-- Bugs: [[dial-code-chip-not-sent]]
+- Features: [[guest-mode]], [[phone-otp-sign-in]], [[email-sign-in]], [[real-customer-data-only]]
+- Bugs: [[dial-code-chip-not-sent]], [[customer-data-survives-sign-out]]
 - Enhancements: [[resend-code-button]], [[revoke-token-on-sign-out]]

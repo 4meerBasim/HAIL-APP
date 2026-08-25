@@ -1,16 +1,11 @@
 import React, { createContext, useCallback, useContext, useMemo } from 'react';
 import { type DropChoice, type Order, type OrderLine, nextOrderId } from '../data/menu';
-import { demoOrders } from '../data/demoOrders';
 import { useAuth } from './AuthContext';
 import { useStoredState } from './useStoredState';
 
 // Bumped past `jareesh.orders`: the old key holds whatever was saved while the
 // screen was being built, and that data outranks anything here.
 const STORAGE_KEY = 'jareesh.orders.v2';
-
-// Stamped once at startup rather than per render, so the relative dates on the
-// receipts stay put while the app is open.
-const DEMO_ORDERS = demoOrders();
 
 export interface OrdersContextValue {
   orders: Order[];
@@ -22,21 +17,13 @@ const OrdersContext = createContext<OrdersContextValue | undefined>(undefined);
 export function OrdersProvider({ children }: { children: React.ReactNode }) {
   const { status } = useAuth();
 
-  // Only real orders are stored. The demo history is merged in below rather
-  // than seeded as the initial value: `useStoredState` replaces the initial
-  // with whatever storage holds, so the first real order would wipe the
-  // placeholder receipts out for good on the next launch.
   const [placed, setPlaced] = useStoredState<Order[]>(STORAGE_KEY, []);
 
-  // A guest has no history at all — not the demo receipts, and not the stored
-  // ones either, which belong to whoever was signed in when they were placed.
-  // Emptied here rather than per screen so the tab bar's live dot, the tracker
-  // and the receipt list all agree.
+  // A guest has no history at all — the stored orders belong to whoever was
+  // signed in when they were placed. Emptied here rather than per screen so the
+  // tab bar's live dot, the tracker and the receipt list all agree.
   const orders = useMemo(
-    () =>
-      status === 'authed'
-        ? [...placed, ...DEMO_ORDERS].sort((a, b) => b.placedAt - a.placedAt)
-        : [],
+    () => (status === 'authed' ? [...placed].sort((a, b) => b.placedAt - a.placedAt) : []),
     [placed, status],
   );
 
@@ -52,7 +39,7 @@ export function OrdersProvider({ children }: { children: React.ReactNode }) {
       if (status !== 'authed') return;
 
       const order: Order = {
-        // Numbered against the merged list so ids carry on past the demo ones.
+        // Numbered against the existing orders so ids never collide.
         id: nextOrderId(orders),
         status: 'active',
         placedAt: Date.now(),

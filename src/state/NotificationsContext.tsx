@@ -1,10 +1,22 @@
 import React, { createContext, useCallback, useContext, useMemo } from 'react';
-import { type Notification, notifications as seeded } from '../data/notifications';
+import type { IconName } from '../components/icons';
 import { useAuth } from './AuthContext';
 import { useStoredState } from './useStoredState';
 
 const READ_KEY = '@jareesh/notifications-read';
 const CLEARED_KEY = '@jareesh/notifications-cleared';
+
+export interface Notification {
+  id: string;
+  icon: IconName;
+  tint: string;
+  ink: string;
+  unread: boolean;
+  // Where the notification leads — none of them is a dead row. Narrowed to the
+  // routes that take no params, so a destination cannot be added here without
+  // the params it needs.
+  to: 'Tracking' | 'Tabs' | 'PastOrders';
+}
 
 export interface InboxItem extends Notification {
   read: boolean;
@@ -20,9 +32,12 @@ interface NotificationsValue {
 
 const NotificationsContext = createContext<NotificationsValue | undefined>(undefined);
 
-// The feed itself is seeded and fixed; what changes is which of it the customer
-// has opened and whether they have swept the lot. Both survive a restart, or
-// clearing the inbox would only last until the next launch.
+// No notification source exists yet, so the feed itself is empty until one is
+// wired up. The read/cleared bookkeeping survives a restart and is what a real
+// feed will be marked and swept through — it stays rather than being torn out
+// now and rebuilt later.
+const FEED: Notification[] = [];
+
 export function NotificationsProvider({ children }: { children: React.ReactNode }) {
   const { status } = useAuth();
   const [read, setRead] = useStoredState<string[]>(READ_KEY, []);
@@ -34,7 +49,7 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
   const items = useMemo(
     () =>
       status === 'authed'
-        ? seeded
+        ? FEED
             .filter((n) => !cleared.includes(n.id))
             .map((n) => ({ ...n, read: read.includes(n.id) || !n.unread }))
         : [],
@@ -50,9 +65,12 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
     [read, setRead],
   );
 
+  // Adds whatever is currently in the inbox to the cleared set — a union, not a
+  // replace: `items` is already filtered by `cleared`, so overwriting would drop
+  // every earlier-cleared id and let those notifications reappear.
   const clearAll = useCallback(() => {
-    setCleared(seeded.map((n) => n.id));
-  }, [setCleared]);
+    setCleared([...cleared, ...items.map((n) => n.id)]);
+  }, [cleared, items, setCleared]);
 
   const value = useMemo(
     () => ({ items, unreadCount, markRead, clearAll }),

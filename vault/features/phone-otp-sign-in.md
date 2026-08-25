@@ -46,6 +46,6 @@ allowance on a code already on its way.
 
 ## Related
 - Page: [[login]]
-- Feature: [[guest-mode]], [[logout-confirmation]], [[email-sign-in]]
-- Bugs: [[dial-code-chip-not-sent]]
+- Feature: [[guest-mode]], [[logout-confirmation]], [[email-sign-in]], [[real-customer-data-only]]
+- Bugs: [[dial-code-chip-not-sent]], [[customer-data-survives-sign-out]], [[greeting-always-says-good-evening]]
 - Enhancements: [[revoke-token-on-sign-out]], [[resend-code-button]]

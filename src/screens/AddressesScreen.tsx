@@ -7,17 +7,17 @@ import { icons } from '../components/icons';
 import Card from '../components/Card';
 import Button from '../components/Button';
 import PressScale from '../components/PressScale';
+import Reveal from '../components/Reveal';
 import SettingRow from '../components/SettingRow';
 import { colors, radius, spacing, type } from '../theme';
 import { useLanguage } from '../i18n/LanguageContext';
-import { type SavedLocation, useLocations } from '../state/LocationContext';
+import { useLocations } from '../state/LocationContext';
 import type { RootStackScreenProps } from '../navigation/RootNavigator';
 
 export default function AddressesScreen({ navigation }: RootStackScreenProps<'Addresses'>) {
   const { t } = useLanguage();
-  const { locations, selected, selectLocation, toggleFavourite, removeLocation } = useLocations();
-
-  const labelOf = (l: SavedLocation) => (l.labelKey ? t(l.labelKey) : (l.label ?? ''));
+  const { locations, selected, selectLocation, toggleFavourite, removeLocation, hydrated } =
+    useLocations();
 
   return (
     <Screen scroll={false} texture>
@@ -39,70 +39,84 @@ export default function AddressesScreen({ navigation }: RootStackScreenProps<'Ad
       </View>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <Card padding={0} style={styles.rows}>
-          {locations.map((l, i) => {
-            const on = l.id === selected?.id;
-            return (
-              <SettingRow
-                key={l.id}
-                first={i === 0}
-                icon="pin"
-                label={labelOf(l)}
-                sub={l.address}
-                onPress={() => selectLocation(l.id)}
-                accessibilityLabel={`${labelOf(l)} · ${l.address}`}
-                trailing={
-                  <View style={styles.actions}>
-                    <PressScale
-                      onPress={() => toggleFavourite(l.id)}
-                      scaleTo={0.88}
-                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                      accessibilityLabel={t('location.markFavourite')}
-                      accessibilityState={{ selected: l.favourite }}
-                    >
-                      <Icon
-                        path={icons.star}
-                        size={17}
-                        color={l.favourite ? colors.gold : colors.faint2}
-                        fill={l.favourite ? colors.gold : 'none'}
-                        strokeWidth={1.9}
-                      />
-                    </PressScale>
+        {!hydrated ? null : locations.length === 0 ? (
+          <Reveal style={styles.empty}>
+            <View style={styles.emptyIcon}>
+              <Icon path={icons.pin} size={28} color={colors.faint} strokeWidth={1.6} />
+            </View>
+            <Text style={styles.emptyTitle}>{t('addresses.empty.title')}</Text>
+            <Text style={styles.emptySub}>{t('addresses.empty.sub')}</Text>
+            <Button
+              label={t('addresses.add')}
+              size="md"
+              onPress={() => navigation.navigate('Map')}
+              style={styles.emptyBtn}
+            />
+          </Reveal>
+        ) : (
+          <>
+            <Card padding={0} style={styles.rows}>
+              {locations.map((l, i) => {
+                const on = l.id === selected?.id;
+                const name = l.label || t('location.pinned');
+                return (
+                  <SettingRow
+                    key={l.id}
+                    first={i === 0}
+                    icon="pin"
+                    label={name}
+                    sub={l.address}
+                    onPress={() => selectLocation(l.id)}
+                    accessibilityLabel={`${name} · ${l.address}`}
+                    trailing={
+                      <View style={styles.actions}>
+                        <PressScale
+                          onPress={() => toggleFavourite(l.id)}
+                          scaleTo={0.88}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          accessibilityLabel={t('location.markFavourite')}
+                          accessibilityState={{ selected: l.favourite }}
+                        >
+                          <Icon
+                            path={icons.star}
+                            size={17}
+                            color={l.favourite ? colors.gold : colors.faint2}
+                            fill={l.favourite ? colors.gold : 'none'}
+                            strokeWidth={1.9}
+                          />
+                        </PressScale>
 
-                    {/* The last address is not removable — the cart, the plan
-                        and the tracking map all read `selected`, and there is
-                        no sane value for it once the list is empty. */}
-                    {locations.length > 1 ? (
-                      <PressScale
-                        onPress={() => removeLocation(l.id)}
-                        scaleTo={0.88}
-                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                        accessibilityLabel={t('addresses.remove')}
-                        style={styles.remove}
-                      >
-                        <Icon path={icons.close} size={11} color={colors.muted} strokeWidth={2.6} />
-                      </PressScale>
-                    ) : null}
+                        <PressScale
+                          onPress={() => removeLocation(l.id)}
+                          scaleTo={0.88}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          accessibilityLabel={t('addresses.remove')}
+                          style={styles.remove}
+                        >
+                          <Icon path={icons.close} size={11} color={colors.muted} strokeWidth={2.6} />
+                        </PressScale>
 
-                    <View style={[styles.tick, on && styles.tickOn]}>
-                      {on ? (
-                        <Icon path={icons.check} size={11} color={colors.white} strokeWidth={3} />
-                      ) : null}
-                    </View>
-                  </View>
-                }
-              />
-            );
-          })}
-        </Card>
+                        <View style={[styles.tick, on && styles.tickOn]}>
+                          {on ? (
+                            <Icon path={icons.check} size={11} color={colors.white} strokeWidth={3} />
+                          ) : null}
+                        </View>
+                      </View>
+                    }
+                  />
+                );
+              })}
+            </Card>
 
-        <Button
-          label={t('addresses.add')}
-          variant="primary"
-          size="lg"
-          full
-          onPress={() => navigation.navigate('Map')}
-        />
+            <Button
+              label={t('addresses.add')}
+              variant="primary"
+              size="lg"
+              full
+              onPress={() => navigation.navigate('Map')}
+            />
+          </>
+        )}
       </ScrollView>
     </Screen>
   );
@@ -140,6 +154,34 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.huge,
     paddingBottom: spacing.giant,
     gap: spacing.giant,
+  },
+  empty: {
+    alignItems: 'center',
+    gap: spacing.lg,
+    paddingTop: spacing.giant,
+    paddingHorizontal: spacing.xxl,
+  },
+  emptyIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: radius.pill,
+    backgroundColor: colors.sandChip,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.xs,
+  },
+  emptyTitle: {
+    ...type.h3,
+    color: colors.ink,
+    textAlign: 'center',
+  },
+  emptySub: {
+    ...type.body,
+    color: colors.muted2,
+    textAlign: 'center',
+  },
+  emptyBtn: {
+    marginTop: spacing.md,
   },
   rows: {
     overflow: 'hidden',

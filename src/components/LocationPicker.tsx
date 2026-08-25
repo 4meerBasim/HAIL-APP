@@ -6,7 +6,7 @@ import Icon from './Icon';
 import { icons } from './icons';
 import { colors, radius, shadow, spacing, type } from '../theme';
 import { useLanguage } from '../i18n/LanguageContext';
-import { useLocations, type SavedLocation } from '../state/LocationContext';
+import { useLocations } from '../state/LocationContext';
 
 export interface LocationPickerProps {
   visible: boolean;
@@ -17,9 +17,7 @@ export interface LocationPickerProps {
 export default function LocationPicker({ visible, onClose, onOpenMap }: LocationPickerProps) {
   const { t } = useLanguage();
   const insets = useSafeAreaInsets();
-  const { locations, selected, selectLocation, toggleFavourite } = useLocations();
-
-  const labelOf = (l: SavedLocation) => (l.labelKey ? t(l.labelKey) : (l.label ?? ''));
+  const { locations, selected, selectLocation, toggleFavourite, hydrated } = useLocations();
 
   const pick = (id: string) => {
     selectLocation(id);
@@ -37,55 +35,59 @@ export default function LocationPicker({ visible, onClose, onOpenMap }: Location
         >
           <Text style={styles.title}>{t('location.deliverTo')}</Text>
 
-          <ScrollView style={styles.list} showsVerticalScrollIndicator={false}>
-            {locations.map((l) => {
-              const on = l.id === selected?.id;
-              return (
-                <TouchableOpacity
-                  key={l.id}
-                  activeOpacity={0.8}
-                  onPress={() => pick(l.id)}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: on }}
-                  style={styles.row}
-                >
-                  <View style={[styles.tile, on && styles.tileOn]}>
-                    <Icon
-                      path={icons.pin}
-                      size={16}
-                      color={on ? colors.white : colors.body}
-                      strokeWidth={1.9}
-                    />
-                  </View>
-
-                  <View style={styles.rowText}>
-                    <Text style={styles.rowLabel} numberOfLines={1}>
-                      {labelOf(l)}
-                    </Text>
-                    <Text style={styles.rowAddress} numberOfLines={1}>
-                      {l.address}
-                    </Text>
-                  </View>
-
+          {!hydrated ? null : locations.length === 0 ? (
+            <Text style={styles.empty}>{t('addresses.empty.title')}</Text>
+          ) : (
+            <ScrollView style={styles.list} showsVerticalScrollIndicator={false}>
+              {locations.map((l) => {
+                const on = l.id === selected?.id;
+                return (
                   <TouchableOpacity
-                    activeOpacity={0.7}
-                    onPress={() => toggleFavourite(l.id)}
-                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    key={l.id}
+                    activeOpacity={0.8}
+                    onPress={() => pick(l.id)}
                     accessibilityRole="button"
-                    accessibilityState={{ selected: l.favourite }}
-                    accessibilityLabel={t('location.markFavourite')}
+                    accessibilityState={{ selected: on }}
+                    style={styles.row}
                   >
-                    <Icon
-                      path={icons.star}
-                      size={17}
-                      color={l.favourite ? colors.gold : colors.faint2}
-                      strokeWidth={1.9}
-                    />
+                    <View style={[styles.tile, on && styles.tileOn]}>
+                      <Icon
+                        path={icons.pin}
+                        size={16}
+                        color={on ? colors.white : colors.body}
+                        strokeWidth={1.9}
+                      />
+                    </View>
+
+                    <View style={styles.rowText}>
+                      <Text style={styles.rowLabel} numberOfLines={1}>
+                        {l.label || t('location.pinned')}
+                      </Text>
+                      <Text style={styles.rowAddress} numberOfLines={1}>
+                        {l.address}
+                      </Text>
+                    </View>
+
+                    <TouchableOpacity
+                      activeOpacity={0.7}
+                      onPress={() => toggleFavourite(l.id)}
+                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: l.favourite }}
+                      accessibilityLabel={t('location.markFavourite')}
+                    >
+                      <Icon
+                        path={icons.star}
+                        size={17}
+                        color={l.favourite ? colors.gold : colors.faint2}
+                        strokeWidth={1.9}
+                      />
+                    </TouchableOpacity>
                   </TouchableOpacity>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
+                );
+              })}
+            </ScrollView>
+          )}
 
           <View style={styles.divider} />
 
@@ -131,6 +133,11 @@ const styles = StyleSheet.create({
   },
   list: {
     maxHeight: 260,
+  },
+  empty: {
+    ...type.body,
+    color: colors.muted,
+    paddingVertical: spacing.lg,
   },
   row: {
     flexDirection: 'row',
