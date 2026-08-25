@@ -150,11 +150,20 @@ export default function LoginScreen({ navigation }: RootStackScreenProps<'Login'
   const phoneReady = phone.replace(/\D/g, '').length >= 10;
   const codeReady = code.length === CODE_LENGTH;
 
+  // The field sits behind a +964 chip, so what the customer types is the local
+  // part of the number and the dial code has to be put back before it is sent.
+  // Sending the field raw is how 7817768081 reaches the API as an already
+  // international number: +7 is Russia, and the code goes to a stranger.
+  //
+  // The trunk zero and a repeated country code are both stripped, so 0781…,
+  // 781… and 964781… are one customer rather than three accounts.
+  const e164 = `${DIAL_CODE}${phone.replace(/\D/g, '').replace(/^964/, '').replace(/^0+/, '')}`;
+
   const onSend = async () => {
     if (pending) return;
     setPending(true);
     setFailure(null);
-    const result = await requestOtp(phone);
+    const result = await requestOtp(e164);
     setPending(false);
     if (result.ok) {
       setSent(true);
@@ -280,7 +289,7 @@ export default function LoginScreen({ navigation }: RootStackScreenProps<'Login'
                 </View>
 
                 <View style={styles.field}>
-                  <Text style={[styles.fieldLabel, readingSide]}>{phone}</Text>
+                  <Text style={[styles.fieldLabel, readingSide]}>{e164}</Text>
                   <TextInput
                     value={code}
                     onChangeText={(v) => {
