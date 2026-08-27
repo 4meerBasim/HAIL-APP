@@ -1,7 +1,11 @@
 # Phone OTP sign-in
 
-Status: shipped
-Summary: Signing in sends a real four-digit code to the customer's phone and exchanges it for an API token, replacing the mock that accepted any four digits.
+Status: deprecated
+Summary: Signing in sent a real four-digit code to the customer's phone and exchanged it for an API token. Superseded by [[on-device-sign-in]] — the API connection was taken out and there is no code step any more.
+
+> **Deprecated.** Everything below describes the API-backed flow as it was, kept
+> because it is what the backend still implements and what this app will talk to
+> again. None of it is live in the app today.
 
 ## Details
 The backend is the Laravel API in the separate `JAREESH-API` repo. It generates the

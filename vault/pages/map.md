@@ -5,5 +5,5 @@ Summary: Drop a pin to add a delivery address; saving it selects it and returns 
 
 ## Related
 - Connects to: [[addresses]], [[cart]], [[plans]]
-- Features: [[real-customer-data-only]]
+- Features: [[on-device-sign-in]], [[real-customer-data-only]]
 - Bugs: [[seeded-addresses-survive-upgrade]], [[unnamed-pin-label-inconsistent]], [[location-hydration-has-no-loaded-flag]], [[cart-map-preview-without-an-address]]

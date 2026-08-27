@@ -29,5 +29,5 @@ there is nothing finer to report.
 
 ## Related
 - Page: [[login]], [[profile]]
-- Feature: [[phone-otp-sign-in]], [[guest-mode]]
+- Feature: [[on-device-sign-in]], [[phone-otp-sign-in]], [[guest-mode]]
 - Enhancements: [[phone-screen-assumes-a-phone]], [[resend-code-button]]
