@@ -5,5 +5,5 @@ Summary: One meal, swipeable through the rest of its day — photo, macros, size
 
 ## Related
 - Connects to: [[single-meals]], [[menu]], [[box-detail]], [[plan-builder]], [[cart]], [[upcoming]]
-- Features: [[scrolling-hero]]
+- Features: [[scrolling-hero]], [[built-meal-detail-from-cart]]
 - Bugs: [[dish-page-build-flash]]

@@ -30,12 +30,27 @@ import {
   parsePrice,
 } from '../data/menu';
 import { priceOf, sizes } from '../data/extras';
+import {
+  BUILT_MEAL_ID,
+  ingredientPriceAt,
+  isByWeight as isPartByWeight,
+  gramsOf as partGramsOf,
+  mealMacros,
+  mealPrice,
+  parseBuildKey,
+} from '../data/ingredients';
 import { type MealBuild, emptyBuild, useMealBuild } from '../state/MealBuildContext';
 import { useCart } from '../state/CartContext';
 import { usePlan } from '../state/PlanContext';
 import type { RootStackScreenProps } from '../navigation/RootNavigator';
 
 const DEFAULT_DISH_ID = 'quzi';
+
+/** A built meal read back out of a cart line's key. */
+interface BuiltMeal {
+  picked: string[];
+  grams: Record<string, number>;
+}
 // How far a finger has to travel sideways before letting go counts as a page
 // turn rather than a tap that wandered. A flick past the velocity threshold
 // turns the page whatever the distance.
@@ -64,6 +79,10 @@ interface PageProps {
   active: boolean;
   /** Null on a plan meal: the kitchen batches those, so they are not built. */
   build: MealBuild | null;
+  /** A meal assembled on the Menu tab, reopened from the basket. Read-only —
+   *  it is already in the cart, so this page says what is in it, not how to
+   *  change it. */
+  built: BuiltMeal | null;
   onSize: (id: string) => void;
   onOpenExtras: () => void;
   onClearAdded: () => void;
@@ -86,6 +105,7 @@ function DishPage({
   width,
   active,
   build,
+  built,
   onSize,
   onOpenExtras,
   onClearAdded,
@@ -100,14 +120,29 @@ function DishPage({
   // customer is no longer ordering.
   const portion = sizes.find((size) => size.id === build?.size)?.portion ?? 1;
   const base = dishMacros[dish.id];
-  const macros = base
-    ? {
-        calories: base.calories * portion,
-        protein: base.protein * portion,
-        carbs: base.carbs * portion,
-        fat: base.fat * portion,
-      }
-    : undefined;
+  // A built meal has no figures of its own — it is whatever went into it, so
+  // its nutrition is summed from the parts rather than looked up.
+  const macros = built
+    ? mealMacros(built.picked, built.grams)
+    : base
+      ? {
+          calories: base.calories * portion,
+          protein: base.protein * portion,
+          carbs: base.carbs * portion,
+          fat: base.fat * portion,
+        }
+      : undefined;
+
+  // Each part, named at the weight it was ordered at, priced as it was charged.
+  const builtParts = built
+    ? built.picked.map((id) => ({
+        id,
+        label: isPartByWeight(id)
+          ? `${t(`ing.${id}`)} · ${formatNumber(built.grams[id] ?? partGramsOf(id))}${t('detail.gram')}`
+          : t(`ing.${id}`),
+        price: ingredientPriceAt(id, built.grams[id]),
+      }))
+    : [];
   const description = t(`detail.${dish.id}.desc`, dish.sub);
   // What comes in the box, straight off the offer sheet's own "+" list.
   const parts = dishParts(lang === 'ar' ? dish.sub : t(`dish.${dish.id}.sub`, dish.sub));
@@ -149,7 +184,7 @@ function DishPage({
 
         <Text style={styles.desc}>{description}</Text>
 
-        {!build && parts.length > 0 ? (
+        {!build && !built && parts.length > 0 ? (
           <View style={styles.chips}>
             {parts.map((part) => (
               <View key={part} style={styles.chip}>
@@ -167,6 +202,27 @@ function DishPage({
                 {t('opt.macrosFor').replace('{size}', t(`opt.${build?.size}`))}
               </Text>
             ) : null}
+          </View>
+        ) : null}
+
+        {/* What went in the box, itemised. The meal is already in the basket,
+            so this states it rather than offering to change it — the place to
+            build another is the tab it was built on. */}
+        {built ? (
+          <View style={styles.total}>
+            {builtParts.map((part) => (
+              <View key={part.id} style={styles.totalLine}>
+                <Text style={styles.totalLabel} numberOfLines={1}>
+                  {part.label}
+                </Text>
+                <Text style={styles.totalValue}>{money(part.price)}</Text>
+              </View>
+            ))}
+            <View style={styles.totalRule} />
+            <View style={styles.totalLine}>
+              <Text style={styles.totalGrand}>{t('opt.total')}</Text>
+              <Text style={styles.totalGrandValue}>{money(unit)}</Text>
+            </View>
           </View>
         ) : null}
 
@@ -382,6 +438,13 @@ export default function DishDetailScreen({ route, navigation }: RootStackScreenP
   // A meal ordered on its own is built by the customer; one arriving under a
   // plan is not, so the whole block is absent rather than disabled.
   const fromPlan = route.params?.fromPlan === true;
+  // Opened from the basket: the parts and the weights come back out of the cart
+  // line's own key, which is the only place a built meal is recorded.
+  const builtKey = route.params?.built;
+  const built = useMemo<BuiltMeal | null>(
+    () => (builtKey ? parseBuildKey(builtKey) : null),
+    [builtKey],
+  );
   const { build, start, load, setSize, clearAdded } = useMealBuild();
   const { setMealBuild, subscription } = usePlan();
   // A plan meal is already paid for, so this page does not sell it. It opens
@@ -527,25 +590,55 @@ export default function DishDetailScreen({ route, navigation }: RootStackScreenP
    */
   const buildFor = useCallback(
     (dishId: string, active: boolean): MealBuild | null => {
+      // A built meal reopened from the basket is already made and already paid
+      // into the cart, so it gets no size control and no extras row — the
+      // sizes and extras here belong to plated dishes, not to one assembled
+      // out of weighed parts.
+      if (built && dishId === BUILT_MEAL_ID) return null;
       if (fromPlan && !(active && editing)) return null;
       return build.dishId === dishId ? build : emptyBuild(dishId);
     },
-    [build, editing, fromPlan],
+    [build, built, editing, fromPlan],
   );
 
   const priceWith = useCallback(
-    (d: Dish, mealBuild: MealBuild | null): number =>
-      parsePrice(d.price) +
-      (mealBuild
-        ? priceOf(mealBuild.size) +
-          mealBuild.extras.reduce((sum, id) => sum + priceOf(id), 0) +
-          Object.entries(mealBuild.items).reduce(
-            (sum, [id, n]) => sum + parsePrice(getDish(id)?.price ?? '0') * n,
-            0,
-          )
-        : 0),
-    [],
+    (d: Dish, mealBuild: MealBuild | null): number => {
+      // The built meal's listed price is 0 — it is worth what went into it, so
+      // it is priced from its parts at the weights they were ordered at.
+      if (built && d.id === BUILT_MEAL_ID) return mealPrice(built.picked, built.grams);
+      return (
+        parsePrice(d.price) +
+        (mealBuild
+          ? priceOf(mealBuild.size) +
+            mealBuild.extras.reduce((sum, id) => sum + priceOf(id), 0) +
+            Object.entries(mealBuild.items).reduce(
+              (sum, [id, n]) => sum + parsePrice(getDish(id)?.price ?? '0') * n,
+              0,
+            )
+          : 0)
+      );
+    },
+    [built],
   );
+
+  // Adding from a reopened built meal means "another one of exactly this",
+  // so it carries the key it came in on and lands back on the basket line it
+  // was opened from. Without this the page would add a bare `built-meal` line
+  // at its listed price, which is zero.
+  const builtBuild =
+    built && builtKey
+      ? {
+          key: builtKey,
+          label: built.picked
+            .map((id) =>
+              isPartByWeight(id)
+                ? `${t(`ing.${id}`)} ${formatNumber(built.grams[id] ?? partGramsOf(id))}${t('detail.gram')}`
+                : t(`ing.${id}`),
+            )
+            .join(' + '),
+          unit: mealPrice(built.picked, built.grams),
+        }
+      : null;
 
   // The active page's figures, for the cart and the bar at the foot.
   const mine = buildFor(dish.id, true);
@@ -658,6 +751,7 @@ export default function DishDetailScreen({ route, navigation }: RootStackScreenP
               qty={i === at ? qty : 1}
               onQty={setQty}
               build={buildFor(d.id, i === at)}
+              built={d.id === BUILT_MEAL_ID ? built : null}
               onSize={setSize}
               onOpenExtras={() => navigation.navigate('MealExtras')}
               onClearAdded={clearAdded}
@@ -677,7 +771,11 @@ export default function DishDetailScreen({ route, navigation }: RootStackScreenP
                 addItem(
                   d.id,
                   qty,
-                  summary ? { key: summary, label: summary, unit } : undefined,
+                  d.id === BUILT_MEAL_ID && builtBuild
+                    ? builtBuild
+                    : summary
+                      ? { key: summary, label: summary, unit }
+                      : undefined,
                 );
                 // Back to the list, where the bar above the tabs now carries
                 // the new total — going straight to checkout ended the browse.
