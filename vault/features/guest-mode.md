@@ -28,5 +28,5 @@ The Orders tab renders a sign-in prompt rather than a generic empty state — "y
 ## Related
 - Page: [[login]], [[plans]], [[boxes]], [[box-detail]], [[subscribe]], [[cart]], [[orders]], [[profile]], [[menu]], [[plan-builder]], [[inbox]]
 - Feature: [[logout-confirmation]], [[phone-otp-sign-in]], [[real-customer-data-only]]
-- Bugs: [[customer-data-survives-sign-out]]
+- Bugs: [[customer-data-survives-sign-out]], [[guest-orders-login-button-misaligned]]
 - Enhancements: [[real-notification-source]]

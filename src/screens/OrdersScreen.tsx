@@ -75,8 +75,8 @@ export default function OrdersScreen({ navigation }: TabScreenProps<'Orders'>) {
           <Button
             label={t('login.title')}
             size="md"
+            full
             onPress={() => navigation.navigate('Login')}
-            style={styles.guestBtn}
           />
         </Reveal>
       </Screen>
@@ -198,7 +198,7 @@ const styles = StyleSheet.create({
   },
   empty: {
     alignItems: 'center',
-    gap: spacing.lg,
+    gap: spacing.xl,
     paddingTop: spacing.giant,
     paddingHorizontal: spacing.xxl,
   },
@@ -220,9 +220,6 @@ const styles = StyleSheet.create({
     ...type.body,
     color: colors.muted2,
     textAlign: 'center',
-  },
-  guestBtn: {
-    marginTop: spacing.md,
   },
   planCard: {
     borderRadius: radius.xl,
