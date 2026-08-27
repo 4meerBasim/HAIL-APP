@@ -6,4 +6,4 @@ Summary: The live order and the receipt archive — or, for a guest, the reason 
 ## Related
 - Connects to: [[cart]], [[upcoming]], [[login]], [[profile]], [[tracking]]
 - Features: [[guest-mode]], [[real-customer-data-only]]
-- Bugs: [[customer-data-survives-sign-out]], [[tracking-shows-demo-order]]
+- Bugs: [[customer-data-survives-sign-out]], [[tracking-shows-demo-order]], [[guest-orders-login-button-misaligned]]
