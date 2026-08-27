@@ -60,7 +60,9 @@ export type RootStackParamList = {
   // `siblings` is the day's whole rotation and `fromPlan` marks a meal that
   // arrives under a subscription — those are cooked as specified, so they are
   // not customisable.
-  DishDetail: { id: string; siblings?: string[]; fromPlan?: boolean };
+  /** `built` carries a cart line's build key, so a meal assembled on the Menu
+   *  tab can be reopened read-only from the basket. */
+  DishDetail: { id: string; siblings?: string[]; fromPlan?: boolean; built?: string };
   MealExtras: undefined;
   Cart: undefined;
   PastOrders: undefined;

@@ -22,6 +22,7 @@ import {
   formatPrice,
   groupNumber,
 } from '../data/menu';
+import { BUILT_MEAL_ID } from '../data/ingredients';
 import { type StoredCard, brandLabel } from '../data/card';
 import { useCart } from '../state/CartContext';
 import { useOrders } from '../state/OrdersContext';
@@ -34,7 +35,7 @@ import Icon from '../components/Icon';
 import { icons } from '../components/icons';
 import Card from '../components/Card';
 import CartItemCard from '../components/CartItemCard';
-import CartRow from '../components/CartRow';
+import CartRow, { type CartItem } from '../components/CartRow';
 import DashedRule from '../components/DashedRule';
 import Button from '../components/Button';
 import Dialog from '../components/Dialog';
@@ -88,6 +89,20 @@ export default function CartScreen({ navigation }: RootStackScreenProps<'Cart'>)
     }
     changeQty(id, -1);
   };
+
+  // A meal assembled on the Menu tab has no page of its own — its parts live
+  // only in this line's build key, so the key is what reopens it, read-only.
+  // Every other line is a real dish already on the menu and opens nothing from
+  // here. Shared, because the cart draws one line as a row and several as
+  // cards, and the built meal is far more often the only thing in the basket.
+  const openBuilt = (it: CartItem): (() => void) | undefined =>
+    it.dishId === BUILT_MEAL_ID
+      ? () =>
+          navigation.navigate('DishDetail', {
+            id: it.dishId,
+            built: it.id.slice(it.id.indexOf('|') + 1),
+          })
+      : undefined;
 
   // Confirming is what creates the order — Orders and Tracking have nothing to
   // show until this runs, so it has to record the cart before navigating away.
@@ -166,6 +181,7 @@ export default function CartScreen({ navigation }: RootStackScreenProps<'Cart'>)
               item={items[0]}
               onInc={() => changeQty(items[0].id, 1)}
               onDec={() => onDec(items[0].id, items[0].qty)}
+              onOpen={openBuilt(items[0])}
             />
           ) : (
             <ScrollView
@@ -181,6 +197,7 @@ export default function CartScreen({ navigation }: RootStackScreenProps<'Cart'>)
                   width={width * 0.44}
                   onInc={() => changeQty(it.id, 1)}
                   onDec={() => onDec(it.id, it.qty)}
+                  onOpen={openBuilt(it)}
                 />
               ))}
             </ScrollView>

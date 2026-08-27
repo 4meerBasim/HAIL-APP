@@ -33,28 +33,41 @@ export interface CartRowProps {
   item: CartItem;
   onInc: () => void;
   onDec: () => void;
+  /** Opens the line. Only the photo and the text take the press — the quantity
+   *  buttons stay outside it, because a touchable wrapping a touchable is how
+   *  the +/- stop responding. */
+  onOpen?: () => void;
   style?: StyleProp<ViewStyle>;
 }
 
-export default function CartRow({ item, onInc, onDec, style }: CartRowProps) {
+export default function CartRow({ item, onInc, onDec, onOpen, style }: CartRowProps) {
   const { t, lang } = useLanguage();
   const name = lang === 'ar' ? item.name : t(`dish.${item.dishId}.name`, item.name);
   const last = item.qty <= 1;
 
   return (
     <View style={[styles.row, shadow.lifted, style]}>
-      <Image source={item.image} style={styles.image} resizeMode="cover" />
-      <View style={styles.info}>
-        <Text style={styles.name} numberOfLines={1}>
-          {name}
-        </Text>
-        {item.note ? (
-          <Text style={styles.note} numberOfLines={2}>
-            {item.note}
+      <TouchableOpacity
+        activeOpacity={onOpen ? 0.75 : 1}
+        disabled={!onOpen}
+        onPress={onOpen}
+        accessibilityRole={onOpen ? 'button' : undefined}
+        accessibilityLabel={onOpen ? name : undefined}
+        style={styles.head}
+      >
+        <Image source={item.image} style={styles.image} resizeMode="cover" />
+        <View style={styles.info}>
+          <Text style={styles.name} numberOfLines={1}>
+            {name}
           </Text>
-        ) : null}
-        <Text style={styles.price}>{formatPrice(item.price, lang)}</Text>
-      </View>
+          {item.note ? (
+            <Text style={styles.note} numberOfLines={2}>
+              {item.note}
+            </Text>
+          ) : null}
+          <Text style={styles.price}>{formatPrice(item.price, lang)}</Text>
+        </View>
+      </TouchableOpacity>
       <View style={styles.stepper}>
         {/* Drawn rather than typed: a text '+' sits on its own baseline and
             rides high in a circle, and '−' and '×' each ride differently
@@ -102,6 +115,14 @@ const styles = StyleSheet.create({
     borderColor: colors.sand,
     paddingHorizontal: 12,
     paddingVertical: 11,
+  },
+  // The photo and the text are one press target, laid out the way they used to
+  // sit directly in the row — so the row still reads as photo, text, stepper.
+  head: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 13,
   },
   image: {
     width: 60,
