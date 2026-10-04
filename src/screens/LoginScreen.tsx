@@ -18,8 +18,10 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Button from '../components/Button';
+import Icon from '../components/Icon';
+import { icons } from '../components/icons';
 import { colors, fonts, overlay, radius, shadow, spacing, type } from '../theme';
-import { useLanguage } from '../i18n/LanguageContext';
+import { type Lang, useLanguage } from '../i18n/LanguageContext';
 import { useAuth, type IdentityChannel, type SignInFailure } from '../state/AuthContext';
 import type { RootStackScreenProps } from '../navigation/RootNavigator';
 
@@ -47,7 +49,7 @@ const PATCH_TOP = 320;
 const PATCH_SIDE = 225;
 
 export default function LoginScreen({ navigation }: RootStackScreenProps<'Login'>) {
-  const { t, isRTL } = useLanguage();
+  const { t, isRTL, setLang } = useLanguage();
   const insets = useSafeAreaInsets();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const { signIn, continueAsGuest } = useAuth();
@@ -210,8 +212,13 @@ export default function LoginScreen({ navigation }: RootStackScreenProps<'Login'
   // field, so the order is reversed back under RTL.
   const phoneRowSide = { flexDirection: isRTL ? 'row-reverse' : 'row' } as const;
 
+  // The toggle offers the language the customer is not in, shown under its own
+  // endonym — "English" while reading Arabic, "العربية" while reading English —
+  // so each name is legible to the speaker it is offered to.
+  const otherLang: Lang = isRTL ? 'en' : 'ar';
+
   return (
-    <View style={styles.root}>
+    <View style={[styles.root, { direction: isRTL ? 'rtl' : 'ltr' }]}>
       <StatusBar style="light" />
       <LinearGradient
         colors={GRADIENT_COLORS}
@@ -340,6 +347,22 @@ export default function LoginScreen({ navigation }: RootStackScreenProps<'Login'
           </View>
         </Animated.View>
       </TouchableWithoutFeedback>
+
+      {/* Sits above the content so the keyboard lift never carries it off, and
+          at the reading-end corner within the safe area. `end` resolves against
+          the root's direction, set from the language, so it stays in the corner
+          under both scripts. */}
+      <TouchableOpacity
+        activeOpacity={0.8}
+        onPress={() => void setLang(otherLang)}
+        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        accessibilityRole="button"
+        accessibilityLabel={t('login.switchLanguage')}
+        style={[styles.langToggle, { top: insets.top + spacing.sm, end: spacing.huge }]}
+      >
+        <Icon path={icons.globe} size={15} color={colors.white} strokeWidth={1.8} />
+        <Text style={styles.langToggleText}>{t(`lang.${otherLang}.native`)}</Text>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -528,5 +551,20 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.tealText,
     textAlign: 'center',
+  },
+  langToggle: {
+    position: 'absolute',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.pill,
+    backgroundColor: overlay.white16,
+  },
+  langToggleText: {
+    fontFamily: fonts.semibold,
+    fontSize: 13,
+    color: colors.white,
   },
 });

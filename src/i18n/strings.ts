@@ -62,6 +62,8 @@ export const ar: Dict = {
 
   'lang.ar': 'عربي',
   'lang.en': 'EN',
+  'lang.ar.native': 'العربية',
+  'lang.en.native': 'English',
 
   'tag.healthy': 'صحي',
   'tag.regular': 'عادي',
@@ -655,6 +657,7 @@ export const ar: Dict = {
   'dish.meatballs.sub': 'رز أبيض + طرشي + خبز + لبن',
 
   'login.title': 'تسجيل الدخول',
+  'login.switchLanguage': 'تغيير اللغة',
   'login.subtitle': 'سجّل برقمك ونوصلك وجباتك',
   'login.phoneLabel': 'رقم الهاتف',
   'login.codeSent': 'أدخل الرمز',
@@ -731,6 +734,8 @@ export const en: Dict = {
 
   'lang.ar': 'عربي',
   'lang.en': 'EN',
+  'lang.ar.native': 'العربية',
+  'lang.en.native': 'English',
 
   'tag.healthy': 'Healthy',
   'tag.regular': 'Regular',
@@ -1323,6 +1328,7 @@ export const en: Dict = {
   'dish.meatballs.sub': 'White rice + pickles + bread + laban',
 
   'login.title': 'Sign in',
+  'login.switchLanguage': 'Change language',
   'login.subtitle': 'Sign in with your number and we deliver',
   'login.phoneLabel': 'Phone number',
   'login.codeSent': 'Enter the code',

@@ -27,18 +27,17 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   const [lang, setLangState] = useState<Lang>('ar');
   const [ready, setReady] = useState(false);
 
-  // Arabic-only. The `en` dictionary and the `Lang` union stay in place so the
-  // option can be turned back on by restoring the stored-value read below, but
-  // nothing in the running app can reach it: the switcher is gone from Profile
-  // and any 'en' left in storage from a previous build is overwritten on boot,
-  // so an existing install comes back in Arabic rather than stuck in English.
   useEffect(() => {
     let active = true;
     (async () => {
-      await AsyncStorage.setItem(STORAGE_KEY, 'ar');
-      applyRTL('ar');
+      const stored = await AsyncStorage.getItem(STORAGE_KEY);
+      const initial: Lang = stored === 'ar' || stored === 'en' ? stored : 'ar';
+      if (stored !== 'ar' && stored !== 'en') {
+        await AsyncStorage.setItem(STORAGE_KEY, 'ar');
+      }
+      applyRTL(initial);
       if (active) {
-        setLangState('ar');
+        setLangState(initial);
         setReady(true);
       }
     })();
@@ -47,8 +46,10 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  const setLang = useCallback(async (_l: Lang) => {
-    // Intentionally inert while the app is Arabic-only.
+  const setLang = useCallback(async (l: Lang) => {
+    await AsyncStorage.setItem(STORAGE_KEY, l);
+    applyRTL(l);
+    setLangState(l);
   }, []);
 
   const t = useCallback(

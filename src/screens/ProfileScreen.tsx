@@ -12,8 +12,8 @@ import Dialog from '../components/Dialog';
 import PressScale from '../components/PressScale';
 import SectionHeader from '../components/SectionHeader';
 import SettingRow from '../components/SettingRow';
-import { colors, overlay, radius, shadow, spacing, type } from '../theme';
-import { useLanguage } from '../i18n/LanguageContext';
+import { colors, fonts, overlay, radius, shadow, spacing, type } from '../theme';
+import { type Lang, useLanguage } from '../i18n/LanguageContext';
 import { formatNumber } from '../i18n/digits';
 import { useOrders } from '../state/OrdersContext';
 import { useAuth } from '../state/AuthContext';
@@ -40,8 +40,10 @@ const SETTINGS_ROWS: Row[] = [
   { key: 'support', icon: 'chat' },
 ];
 
+const LANGS: Lang[] = ['ar', 'en'];
+
 export default function ProfileScreen({ navigation }: TabScreenProps<'Profile'>) {
-  const { t, isRTL } = useLanguage();
+  const { t, lang, isRTL, setLang } = useLanguage();
   const { status, user, signOut } = useAuth();
   const { subscription } = usePlan();
   const { orders } = useOrders();
@@ -187,6 +189,33 @@ export default function ProfileScreen({ navigation }: TabScreenProps<'Profile'>)
         <SectionHeader title={t('profile.settings')} />
         <Card padding={0} style={styles.rows}>
           {SETTINGS_ROWS.map((row, i) => renderRow(row, i === 0))}
+          <SettingRow
+            icon="globe"
+            label={t('profile.language')}
+            trailing={
+              <View style={styles.segment}>
+                {LANGS.map((l) => {
+                  const on = lang === l;
+                  return (
+                    <TouchableOpacity
+                      key={l}
+                      activeOpacity={0.8}
+                      onPress={() => void setLang(l)}
+                      hitSlop={{ top: 10, bottom: 10 }}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: on }}
+                      accessibilityLabel={t(`lang.${l}`)}
+                      style={[styles.segmentItem, on && styles.segmentItemOn]}
+                    >
+                      <Text style={[styles.segmentText, on && styles.segmentTextOn]}>
+                        {t(`lang.${l}`)}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            }
+          />
         </Card>
       </View>
 
@@ -314,5 +343,28 @@ const styles = StyleSheet.create({
   },
   rows: {
     overflow: 'hidden',
+  },
+  segment: {
+    flexDirection: 'row',
+    backgroundColor: colors.sandChip,
+    borderRadius: radius.pill,
+    padding: 3,
+    gap: 2,
+  },
+  segmentItem: {
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: 6,
+  },
+  segmentItemOn: {
+    backgroundColor: colors.teal,
+  },
+  segmentText: {
+    fontFamily: fonts.bold,
+    fontSize: 12,
+    color: colors.muted2,
+  },
+  segmentTextOn: {
+    color: colors.white,
   },
 });
