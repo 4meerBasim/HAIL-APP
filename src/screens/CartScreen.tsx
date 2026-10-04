@@ -70,8 +70,8 @@ export default function CartScreen({ navigation }: RootStackScreenProps<'Cart'>)
   const [note, setNote] = useState('');
   const [why, setWhy] = useState<'delivery' | 'service' | null>(null);
   const [noteOn, setNoteOn] = useState(false);
-  const [drop, setDrop] = useStoredState<DropChoice>('@jareesh/drop', 'hand');
-  const [card] = useStoredState<StoredCard | null>('@jareesh/card', null);
+  const [drop, setDrop] = useStoredState<DropChoice>('@hail/drop', 'hand');
+  const [card] = useStoredState<StoredCard | null>('@hail/card', null);
 
   const readingSide = { textAlign: 'auto', writingDirection: isRTL ? 'rtl' : 'ltr' } as const;
   const chevron = isRTL ? icons.chevronLeft : icons.chevronRight;

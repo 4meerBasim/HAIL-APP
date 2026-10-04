@@ -34,7 +34,7 @@ import type { TabScreenProps } from '../navigation/RootNavigator';
 // explicit dimensions — an absolute child pinned to opposite edges would
 // collapse to one stretched motif instead.
 const PATTERN_GOLD = require('../../assets/pattern-arabic-gold.png');
-const LOGO = require('../../assets/logo-jareesh.jpg');
+const LOGO = require('../../assets/logo-hail.png');
 const PATCH_SM = 128;
 
 const HEADER_GRADIENT = [colors.tealDark, colors.tealMid] as const;

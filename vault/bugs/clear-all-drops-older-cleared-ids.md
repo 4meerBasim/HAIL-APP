@@ -18,7 +18,7 @@ absent from `items` is everything already in `cleared`. Assigning
 complement.
 
 Clear the inbox, receive two more notifications, clear again: the second sweep
-writes only those two ids, the first batch is no longer in `@jareesh/notifications-cleared`,
+writes only those two ids, the first batch is no longer in `@hail/notifications-cleared`,
 and it reappears on the next render. The customer clears their inbox and it
 refills with things they already dismissed.
 

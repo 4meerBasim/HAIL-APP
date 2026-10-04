@@ -1,4 +1,4 @@
-# Jareesh (جريش) — React Native Build Spec (single source of truth)
+# Hail (هيل) — React Native Build Spec (single source of truth)
 
 Iraqi-kitchen restaurant app. **Arabic-first RTL**, with an EN (LTR) toggle. Expo + TypeScript + React Navigation.
 Clone the design in `design-reference/jareesh-design.html` (11 screens, marked `<!-- 01 SPLASH -->` … `<!-- 11 ENGLISH HOME -->`) and `design-reference/tabbar.html`.
@@ -120,7 +120,7 @@ Hero/banner image: `Iraqi%20dinner%20spread.jpg?width=1200`.
 ## Tracking logic (screen 07)
 - states: preparing/ontheway/delivered → step idx 0/1/2. steps [قيد التحضير, في الطريق, تم التوصيل].
 - headlines: preparing «مطبخنا يحضّر طلبك», ontheway «كرار في الطريق إليك», delivered «وصل طلبك — بالعافية!». default ontheway.
-- Order #٤٨٢١ · وجبة الغداء · 18 min. Driver: كرار محمد, سائق جريش · دراجة كهربائية.
+- Order #٤٨٢١ · وجبة الغداء · 18 min. Driver: كرار محمد, سائق هيل · دراجة كهربائية.
 - Animate: dashed route line (stroke-dasharray, animate dashoffset), pulsing driver marker + live dot (use Reanimated or Animated loop). Map is a stylized grid background with rounded blob shapes (no real map SDK).
 
 ## Navigation map

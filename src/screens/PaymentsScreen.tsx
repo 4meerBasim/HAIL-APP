@@ -22,8 +22,8 @@ const METHODS: { id: string; icon: IconName }[] = [
 
 export default function PaymentsScreen({ navigation }: RootStackScreenProps<'Payments'>) {
   const { t } = useLanguage();
-  const [method, setMethod, reloadMethod] = useStoredState('@jareesh/payment-method', 'cash');
-  const [card, , reloadCard] = useStoredState<StoredCard | null>('@jareesh/card', null);
+  const [method, setMethod, reloadMethod] = useStoredState('@hail/payment-method', 'cash');
+  const [card, , reloadCard] = useStoredState<StoredCard | null>('@hail/card', null);
 
   // The card form writes both keys and pops straight back to here, so this
   // screen has to re-read them when it comes forward rather than trusting what

@@ -33,7 +33,7 @@ const SPIN_MS = 40000;
 // mid-flight, and the gap between the two is what reads as lag; this tracks it.
 const KEYBOARD_CURVE = Easing.bezier(0.38, 0.7, 0.125, 1);
 const DIAL_CODE = '+964';
-const LOGO = require('../../assets/logo-jareesh.jpg');
+const LOGO = require('../../assets/logo-hail.png');
 // Shipped at 1x/2x/3x so `repeat` tiles off the ~139pt base rather than the
 // full-width source, which would read as one stretched motif instead of texture.
 const PATTERN = require('../../assets/pattern-arabic.jpg');

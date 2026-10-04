@@ -22,7 +22,7 @@ export interface Dish {
   image: ImageSourcePropType;
 }
 
-// Catering photos came off the restaurant's live menu (menu.jareesh.com) and
+// Catering photos came off the restaurant's live menu (SUPPORT_SITE) and
 // are now bundled: every image in the app ships with it, so nothing on screen
 // waits on a network that a customer in a lift does not have.
 

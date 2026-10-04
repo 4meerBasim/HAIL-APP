@@ -1,6 +1,6 @@
 # Project Docs
 
-Rules that govern how work gets done on Jareesh. `CLAUDE.md` imports every file
+Rules that govern how work gets done on Hail. `CLAUDE.md` imports every file
 here, so they load as always-on context.
 
 | File | Purpose |

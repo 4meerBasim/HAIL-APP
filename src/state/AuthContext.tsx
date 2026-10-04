@@ -1,7 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const SESSION_KEY = '@jareesh/session';
+const SESSION_KEY = '@hail/session';
 
 /*
  * Sign-in runs on the device. There is no API behind this build: entering a

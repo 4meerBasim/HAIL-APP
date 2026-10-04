@@ -1,7 +1,7 @@
 export type Dict = Record<string, string>;
 
 export const ar: Dict = {
-  'brand.name': 'جريش',
+  'brand.name': 'هيل',
   'brand.tagline': 'من المطبخ العراقي… إلى بابك',
 
   'common.continue': 'متابعة',
@@ -447,7 +447,7 @@ export const ar: Dict = {
   'cart.empty': 'سلتك فارغة',
 
   'track.live': 'مباشر',
-  'track.restaurant': 'مطعم جريش',
+  'track.restaurant': 'مطعم هيل',
   'track.destination': 'موقعك',
   'track.arrivesAt': 'يصل',
   'track.orderLine': 'طلب #4821 · وجبة الغداء',
@@ -459,7 +459,7 @@ export const ar: Dict = {
   'track.headline.ontheway': 'كرار في الطريق إليك',
   'track.headline.delivered': 'وصل طلبك — بالعافية!',
   'track.driver.name': 'كرار محمد',
-  'track.driver.role': 'سائق جريش · دراجة كهربائية',
+  'track.driver.role': 'سائق هيل · دراجة كهربائية',
   'track.driver.badge': 'كرار · 18 دقيقة',
   'track.call': 'اتصال',
   'track.chat': 'دردشة',
@@ -536,7 +536,7 @@ export const ar: Dict = {
   'profile.notifications': 'الإشعارات',
   'profile.notifications.sub': 'حالة الطلب والعروض',
   'profile.support': 'الدعم والمساعدة',
-  'profile.support.sub': 'تواصل مع فريق جريش',
+  'profile.support.sub': 'تواصل مع فريق هيل',
   'profile.language': 'اللغة',
   'profile.stat.orders': 'الطلبات',
   'profile.signOut': 'تسجيل الخروج',
@@ -591,7 +591,7 @@ export const ar: Dict = {
   'notifications.plan': 'تذكير الاشتراك',
   'notifications.plan.sub': 'قبل كل توصيلة وعند اقتراب نهاية الخطة',
   'notifications.offers': 'العروض والخصومات',
-  'notifications.offers.sub': 'عروض جريش الأسبوعية والمناسبات',
+  'notifications.offers.sub': 'عروض هيل الأسبوعية والمناسبات',
   'inbox.subtitle': 'آخر التحديثات عن طلباتك وخطتك',
   'inbox.clearAll': 'حذف كل الإشعارات',
   'inbox.clear.title': 'حذف كل الإشعارات؟',
@@ -602,13 +602,13 @@ export const ar: Dict = {
   'notifications.prefs': 'إعدادات الإشعارات',
   'notifications.note': 'تُحفظ اختياراتك على هذا الجهاز.',
 
-  'support.subtitle': 'فريق جريش جاهز لمساعدتك',
+  'support.subtitle': 'فريق هيل جاهز لمساعدتك',
   'support.call': 'اتصل بنا',
   'support.call.sub': 'تحدث مع الفريق مباشرة',
   'support.whatsapp': 'واتساب',
   'support.whatsapp.sub': 'أرسل رسالة وسنرد بأسرع وقت',
   'support.site': 'الموقع الإلكتروني',
-  'support.site.sub': 'menu.jareesh.com',
+  'support.site.sub': 'قائمتنا على الإنترنت',
   'support.hours': 'نستقبلكم يومياً من 10 صباحاً حتى 11 مساءً',
 
   'dish.pasta.name': 'باستا بني فورنو',
@@ -670,7 +670,7 @@ export const ar: Dict = {
 };
 
 export const en: Dict = {
-  'brand.name': 'Jareesh',
+  'brand.name': 'Hail',
   'brand.tagline': 'From the Iraqi kitchen… to your door',
 
   'common.continue': 'Continue',
@@ -1115,7 +1115,7 @@ export const en: Dict = {
   'cart.empty': 'Your cart is empty',
 
   'track.live': 'Live',
-  'track.restaurant': 'Jareesh kitchen',
+  'track.restaurant': 'Hail kitchen',
   'track.destination': 'Your address',
   'track.arrivesAt': 'by',
   'track.orderLine': 'Order #4821 · Lunch meal',
@@ -1127,7 +1127,7 @@ export const en: Dict = {
   'track.headline.ontheway': 'Karrar is on the way to you',
   'track.headline.delivered': 'Your order has arrived — enjoy!',
   'track.driver.name': 'Karrar Mohammed',
-  'track.driver.role': 'Jareesh driver · e-bike',
+  'track.driver.role': 'Hail driver · e-bike',
   'track.driver.badge': 'Karrar · 18 min',
   'track.call': 'Call',
   'track.chat': 'Chat',
@@ -1204,7 +1204,7 @@ export const en: Dict = {
   'profile.notifications': 'Notifications',
   'profile.notifications.sub': 'Order status and offers',
   'profile.support': 'Support & help',
-  'profile.support.sub': 'Talk to the Jareesh team',
+  'profile.support.sub': 'Talk to the Hail team',
   'profile.language': 'Language',
   'profile.stat.orders': 'Orders',
   'profile.signOut': 'Sign out',
@@ -1259,7 +1259,7 @@ export const en: Dict = {
   'notifications.plan': 'Subscription reminders',
   'notifications.plan.sub': 'Before each delivery and as your plan runs out',
   'notifications.offers': 'Offers and discounts',
-  'notifications.offers.sub': 'Weekly Jareesh offers and seasonal deals',
+  'notifications.offers.sub': 'Weekly Hail offers and seasonal deals',
   'inbox.subtitle': 'The latest on your orders and plan',
   'inbox.clearAll': 'Delete all notifications',
   'inbox.clear.title': 'Delete all notifications?',
@@ -1270,13 +1270,13 @@ export const en: Dict = {
   'notifications.prefs': 'Notification settings',
   'notifications.note': 'Your choices are stored on this device.',
 
-  'support.subtitle': 'The Jareesh team is here to help',
+  'support.subtitle': 'The Hail team is here to help',
   'support.call': 'Call us',
   'support.call.sub': 'Talk to the team directly',
   'support.whatsapp': 'WhatsApp',
   'support.whatsapp.sub': 'Send a message and we will reply shortly',
   'support.site': 'Website',
-  'support.site.sub': 'menu.jareesh.com',
+  'support.site.sub': 'Our online menu',
   'support.hours': 'Open daily, 10am to 11pm',
 
   'dish.pasta.name': 'Penne al forno',

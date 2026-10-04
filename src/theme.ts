@@ -1,6 +1,6 @@
 import { ViewStyle } from 'react-native';
 
-// Brand hues (teal, gold) come from the live Jareesh menu site's CSS custom
+// Brand hues (teal, gold) come from the live Hail menu site's CSS custom
 // properties. The neutrals do not: the site's cream page was built for a beige
 // canvas, and tinting these toward the teal instead made the whole app read
 // green. They are plain warm greys, so teal stays an accent rather than a mood.
@@ -162,7 +162,7 @@ export const shadow: Record<'card' | 'lifted' | 'cta' | 'raised' | 'bar' | 'shee
 };
 
 // Cairo is the brand's UI/Arabic face; headings on the site run at 800.
-// Playfair Display 800 is reserved for the "Jareesh" wordmark only.
+// Playfair Display 800 is reserved for the "Hail" wordmark only.
 export const fonts = {
   regular: 'Cairo_400Regular',
   medium: 'Cairo_500Medium',

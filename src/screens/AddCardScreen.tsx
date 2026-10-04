@@ -30,8 +30,8 @@ import type { RootStackScreenProps } from '../navigation/RootNavigator';
 
 export default function AddCardScreen({ navigation }: RootStackScreenProps<'AddCard'>) {
   const { t, isRTL } = useLanguage();
-  const [, setCard] = useStoredState<StoredCard | null>('@jareesh/card', null);
-  const [, setMethod] = useStoredState('@jareesh/payment-method', 'cash');
+  const [, setCard] = useStoredState<StoredCard | null>('@hail/card', null);
+  const [, setMethod] = useStoredState('@hail/payment-method', 'cash');
 
   const [number, setNumber] = useState('');
   const [holder, setHolder] = useState('');

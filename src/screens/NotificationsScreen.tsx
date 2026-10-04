@@ -26,7 +26,7 @@ export default function NotificationsScreen({
 }: RootStackScreenProps<'Notifications'>) {
   const { t } = useLanguage();
   const [on, setOn] = useStoredState<Record<string, boolean>>(
-    '@jareesh/notifications',
+    '@hail/notifications',
     Object.fromEntries(TOPICS.map((topic) => [topic.id, topic.on])),
   );
 

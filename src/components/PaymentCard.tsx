@@ -31,7 +31,7 @@ const BRAND_MARK: Record<CardBrand, string> = {
   visa: 'VISA',
   mastercard: 'Mastercard',
   amex: 'AMEX',
-  unknown: 'جريش',
+  unknown: 'هيل',
 };
 
 // A single glyph on the card face. It owns its own animation and re-runs it

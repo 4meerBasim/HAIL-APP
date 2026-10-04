@@ -3,9 +3,9 @@ import { type DropChoice, type Order, type OrderLine, nextOrderId } from '../dat
 import { useAuth } from './AuthContext';
 import { useStoredState } from './useStoredState';
 
-// Bumped past `jareesh.orders`: the old key holds whatever was saved while the
+// Bumped past the original orders key: the old key holds whatever was saved while the
 // screen was being built, and that data outranks anything here.
-const STORAGE_KEY = 'jareesh.orders.v2';
+const STORAGE_KEY = 'hail.orders.v2';
 
 export interface OrdersContextValue {
   orders: Order[];

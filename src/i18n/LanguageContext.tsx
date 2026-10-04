@@ -6,7 +6,7 @@ import { strings } from './strings';
 export type Lang = 'ar' | 'en';
 export type Dir = 'rtl' | 'ltr';
 
-const STORAGE_KEY = '@jareesh/lang';
+const STORAGE_KEY = '@hail/lang';
 
 export interface LanguageContextValue {
   lang: Lang;

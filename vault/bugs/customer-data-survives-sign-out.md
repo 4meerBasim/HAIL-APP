@@ -11,13 +11,13 @@ device-scoped and stays on disk:
 
 | Key | Written by | What it holds |
 |---|---|---|
-| `jareesh.orders.v2` | `OrdersContext` | every receipt |
-| `@jareesh/subscription` | `PlanContext` | the running plan |
-| `@jareesh/card` | `AddCardScreen` | the saved card |
-| `@jareesh/payment-method` | `PaymentsScreen` | cash or card |
-| `@jareesh/locations`, `@jareesh/location-selected` | `LocationContext` | the saved addresses and which is chosen |
-| `@jareesh/notifications-read`, `@jareesh/notifications-cleared` | `NotificationsContext` | read and cleared ids |
-| `@jareesh/drop` | `CartScreen` | hand-over preference |
+| `hail.orders.v2` | `OrdersContext` | every receipt |
+| `@hail/subscription` | `PlanContext` | the running plan |
+| `@hail/card` | `AddCardScreen` | the saved card |
+| `@hail/payment-method` | `PaymentsScreen` | cash or card |
+| `@hail/locations`, `@hail/location-selected` | `LocationContext` | the saved addresses and which is chosen |
+| `@hail/notifications-read`, `@hail/notifications-cleared` | `NotificationsContext` | read and cleared ids |
+| `@hail/drop` | `CartScreen` | hand-over preference |
 
 [[guest-mode]] reads these back only when `status === 'authed'`, which hides
 them from a signed-out browser — but not from the *next account*. Customer B

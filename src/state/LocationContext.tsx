@@ -4,8 +4,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // v2 namespace: the v1 keys still hold the fabricated Karrada/Al-Mansour seed on
 // any install that ran the old build and saved or starred an address. Reading a
 // fresh key drops those rows for good rather than hydrating them back blank.
-const STORAGE_KEY = '@jareesh/locations.v2';
-const SELECTED_KEY = '@jareesh/location-selected.v2';
+const STORAGE_KEY = '@hail/locations.v2';
+const SELECTED_KEY = '@hail/location-selected.v2';
 
 export interface SavedLocation {
   id: string;

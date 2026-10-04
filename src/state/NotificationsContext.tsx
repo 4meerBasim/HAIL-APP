@@ -3,8 +3,8 @@ import type { IconName } from '../components/icons';
 import { useAuth } from './AuthContext';
 import { useStoredState } from './useStoredState';
 
-const READ_KEY = '@jareesh/notifications-read';
-const CLEARED_KEY = '@jareesh/notifications-cleared';
+const READ_KEY = '@hail/notifications-read';
+const CLEARED_KEY = '@hail/notifications-cleared';
 
 export interface Notification {
   id: string;

@@ -18,7 +18,7 @@ import { useLanguage } from '../i18n/LanguageContext';
 const GRADIENT_COLORS = [colors.tealDark, colors.teal, colors.tealMid] as const;
 const GRADIENT_LOCATIONS = [0, 0.62, 1] as const;
 
-const LOGO = require('../../assets/logo-jareesh.jpg');
+const LOGO = require('../../assets/logo-hail.png');
 const PATTERN_GOLD = require('../../assets/pattern-arabic-gold.png');
 const PATCH_TOP = 320;
 const PATCH_SIDE = 225;

@@ -39,7 +39,7 @@ export type { MealBuildState, MealLine, PlanPricing, PlanState };
 export { cycleNoteKey, dayCountOf, deliveryDays, gridOf, incompleteDays, postponedBy, postponedOffPlan, rotationDays, saverSaving, planProgress, upcomingDeliveries } from '../data/plan';
 export type { PlanProgress } from '../data/plan';
 
-const PLAN_KEY = '@jareesh/subscription';
+const PLAN_KEY = '@hail/subscription';
 
 interface PlanValue {
   plan: PlanState;
