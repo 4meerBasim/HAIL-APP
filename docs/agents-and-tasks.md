@@ -60,7 +60,7 @@ Unless the user says otherwise:
    Then a `code-review` pass. Steps 4 and 7 are pre-authorised; every other review
    still needs a fresh yes per `code-review.md`.
 5. **Branch decision** — per `github-rules.md`.
-6. **Open a PR** against `main-jaresh`.
+6. **Open a PR** against `main`.
 7. **PR-level review** with the `code-review` agent.
 
 ## While executing

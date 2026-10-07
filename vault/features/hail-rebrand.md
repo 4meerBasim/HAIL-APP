@@ -10,7 +10,9 @@ AsyncStorage keys moved from `@jareesh/*` to `@hail/*` (`lang`, `session`, `loca
 
 `app.json`: name `Hail`, slug `HAIL-APP`, iOS `com.ameerbasim.HAIL-APP`, Android `com.ameerbasim.HAILAPP`; the EAS projectId is unchanged. `package.json` name is `hail`.
 
-Kept on purpose: `SUPPORT_SITE` still points at `https://menu.jareesh.com`, the only live domain; the dish name شوربة جريش / Jareesh soup is a food, not the brand; the GitHub repo, `main-jaresh` branch and `JAREESH-API` backend keep their names. New logo assets replace the old ones on the splash, login and plans screens.
+Kept on purpose: `SUPPORT_SITE` still points at `https://menu.jareesh.com`, the only live domain; the dish name شوربة جريش / Jareesh soup is a food, not the brand; the `JAREESH-API` backend keeps its name. New logo assets replace the old ones on the splash, login and plans screens.
+
+The GitHub repo is renamed from `jareesh-app` to `HAIL-APP`, and its default branch from `main-jaresh` to `main`; `docs/` follows.
 
 ## Related
 - Page: [[login]], [[plans]]

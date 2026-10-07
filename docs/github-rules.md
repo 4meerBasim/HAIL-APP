@@ -1,19 +1,19 @@
 # GitHub Rules
 
 ## Repo
-- Remote: https://github.com/4meerBasim/jareesh-app.git
-- Default branch: `main-jaresh` (this is what `origin/HEAD` points at — **not** `main`)
-- Other long-lived branches: `main`, `main-resturant` — older lines, do not target them
+- Remote: https://github.com/4meerBasim/HAIL-APP.git (renamed from `jareesh-app`)
+- Default branch: `main` (renamed from `main-jaresh`; this is what `origin/HEAD` points at)
+- Other long-lived branch: `main-resturant` — an older line, do not target it
   without being told to.
 
 ## Branch strategy
 This repo has no `dev`/`stage` pair. Work flows:
 
 ```
-feat|fix|chore/<short-description>  →  PR  →  main-jaresh
+feat|fix|chore/<short-description>  →  PR  →  main
 ```
 
-- Branch off `main-jaresh` unless told otherwise.
+- Branch off `main` unless told otherwise.
 - Pattern `[type]/[short-description]`, lowercase kebab-case, descriptive but short:
   - `feat/...` — new feature (`feat/plan-builder-and-subscription-flow`)
   - `fix/...` — bug fix (`fix/dashed-divider`)
@@ -35,7 +35,7 @@ feat|fix|chore/<short-description>  →  PR  →  main-jaresh
 - Run `git status` and `git diff` before committing to confirm scope.
 - Never push, force-push, or open/close/merge a PR without explicit confirmation for
   that specific action.
-- Never push to `main-jaresh`, `main` or `main-resturant` directly.
+- Never push to `main` or `main-resturant` directly.
 - Never `--no-verify`.
 - Never force-push a shared branch.
 
