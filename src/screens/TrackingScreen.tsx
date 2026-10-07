@@ -29,6 +29,7 @@ import {
   type TrackingStatus,
 } from '../data/menu';
 import type { RootStackScreenProps } from '../navigation/RootNavigator';
+import { LEAFLET_CSS, LEAFLET_JS } from '../vendor/leaflet';
 
 // Step labels are localized via t(); these are the strings.ts keys in step order.
 // The tracking basemap is the same CARTO Positron + tone chain the address
@@ -41,7 +42,7 @@ const buildHtml = (fromLabel: string, toLabel: string): string => `
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>${LEAFLET_CSS}</style>
 <style>
   html, body, #map { margin: 0; height: 100%; background: ${colors.mapBg}; }
   .leaflet-tile-pane { filter: brightness(0.94) contrast(1.14) sepia(0.16) saturate(0.9); }
@@ -76,7 +77,7 @@ const buildHtml = (fromLabel: string, toLabel: string): string => `
 </head>
 <body>
 <div id="map"></div>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>${LEAFLET_JS}</script>
 <script>
   var ROUTE = ${JSON.stringify(trackingRoute)};
   var FROM = [${trackingRestaurant.lat}, ${trackingRestaurant.lng}];

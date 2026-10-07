@@ -45,8 +45,8 @@ when the API comes back.
 **The map is untouched, deliberately.** [[map]] still calls Nominatim for address
 search and the reverse-geocoded pin label. That is a public third-party service,
 not this project's backend, and cutting it would buy no offline capability: the
-screen also loads Leaflet from `unpkg.com` and every tile from
-`basemaps.cartocdn.com`, so with no network it does not render at all. Removing
+screen loads every tile from `basemaps.cartocdn.com` (Leaflet itself is now
+bundled, see [[bundled-leaflet]]), so with no network it does not render at all. Removing
 the two `fetch` calls would delete address search and leave the screen just as
 network-bound.
 

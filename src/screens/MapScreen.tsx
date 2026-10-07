@@ -10,6 +10,7 @@ import { colors, fonts, radius, shadow, spacing, type } from '../theme';
 import { useLanguage } from '../i18n/LanguageContext';
 import { useLocations, type SavedLocation } from '../state/LocationContext';
 import type { RootStackScreenProps } from '../navigation/RootNavigator';
+import { LEAFLET_CSS, LEAFLET_JS } from '../vendor/leaflet';
 
 interface Picked {
   lat: number;
@@ -43,7 +44,7 @@ const buildHtml = (markers: SavedLocation[], center: { lat: number; lng: number 
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>${LEAFLET_CSS}</style>
 <style>
   html, body, #map { margin: 0; height: 100%; background: ${colors.cream}; }
   /* Tone before hue, and in this order for a reason. Positron is a light
@@ -102,7 +103,7 @@ const buildHtml = (markers: SavedLocation[], center: { lat: number; lng: number 
 </head>
 <body>
 <div id="map"></div>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>${LEAFLET_JS}</script>
 <script>
   var map = L.map('map', { zoomControl: false, attributionControl: true })
     .setView([${center.lat}, ${center.lng}], 13);
