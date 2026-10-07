@@ -1,10 +1,14 @@
 # Location hydration has no loaded flag
 
-Status: not-fixed
+Status: fixed
 Found: `src/state/LocationContext.tsx:30-31`, effect at `src/state/LocationContext.tsx:33-50`
 Summary: `locations` is `[]` and `selected` is `null` until AsyncStorage answers, and nothing tells the screens the difference between "still loading" and "no address" — so four of them render the empty state first and a customer with a saved address can be bounced to the map.
 
 ## Details
+Fixed: `LocationContext` now exposes `hydrated`; Cart, Plans, Addresses and the picker wait on it.
+
+The original report follows.
+
 The provider starts empty and fills in from an effect:
 
 ```ts
@@ -43,4 +47,4 @@ one before the answer is known is what undermines them.
 ## Related
 - Page: [[cart]], [[plans]], [[addresses]], [[map]]
 - Feature: [[real-customer-data-only]]
-- Bugs: [[seeded-addresses-survive-upgrade]], [[unnamed-pin-label-inconsistent]], [[cart-map-preview-without-an-address]], [[dish-page-build-flash]]
+- Bugs: [[seeded-addresses-survive-upgrade]], [[unnamed-pin-label-inconsistent]], [[cart-map-preview-without-an-address]], [[dish-page-build-flash]], [[location-storage-error-never-hydrates]]

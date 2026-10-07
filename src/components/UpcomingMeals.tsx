@@ -120,13 +120,15 @@ export default function UpcomingMeals({
         style={styles.strip}
         contentContainerStyle={styles.stripContent}
       >
-        {dayMeals.map((meal) => {
+        {dayMeals.map((meal, i) => {
           const dish = getDish(meal.dishId);
           if (!dish) return null;
           const name = lang === 'ar' ? dish.name : t(`dish.${dish.id}.name`, dish.name);
+          // A day can carry the same dish at two meal times, so the id alone
+          // is not a unique key.
           return (
             <PressScale
-              key={meal.dishId}
+              key={`${meal.dishId}-${i}`}
               onPress={() => onPressMeal(meal.dishId)}
               accessibilityLabel={name}
               style={styles.card}

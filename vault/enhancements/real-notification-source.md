@@ -8,7 +8,7 @@ Summary: The inbox is permanently empty — nothing in the app or the API produc
 seeded events that were the feed's only content. What is left is the machinery
 without a source: `NotificationsContext` still derives `items`, counts unread
 for the bell badge, persists read and cleared ids under
-`@jareesh/notifications-read` / `-cleared`, and exposes `markRead` and
+`@hail/notifications-read` / `-cleared`, and exposes `markRead` and
 `clearAll` — all over an array that is always empty. `InboxScreen` therefore
 always renders its empty state, and the badge is always zero.
 

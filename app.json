@@ -1,14 +1,14 @@
 {
   "expo": {
-    "name": "Jareesh",
-    "slug": "JAREESH-APP",
+    "name": "Hail",
+    "slug": "HAIL-APP",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.ameerbasim.JAREESH-APP",
+      "bundleIdentifier": "com.ameerbasim.HAIL-APP",
       "appleTeamId": "7MDQTVCL39",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
@@ -22,7 +22,7 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.ameerbasim.JAREESHAPP"
+      "package": "com.ameerbasim.HAILAPP"
     },
     "web": {
       "favicon": "./assets/favicon.png"

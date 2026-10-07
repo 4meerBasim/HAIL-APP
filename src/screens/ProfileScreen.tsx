@@ -12,14 +12,15 @@ import Dialog from '../components/Dialog';
 import PressScale from '../components/PressScale';
 import SectionHeader from '../components/SectionHeader';
 import SettingRow from '../components/SettingRow';
-import { colors, overlay, radius, shadow, spacing, type } from '../theme';
-import { useLanguage } from '../i18n/LanguageContext';
+import { colors, fonts, overlay, radius, shadow, spacing, type } from '../theme';
+import { type Lang, useLanguage } from '../i18n/LanguageContext';
 import { formatNumber } from '../i18n/digits';
 import { useOrders } from '../state/OrdersContext';
 import { useAuth } from '../state/AuthContext';
 import { useCart } from '../state/CartContext';
 import { useNotifications } from '../state/NotificationsContext';
 import { planProgress, usePlan } from '../state/PlanContext';
+import { formatPhone } from '../data/phone';
 import type { TabScreenProps } from '../navigation/RootNavigator';
 
 // Every row here opens a screen of its own — none of them is a dead tap.
@@ -40,10 +41,12 @@ const SETTINGS_ROWS: Row[] = [
   { key: 'support', icon: 'chat' },
 ];
 
+const LANGS: Lang[] = ['ar', 'en'];
+
 export default function ProfileScreen({ navigation }: TabScreenProps<'Profile'>) {
-  const { t, isRTL } = useLanguage();
+  const { t, lang, isRTL, setLang } = useLanguage();
   const { status, user, signOut } = useAuth();
-  const { subscription } = usePlan();
+  const { subscription, now } = usePlan();
   const { orders } = useOrders();
   const { items } = useCart();
   const { unreadCount } = useNotifications();
@@ -66,8 +69,8 @@ export default function ProfileScreen({ navigation }: TabScreenProps<'Profile'>)
   };
 
   const progress = useMemo(
-    () => (subscription ? planProgress(subscription) : null),
-    [subscription],
+    () => (subscription ? planProgress(subscription, now) : null),
+    [subscription, now],
   );
 
   // 'auto' resolves against the paragraph's writing direction; a physical
@@ -113,8 +116,14 @@ export default function ProfileScreen({ navigation }: TabScreenProps<'Profile'>)
             <Text style={[styles.name, readingSide]} numberOfLines={1}>
               {/* A customer who signed in with an email has no number, so the
                   address is what identifies them here. Falling through to the
-                  phone alone would leave this line blank. */}
-              {authed ? user?.phone || user?.email : t('profile.guest')}
+                  phone alone would leave this line blank. The number gets the
+                  same grouping and left-to-right mark as the phone screen, or
+                  its groups read last-to-first inside an Arabic line. */}
+              {authed
+                ? user?.phone
+                  ? `\u200e${formatPhone(user.phone)}`
+                  : user?.email
+                : t('profile.guest')}
             </Text>
             <Text style={[styles.identitySub, readingSide]} numberOfLines={2}>
               {authed ? t('phones.manage') : t('profile.guest.sub')}
@@ -187,6 +196,33 @@ export default function ProfileScreen({ navigation }: TabScreenProps<'Profile'>)
         <SectionHeader title={t('profile.settings')} />
         <Card padding={0} style={styles.rows}>
           {SETTINGS_ROWS.map((row, i) => renderRow(row, i === 0))}
+          <SettingRow
+            icon="globe"
+            label={t('profile.language')}
+            trailing={
+              <View style={styles.segment}>
+                {LANGS.map((l) => {
+                  const on = lang === l;
+                  return (
+                    <TouchableOpacity
+                      key={l}
+                      activeOpacity={0.8}
+                      onPress={() => void setLang(l)}
+                      hitSlop={{ top: 10, bottom: 10 }}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: on }}
+                      accessibilityLabel={t(`lang.${l}`)}
+                      style={[styles.segmentItem, on && styles.segmentItemOn]}
+                    >
+                      <Text style={[styles.segmentText, on && styles.segmentTextOn]}>
+                        {t(`lang.${l}`)}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            }
+          />
         </Card>
       </View>
 
@@ -314,5 +350,28 @@ const styles = StyleSheet.create({
   },
   rows: {
     overflow: 'hidden',
+  },
+  segment: {
+    flexDirection: 'row',
+    backgroundColor: colors.sandChip,
+    borderRadius: radius.pill,
+    padding: 3,
+    gap: 2,
+  },
+  segmentItem: {
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: 6,
+  },
+  segmentItemOn: {
+    backgroundColor: colors.teal,
+  },
+  segmentText: {
+    fontFamily: fonts.bold,
+    fontSize: 12,
+    color: colors.muted2,
+  },
+  segmentTextOn: {
+    color: colors.white,
   },
 });

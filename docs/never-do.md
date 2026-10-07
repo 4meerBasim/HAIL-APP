@@ -6,7 +6,7 @@ workaround that technically avoids the letter of the rule.
 ## Git
 - Never push, force-push, or open/close/merge a PR without confirmation for that
   specific action.
-- Never commit directly to `main-jaresh`, `main` or `main-resturant`.
+- Never commit directly to `main` or `main-resturant`.
 - Never `git reset --hard`, `git clean -f`, or delete a branch without asking.
 - Never skip hooks (`--no-verify`).
 - Never rewrite pushed history.

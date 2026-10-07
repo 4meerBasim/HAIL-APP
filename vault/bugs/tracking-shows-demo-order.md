@@ -1,10 +1,14 @@
 # Tracking shows a demo delivery
 
-Status: not-fixed
+Status: fixed
 Found: `src/screens/TrackingScreen.tsx`, data at `src/data/menu.ts:490-519`
 Summary: The live-tracking screen always renders order #4821 arriving in eighteen minutes along a fixed Karrada-to-Jadriyah route, whatever the customer actually ordered.
 
 ## Details
+Fixed: Tracking now shows the real active order from `OrdersContext` — its number and lines — with its step and minutes left read off `placedAt` and `DELIVERY_MINUTES` (see [[order-status-never-advances]]). The fake driver and the fixed 18-minute ETA are gone, as are `trackingOrder`, `trackingSteps`, `trackingHeadlines`, `trackingProgress` and `DEFAULT_TRACKING`. With nothing in flight it shows an empty state. The route is still demo geography until a directions API exists.
+
+The original report follows.
+
 `TrackingScreen` reads `trackingOrder`, `trackingRoute` and `trackingProgress`
 out of `src/data/menu.ts`, plus the `track.*` strings. It never takes an
 `Order`: the number, the meal, the minutes, both map endpoints, the driver's

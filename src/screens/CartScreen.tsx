@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   ScrollView,
   StyleSheet,
@@ -17,11 +17,16 @@ import {
   DELIVERY_FEE,
   DELIVERY_MINUTES,
   type DropChoice,
+  type PaymentMethod,
   SERVICE_FEE,
   dropKeys,
   formatPrice,
   groupNumber,
+  isPaymentMethod,
+  parsePrice,
+  paymentMethods,
 } from '../data/menu';
+import { BUILT_MEAL_ID } from '../data/ingredients';
 import { type StoredCard, brandLabel } from '../data/card';
 import { useCart } from '../state/CartContext';
 import { useOrders } from '../state/OrdersContext';
@@ -34,7 +39,7 @@ import Icon from '../components/Icon';
 import { icons } from '../components/icons';
 import Card from '../components/Card';
 import CartItemCard from '../components/CartItemCard';
-import CartRow from '../components/CartRow';
+import CartRow, { type CartItem } from '../components/CartRow';
 import DashedRule from '../components/DashedRule';
 import Button from '../components/Button';
 import Dialog from '../components/Dialog';
@@ -42,8 +47,6 @@ import LocationPicker from '../components/LocationPicker';
 import MapPreview from '../components/MapPreview';
 import PressScale from '../components/PressScale';
 import { RootStackScreenProps } from '../navigation/RootNavigator';
-
-type PaymentMethod = 'online' | 'cash';
 
 // A subscriber pays less for anything ordered outside the plan — the one
 // discount the app can work out for itself from what it already knows.
@@ -62,15 +65,24 @@ export default function CartScreen({ navigation }: RootStackScreenProps<'Cart'>)
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
 
-  const [payment, setPayment] = useState<PaymentMethod>('online');
+  // Starts on the default chosen under Profile → Payments, and only that: a
+  // pick made here is for this order. Read rather than copied into state, so
+  // the stored value landing after first render still takes effect.
+  const [storedPayment] = useStoredState<string>('@hail/payment-method', 'cash');
+  const [picked, setPayment] = useState<PaymentMethod | null>(null);
+  const payment: PaymentMethod = picked ?? (isPaymentMethod(storedPayment) ? storedPayment : 'cash');
   const [pickerOpen, setPickerOpen] = useState(false);
   const [cardOpen, setCardOpen] = useState(false);
   const [emptying, setEmptying] = useState(false);
   const [note, setNote] = useState('');
   const [why, setWhy] = useState<'delivery' | 'service' | null>(null);
   const [noteOn, setNoteOn] = useState(false);
-  const [drop, setDrop] = useStoredState<DropChoice>('@jareesh/drop', 'hand');
-  const [card] = useStoredState<StoredCard | null>('@jareesh/card', null);
+  const [drop, setDrop] = useStoredState<DropChoice>('@hail/drop', 'hand');
+  const [card, , reloadCard] = useStoredState<StoredCard | null>('@hail/card', null);
+
+  // The card sheet sends the customer to AddCard, which pops straight back here
+  // with the cart still mounted — re-read the card or confirm keeps asking for one.
+  useEffect(() => navigation.addListener('focus', reloadCard), [navigation, reloadCard]);
 
   const readingSide = { textAlign: 'auto', writingDirection: isRTL ? 'rtl' : 'ltr' } as const;
   const chevron = isRTL ? icons.chevronLeft : icons.chevronRight;
@@ -88,6 +100,20 @@ export default function CartScreen({ navigation }: RootStackScreenProps<'Cart'>)
     }
     changeQty(id, -1);
   };
+
+  // A meal assembled on the Menu tab has no page of its own — its parts live
+  // only in this line's build key, so the key is what reopens it, read-only.
+  // Every other line is a real dish already on the menu and opens nothing from
+  // here. Shared, because the cart draws one line as a row and several as
+  // cards, and the built meal is far more often the only thing in the basket.
+  const openBuilt = (it: CartItem): (() => void) | undefined =>
+    it.dishId === BUILT_MEAL_ID
+      ? () =>
+          navigation.navigate('DishDetail', {
+            id: it.dishId,
+            built: it.id.slice(it.id.indexOf('|') + 1),
+          })
+      : undefined;
 
   // Confirming is what creates the order — Orders and Tracking have nothing to
   // show until this runs, so it has to record the cart before navigating away.
@@ -110,9 +136,19 @@ export default function CartScreen({ navigation }: RootStackScreenProps<'Cart'>)
       if (locHydrated) navigation.navigate('Map');
       return;
     }
+    // A card payment with no card on file has nothing to charge — ask for one first.
+    if (payment === 'card' && !card) {
+      setCardOpen(true);
+      return;
+    }
     placeOrder(
-      items.map((it) => ({ dishId: it.dishId, qty: it.qty })),
-      { note, drop },
+      items.map((it) => ({
+        dishId: it.dishId,
+        qty: it.qty,
+        unit: parsePrice(it.price),
+        build: it.build,
+      })),
+      { note, drop, payment, charges: { discount, delivery: DELIVERY_FEE, service: SERVICE_FEE } },
     );
     clearCart();
     navigation.reset({
@@ -166,6 +202,7 @@ export default function CartScreen({ navigation }: RootStackScreenProps<'Cart'>)
               item={items[0]}
               onInc={() => changeQty(items[0].id, 1)}
               onDec={() => onDec(items[0].id, items[0].qty)}
+              onOpen={openBuilt(items[0])}
             />
           ) : (
             <ScrollView
@@ -181,6 +218,7 @@ export default function CartScreen({ navigation }: RootStackScreenProps<'Cart'>)
                   width={width * 0.44}
                   onInc={() => changeQty(it.id, 1)}
                   onDec={() => onDec(it.id, it.qty)}
+                  onOpen={openBuilt(it)}
                 />
               ))}
             </ScrollView>
@@ -262,113 +300,115 @@ export default function CartScreen({ navigation }: RootStackScreenProps<'Cart'>)
           <Card style={styles.block}>
             <Text style={[styles.blockLabel, readingSide]}>{t('cart.payment')}</Text>
 
-            <TouchableOpacity
-              style={[styles.payOption, payment === 'online' ? styles.payOptionOn : null]}
-              activeOpacity={0.85}
-              onPress={() => setPayment('online')}
-              accessibilityRole="radio"
-              accessibilityState={{ selected: payment === 'online' }}
-            >
-              <View style={[styles.radio, payment === 'online' && styles.radioOn]} />
-              <View style={styles.payText}>
-                <Text style={[styles.payTitle, readingSide]}>{t('cart.pay.online.title')}</Text>
-                <Text style={[styles.paySub, readingSide]} numberOfLines={1}>
-                  {card
-                    ? `${brandLabel[card.brand]} •••• ${formatNumber(card.last4)}`
-                    : t('cart.card.none')}
-                </Text>
-              </View>
+            {paymentMethods.map((method) => {
+              const on = payment === method;
+              return (
+                <TouchableOpacity
+                  key={method}
+                  style={[styles.payOption, on ? styles.payOptionOn : null]}
+                  activeOpacity={0.85}
+                  onPress={() => setPayment(method)}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: on }}
+                >
+                  <View style={[styles.radio, on && styles.radioOn]} />
+                  <View style={styles.payText}>
+                    <Text style={[styles.payTitle, readingSide]}>
+                      {t(`cart.pay.${method}.title`)}
+                    </Text>
+                    <Text style={[styles.paySub, readingSide]} numberOfLines={1}>
+                      {method !== 'card'
+                        ? t(`cart.pay.${method}.sub`)
+                        : card
+                          ? `${brandLabel[card.brand]} •••• ${formatNumber(card.last4)}`
+                          : t('cart.card.none')}
+                    </Text>
+                  </View>
 
-              {/* The card the money would come off, one tap away — asking the
-                  customer to remember it, or to leave for Payments to check,
-                  is the friction that loses the order. */}
-              <TouchableOpacity
-                activeOpacity={0.7}
-                onPress={() => setCardOpen(true)}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                accessibilityRole="button"
-                accessibilityLabel={t('cart.card.title')}
-                style={styles.info}
-              >
-                <Icon path={icons.exclaim} size={13} color={colors.tealText} strokeWidth={2.4} />
-              </TouchableOpacity>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.payOption, payment === 'cash' ? styles.payOptionOn : null]}
-              activeOpacity={0.85}
-              onPress={() => setPayment('cash')}
-              accessibilityRole="radio"
-              accessibilityState={{ selected: payment === 'cash' }}
-            >
-              <View style={[styles.radio, payment === 'cash' && styles.radioOn]} />
-              <View style={styles.payText}>
-                <Text style={[styles.payTitle, readingSide]}>{t('cart.pay.cash.title')}</Text>
-                <Text style={[styles.paySub, readingSide]}>{t('cart.pay.cash.sub')}</Text>
-              </View>
-            </TouchableOpacity>
+                  {/* The card the money would come off, one tap away — asking the
+                      customer to remember it, or to leave for Payments to check,
+                      is the friction that loses the order. */}
+                  {method === 'card' ? (
+                    <TouchableOpacity
+                      activeOpacity={0.7}
+                      onPress={() => setCardOpen(true)}
+                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                      accessibilityRole="button"
+                      accessibilityLabel={t('cart.card.title')}
+                      style={styles.info}
+                    >
+                      <Icon path={icons.exclaim} size={13} color={colors.tealText} strokeWidth={2.4} />
+                    </TouchableOpacity>
+                  ) : null}
+                </TouchableOpacity>
+              );
+            })}
           </Card>
 
-          <Card style={styles.block}>
-            <Text style={[styles.blockLabel, readingSide]}>{t('cart.priceDetails')}</Text>
+          {/* Fees on an empty basket would be a bill for nothing — the price
+              only appears once there is something to price. */}
+          {items.length > 0 ? (
+            <Card style={styles.block}>
+              <Text style={[styles.blockLabel, readingSide]}>{t('cart.priceDetails')}</Text>
 
-            <View style={styles.line}>
-              <Text style={styles.lineLabel}>{t('cart.subtotal')}</Text>
-              <Text style={styles.lineValue}>{money(subtotal)}</Text>
-            </View>
-
-            {/* Shown only when there is one: a permanent "0 discount" line is a
-                reminder that the customer is not getting anything. */}
-            {discount > 0 ? (
               <View style={styles.line}>
-                <Text style={[styles.lineLabel, styles.saveLabel]}>{t('cart.discount')}</Text>
-                <Text style={[styles.lineValue, styles.saveValue]}>{`− ${money(discount)}`}</Text>
+                <Text style={styles.lineLabel}>{t('cart.subtotal')}</Text>
+                <Text style={styles.lineValue}>{money(subtotal)}</Text>
               </View>
-            ) : null}
 
-            {/* A charge the customer did not choose should be able to say what
-                it is for, on the line where it appears. */}
-            <View style={styles.line}>
-              <View style={styles.lineWhy}>
-                <Text style={styles.lineLabel}>{t('cart.delivery')}</Text>
-                <TouchableOpacity
-                  activeOpacity={0.7}
-                  onPress={() => setWhy('delivery')}
-                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                  accessibilityRole="button"
-                  accessibilityLabel={t('cart.why')}
-                  style={styles.why}
-                >
-                  <Icon path={icons.exclaim} size={10} color={colors.muted} strokeWidth={2.4} />
-                </TouchableOpacity>
+              {/* Shown only when there is one: a permanent "0 discount" line is a
+                  reminder that the customer is not getting anything. */}
+              {discount > 0 ? (
+                <View style={styles.line}>
+                  <Text style={[styles.lineLabel, styles.saveLabel]}>{t('cart.discount')}</Text>
+                  <Text style={[styles.lineValue, styles.saveValue]}>{`− ${money(discount)}`}</Text>
+                </View>
+              ) : null}
+
+              {/* A charge the customer did not choose should be able to say what
+                  it is for, on the line where it appears. */}
+              <View style={styles.line}>
+                <View style={styles.lineWhy}>
+                  <Text style={styles.lineLabel}>{t('cart.delivery')}</Text>
+                  <TouchableOpacity
+                    activeOpacity={0.7}
+                    onPress={() => setWhy('delivery')}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('cart.why')}
+                    style={styles.why}
+                  >
+                    <Icon path={icons.exclaim} size={10} color={colors.muted} strokeWidth={2.4} />
+                  </TouchableOpacity>
+                </View>
+                <Text style={styles.lineValue}>{money(DELIVERY_FEE)}</Text>
               </View>
-              <Text style={styles.lineValue}>{money(DELIVERY_FEE)}</Text>
-            </View>
 
-            <View style={styles.line}>
-              <View style={styles.lineWhy}>
-                <Text style={styles.lineLabel}>{t('cart.service')}</Text>
-                <TouchableOpacity
-                  activeOpacity={0.7}
-                  onPress={() => setWhy('service')}
-                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                  accessibilityRole="button"
-                  accessibilityLabel={t('cart.why')}
-                  style={styles.why}
-                >
-                  <Icon path={icons.exclaim} size={10} color={colors.muted} strokeWidth={2.4} />
-                </TouchableOpacity>
+              <View style={styles.line}>
+                <View style={styles.lineWhy}>
+                  <Text style={styles.lineLabel}>{t('cart.service')}</Text>
+                  <TouchableOpacity
+                    activeOpacity={0.7}
+                    onPress={() => setWhy('service')}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('cart.why')}
+                    style={styles.why}
+                  >
+                    <Icon path={icons.exclaim} size={10} color={colors.muted} strokeWidth={2.4} />
+                  </TouchableOpacity>
+                </View>
+                <Text style={styles.lineValue}>{money(SERVICE_FEE)}</Text>
               </View>
-              <Text style={styles.lineValue}>{money(SERVICE_FEE)}</Text>
-            </View>
 
-            <DashedRule />
+              <DashedRule />
 
-            <View style={styles.line}>
-              <Text style={styles.grandLabel}>{t('cart.total')}</Text>
-              <Text style={styles.grandValue}>{money(total)}</Text>
-            </View>
-          </Card>
+              <View style={styles.line}>
+                <Text style={styles.grandLabel}>{t('cart.total')}</Text>
+                <Text style={styles.grandValue}>{money(total)}</Text>
+              </View>
+            </Card>
+          ) : null}
 
           <Card style={styles.block}>
             <View style={styles.noteHead}>
@@ -392,11 +432,10 @@ export default function CartScreen({ navigation }: RootStackScreenProps<'Cart'>)
                 multiline
                 maxLength={NOTE_MAX}
                 accessibilityLabel={t('cart.note')}
-                // Spelled out rather than left to 'auto': a multiline input on
-                // iOS lays its placeholder out before the writing direction is
-                // resolved, so the hint sat on the wrong edge while the text
-                // typed into it did not.
-                style={[styles.noteInput, { textAlign: isRTL ? 'right' : 'left' }]}
+                // 'auto' plus the language's writing direction, not a physical
+                // side: under forceRTL a physical 'right' is mirrored back to
+                // the left, which is the bug the old ternary had in Arabic.
+                style={[styles.noteInput, readingSide]}
               />
               <Text style={styles.noteCount}>
                 {`${formatNumber(note.length)} / ${formatNumber(NOTE_MAX)}`}
@@ -405,17 +444,18 @@ export default function CartScreen({ navigation }: RootStackScreenProps<'Cart'>)
           </Card>
         </ScrollView>
 
-        <View
-          style={[styles.sheet, shadow.sheet, { paddingBottom: Math.max(36, insets.bottom + 16) }]}
-        >
-          <View style={styles.sheetTop}>
-            <Text style={styles.sheetLabel}>{t('cart.total')}</Text>
-            <Text style={styles.sheetTotal}>{money(total)}</Text>
-          </View>
+        {/* An empty cart has nothing to confirm and nothing to total — a dead
+            button and a bill for fees alone read as something broken rather
+            than as nothing to do. */}
+        {items.length > 0 ? (
+          <View
+            style={[styles.sheet, shadow.sheet, { paddingBottom: Math.max(36, insets.bottom + 16) }]}
+          >
+            <View style={styles.sheetTop}>
+              <Text style={styles.sheetLabel}>{t('cart.total')}</Text>
+              <Text style={styles.sheetTotal}>{money(total)}</Text>
+            </View>
 
-          {/* An empty cart has nothing to confirm — a dead button in the sheet
-              reads as something broken rather than as nothing to do. */}
-          {items.length > 0 ? (
             <Button
               label={t('cart.confirm')}
               variant="primary"
@@ -425,8 +465,8 @@ export default function CartScreen({ navigation }: RootStackScreenProps<'Cart'>)
               onPress={confirm}
               style={[styles.cta, shadow.cta]}
             />
-          ) : null}
-        </View>
+          </View>
+        ) : null}
       </View>
 
       <LocationPicker

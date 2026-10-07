@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { Animated, Easing, Image, StyleSheet, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Text from './AppText';
+import { useLanguage } from '../i18n/LanguageContext';
 import { colors, fonts, overlay, radius, shadow, spacing } from '../theme';
 import { type CardBrand, PLACEHOLDER, cardFace, cvvLength } from '../data/card';
 
@@ -27,11 +28,12 @@ const FACES: Record<CardBrand, readonly [string, string]> = {
   unknown: [colors.tealDarker, colors.tealDark],
 };
 
-const BRAND_MARK: Record<CardBrand, string> = {
+// A card the prefix does not name carries the restaurant's own mark instead,
+// which is copy and so comes from the strings.
+const BRAND_MARK: Record<Exclude<CardBrand, 'unknown'>, string> = {
   visa: 'VISA',
   mastercard: 'Mastercard',
   amex: 'AMEX',
-  unknown: 'جريش',
 };
 
 // A single glyph on the card face. It owns its own animation and re-runs it
@@ -121,6 +123,7 @@ export default function PaymentCard({
   brand,
   focused,
 }: PaymentCardProps) {
+  const { t } = useLanguage();
   const flip = useRef(new Animated.Value(0)).current;
   const flipped = focused === 'cvv';
 
@@ -178,7 +181,7 @@ export default function PaymentCard({
             <View style={styles.chipLine} />
           </View>
           <Text style={styles.brand} numberOfLines={1}>
-            {BRAND_MARK[brand]}
+            {brand === 'unknown' ? t('brand.name') : BRAND_MARK[brand]}
           </Text>
         </View>
 
@@ -264,7 +267,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     width: 190,
     height: 190,
-    right: -52,
+    end: -52,
     bottom: -54,
     opacity: 0.12,
   },
@@ -392,6 +395,8 @@ const styles = StyleSheet.create({
     color: overlay.white70,
     marginTop: spacing.md,
     marginHorizontal: spacing.huge,
-    textAlign: 'right',
+    // Pinned to the end of the strip rather than right-aligned text: the stage
+    // is `direction: ltr`, so `flex-end` is the same right edge in any language.
+    alignSelf: 'flex-end',
   },
 });

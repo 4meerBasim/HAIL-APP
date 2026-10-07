@@ -1,10 +1,14 @@
 # An unnamed pin renders differently on every screen
 
-Status: not-fixed
+Status: fixed
 Found: `src/screens/CartScreen.tsx:202`, `src/screens/PlansScreen.tsx:126`, `src/screens/AddressesScreen.tsx:60`, `src/components/LocationPicker.tsx:64`
 Summary: A `SavedLocation` with no `label` renders as a blank line in the cart, the addresses list and the picker, but as the add-address prompt on the home header — four sites, three different answers to the same missing field.
 
 ## Details
+Fixed: All four sites now render `label || t('location.pinned')`.
+
+The original report follows.
+
 `SavedLocation.label` is optional (`src/state/LocationContext.tsx:11`) and no site
 has a shared fallback:
 

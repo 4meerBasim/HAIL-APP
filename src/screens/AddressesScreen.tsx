@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import Text from '../components/AppText';
 import Screen from '../components/Screen';
@@ -6,6 +6,7 @@ import Icon from '../components/Icon';
 import { icons } from '../components/icons';
 import Card from '../components/Card';
 import Button from '../components/Button';
+import Dialog from '../components/Dialog';
 import PressScale from '../components/PressScale';
 import Reveal from '../components/Reveal';
 import SettingRow from '../components/SettingRow';
@@ -18,6 +19,10 @@ export default function AddressesScreen({ navigation }: RootStackScreenProps<'Ad
   const { t } = useLanguage();
   const { locations, selected, selectLocation, toggleFavourite, removeLocation, hydrated } =
     useLocations();
+  // A saved address can hold a gate code and a landmark that took a while to
+  // pin, and the remove cross sits a thumb's width from the favourite star —
+  // so it is asked rather than done.
+  const [removing, setRemoving] = useState<{ id: string; name: string } | null>(null);
 
   return (
     <Screen scroll={false} texture>
@@ -87,7 +92,7 @@ export default function AddressesScreen({ navigation }: RootStackScreenProps<'Ad
                         </PressScale>
 
                         <PressScale
-                          onPress={() => removeLocation(l.id)}
+                          onPress={() => setRemoving({ id: l.id, name })}
                           scaleTo={0.88}
                           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                           accessibilityLabel={t('addresses.remove')}
@@ -118,6 +123,20 @@ export default function AddressesScreen({ navigation }: RootStackScreenProps<'Ad
           </>
         )}
       </ScrollView>
+
+      <Dialog
+        visible={removing !== null}
+        title={t('addresses.remove.title')}
+        message={t('addresses.remove.message').replace('{name}', removing?.name ?? '')}
+        primaryLabel={t('common.cancel')}
+        onPrimary={() => setRemoving(null)}
+        secondaryLabel={t('addresses.remove.confirm')}
+        onSecondary={() => {
+          if (removing) removeLocation(removing.id);
+          setRemoving(null);
+        }}
+        onClose={() => setRemoving(null)}
+      />
     </Screen>
   );
 }

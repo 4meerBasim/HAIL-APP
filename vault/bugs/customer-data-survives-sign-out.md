@@ -1,23 +1,36 @@
 # Customer data survives sign out
 
-Status: not-fixed
+Status: fixed
 Found: `src/state/AuthContext.tsx:267-271`
 Summary: Sign-out removes only the session key, so the next customer to sign in on the same handset inherits the last one's orders, subscription, card and addresses.
 
 ## Details
+Fixed by clearing on sign-out rather than scoping per account.
+`AuthContext.signOut` now `multiRemove`s the session plus every key no other
+context clears for itself — `@hail/card`, `@hail/payment-method`, `@hail/drop`,
+`@hail/notifications-read`, `@hail/notifications-cleared`,
+`@hail/notifications`, `@hail/locations.v2`, `@hail/location-selected.v2`.
+Orders and the subscription are cleared by `OrdersContext` and `PlanContext`,
+which own those keys and watch for `status === 'guest'`. The in-memory copies go
+too: `LocationContext` and `NotificationsContext` reset on the authed → guest
+edge, and `useStoredState`'s `reload` falls back to the initial value when a key
+is gone, so the payments list stops showing the old card on focus.
+
+What follows is the original report.
+
 `signOut` drops the session from state and calls
 `AsyncStorage.removeItem(SESSION_KEY)`. Everything else the app has written is
 device-scoped and stays on disk:
 
 | Key | Written by | What it holds |
 |---|---|---|
-| `jareesh.orders.v2` | `OrdersContext` | every receipt |
-| `@jareesh/subscription` | `PlanContext` | the running plan |
-| `@jareesh/card` | `AddCardScreen` | the saved card |
-| `@jareesh/payment-method` | `PaymentsScreen` | cash or card |
-| `@jareesh/locations`, `@jareesh/location-selected` | `LocationContext` | the saved addresses and which is chosen |
-| `@jareesh/notifications-read`, `@jareesh/notifications-cleared` | `NotificationsContext` | read and cleared ids |
-| `@jareesh/drop` | `CartScreen` | hand-over preference |
+| `hail.orders.v2` | `OrdersContext` | every receipt |
+| `@hail/subscription` | `PlanContext` | the running plan |
+| `@hail/card` | `AddCardScreen` | the saved card |
+| `@hail/payment-method` | `PaymentsScreen` | cash or card |
+| `@hail/locations`, `@hail/location-selected` | `LocationContext` | the saved addresses and which is chosen |
+| `@hail/notifications-read`, `@hail/notifications-cleared` | `NotificationsContext` | read and cleared ids |
+| `@hail/drop` | `CartScreen` | hand-over preference |
 
 [[guest-mode]] reads these back only when `status === 'authed'`, which hides
 them from a signed-out browser — but not from the *next account*. Customer B

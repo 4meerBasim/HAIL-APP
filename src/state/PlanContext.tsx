@@ -1,4 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { AppState } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   type BoxGoal,
@@ -36,10 +37,13 @@ import {
 import { useAuth } from './AuthContext';
 
 export type { MealBuildState, MealLine, PlanPricing, PlanState };
-export { cycleNoteKey, dayCountOf, deliveryDays, gridOf, incompleteDays, postponedBy, postponedOffPlan, rotationDays, saverSaving, planProgress, upcomingDeliveries } from '../data/plan';
-export type { PlanProgress } from '../data/plan';
+export { cycleNoteKey, dayCountOf, deliveryDays, gridOf, incompleteDays, postponedBy, postponedOffPlan, rotationDays, saverSaving, planProgress, upcomingDeliveries, weekdayOf } from '../data/plan';
+export type { PlanProgress, UpcomingDay } from '../data/plan';
 
-const PLAN_KEY = '@jareesh/subscription';
+const PLAN_KEY = '@hail/subscription';
+
+/** Which plan a meal's tailoring is saved onto. */
+export type BuildTarget = 'plan' | 'subscription';
 
 interface PlanValue {
   plan: PlanState;
@@ -52,16 +56,17 @@ interface PlanValue {
   subscriptionMeals: MealLine[];
   subscriptionPricing: PlanPricing | null;
   subscriptionMacros: Macros | null;
+  /** Epoch ms, refreshed whenever the app comes back to the foreground, so
+   *  "today" on a progress bar moves on after the app sat open overnight. */
+  now: number;
   startFromBox: (boxId: BoxGoal) => void;
   startCustom: () => void;
-  editSubscription: () => void;
   addSlot: (name: string, time: number) => void;
   /** Rename or re-time one slot; a renamed built-in stops following the locale. */
   updateSlot: (slotId: string, patch: { name?: string; time?: number }) => void;
   removeSlot: (slotId: string) => void;
   toggleWeekday: (index: number) => void;
   setDayCount: (n: number) => void;
-  toggleDish: (dishId: string, slotId: string) => void;
   /** Puts a dish in one day's meal slot, or takes it back out. */
   setDayDish: (day: number, slotIndex: number, dishId: string) => void;
   addDay: () => void;
@@ -69,15 +74,14 @@ interface PlanValue {
   /** Drops every day that still has an empty meal time. */
   pruneDays: () => void;
   applySaver: (key: SaverKey) => void;
+  /** Starts the plan being built as the subscription, replacing any running one. */
   confirm: () => void;
   skipDay: (dayIndex: number) => void;
   postponeDay: (dayIndex: number, byDays: number) => void;
   clearException: (id: string) => void;
   cancelSubscription: () => void;
-  /** Records how one meal of the running plan should be cooked. */
-  setMealBuild: (dishId: string, build: MealBuildState) => void;
-  /** Swap the running subscription for the plan being built. */
-  replaceSubscription: () => void;
+  /** Records how one meal should be cooked, on the plan being built or the running one. */
+  setMealBuild: (target: BuildTarget, dishId: string, build: MealBuildState) => void;
 }
 
 const PlanContext = createContext<PlanValue | undefined>(undefined);
@@ -90,18 +94,35 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
   // `subscription` paints "no plan" first and then swaps a card in.
   const [hydrated, setHydrated] = useState(false);
 
-  // The subscription is stored on the device, not against the account, so it is
-  // read back only for a signed-in customer — a guest inheriting the last
-  // customer's live plan would see a card, a progress bar and an upcoming list
-  // for something they cannot cancel and did not buy. Signing out drops it from
-  // state; the record stays on disk and returns on the next sign-in.
+  const [now, setNow] = useState(Date.now);
+
+  // Progress is measured against "now", and a value pinned at mount goes stale
+  // once the app has sat open past a day boundary. Coming back to the
+  // foreground is the moment the customer looks again, so it re-reads then.
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (next) => {
+      if (next === 'active') setNow(Date.now());
+    });
+    return () => sub.remove();
+  }, []);
+
+  // The subscription is stored on the device, not against the account, so a
+  // guest inheriting the last customer's live plan would see a card, a progress
+  // bar and an upcoming list for something they cannot cancel and did not buy.
+  // Signing out therefore clears it from disk as well as from state: the next
+  // account to sign in on this device must not read it back as its own.
   useEffect(() => {
     if (status === 'loading') return;
     if (status !== 'authed') {
       setSubscription(null);
+      void AsyncStorage.removeItem(PLAN_KEY);
       setHydrated(true);
       return;
     }
+    // Signing in after browsing as a guest re-reads storage. Until it answers
+    // there is nothing to show yet — not "no plan", which is what a hydrated
+    // flag left over from the guest session would claim.
+    setHydrated(false);
     let alive = true;
     void (async () => {
       try {
@@ -190,12 +211,6 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
     setPlan(emptyPlan());
   }, []);
 
-  // Reopening the live subscription in the builder edits a copy; nothing is
-  // written back until the customer confirms again.
-  const editSubscription = useCallback(() => {
-    setPlan((p) => (subscription ? { ...subscription } : p));
-  }, [subscription]);
-
   // Custom ids are minted off a counter rather than the slot name, so renaming
   // or repeating a name never collides with an existing slot's dishes.
   const addSlot = useCallback((name: string, time: number) => {
@@ -258,23 +273,6 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
     setPlan((p) => ({ ...p, dayCount: Math.max(MIN_DAYS, Math.min(MAX_DAYS, Math.round(n))) }));
   }, []);
 
-  // Tapping a dish already sitting in another meal time moves it here rather
-  // than refusing — a dish belongs to exactly one slot in the rotation.
-  const toggleDish = useCallback((dishId: string, slotId: string) => {
-    setPlan((p) => {
-      const held = p.dishIds.includes(dishId);
-      if (held && p.slots[dishId] === slotId) {
-        const { [dishId]: _drop, ...slots } = p.slots;
-        return { ...p, dishIds: p.dishIds.filter((d) => d !== dishId), slots };
-      }
-      return {
-        ...p,
-        dishIds: held ? p.dishIds : [...p.dishIds, dishId],
-        slots: { ...p.slots, [dishId]: slotId },
-      };
-    });
-  }, []);
-
   const setDayDish = useCallback((day: number, slotIndex: number, dishId: string) => {
     setPlan((p) => setGridDish(p, day, slotIndex, dishId));
   }, []);
@@ -289,20 +287,11 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
     setPlan((p) => applySaverTo(p, key));
   }, []);
 
-  // Editing a live subscription keeps its original start date — the customer is
-  // changing what arrives, not restarting the term they already paid for.
+  // Confirming always starts a new term from today, whether or not a plan was
+  // already running: a customer who picks a different plan is buying it, not
+  // amending the one they are part-way through. The plan carries its meals'
+  // tailoring with it, so what was chosen while building is what gets cooked.
   const confirm = useCallback(() => {
-    persist({
-      ...plan,
-      exceptions: [],
-      startedAt: subscription?.startedAt || Date.now(),
-    });
-  }, [persist, plan, subscription]);
-
-  // Editing keeps the original start date; swapping does not. A customer who
-  // picks a different box is buying a different plan, not amending the one they
-  // are part-way through, so the term restarts from today.
-  const replaceSubscription = useCallback(() => {
     persist({ ...plan, exceptions: [], startedAt: Date.now() });
   }, [persist, plan]);
 
@@ -315,12 +304,17 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
+  // A meal opened while building belongs to the plan on the builder, not to the
+  // subscription already running — writing every edit to the subscription lost
+  // the tailoring the moment the new plan was confirmed.
   const setMealBuild = useCallback(
-    (dishId: string, build: MealBuildState) => {
-      mutateSubscription((s) => ({
-        ...s,
-        mealBuilds: { ...(s.mealBuilds ?? {}), [dishId]: build },
-      }));
+    (target: BuildTarget, dishId: string, build: MealBuildState) => {
+      const withBuild = (p: PlanState): PlanState => ({
+        ...p,
+        mealBuilds: { ...(p.mealBuilds ?? {}), [dishId]: build },
+      });
+      if (target === 'plan') setPlan(withBuild);
+      else mutateSubscription(withBuild);
     },
     [mutateSubscription],
   );
@@ -389,15 +383,14 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
       subscriptionMeals,
       subscriptionPricing,
       subscriptionMacros,
+      now,
       startFromBox,
       startCustom,
-      editSubscription,
       addSlot,
       updateSlot,
       removeSlot,
       toggleWeekday,
       setDayCount,
-      toggleDish,
       setDayDish,
       addDay,
       removeDay,
@@ -408,7 +401,6 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
       postponeDay,
       clearException,
       cancelSubscription,
-      replaceSubscription,
       setMealBuild,
     }),
     [
@@ -421,15 +413,14 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
       subscriptionMeals,
       subscriptionPricing,
       subscriptionMacros,
+      now,
       startFromBox,
       startCustom,
-      editSubscription,
       addSlot,
       updateSlot,
       removeSlot,
       toggleWeekday,
       setDayCount,
-      toggleDish,
       setDayDish,
       addDay,
       removeDay,
@@ -440,7 +431,6 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
       postponeDay,
       clearException,
       cancelSubscription,
-      replaceSubscription,
       setMealBuild,
     ],
   );

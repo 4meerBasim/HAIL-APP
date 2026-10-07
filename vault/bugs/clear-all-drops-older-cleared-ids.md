@@ -1,10 +1,15 @@
 # Clearing the inbox forgets what was already cleared
 
-Status: not-fixed
+Status: fixed
 Found: `src/state/NotificationsContext.tsx:70-72`
 Summary: `clearAll` overwrites the cleared set with the ids currently visible, but `items` has already had the cleared ones filtered out — so every sweep discards the previous one, and a cleared notification comes back the moment a real feed exists.
 
 ## Details
+Fixed: `clearAll` now writes `[...cleared, ...items.map((n) => n.id)]` with
+`cleared` in its deps (`src/state/NotificationsContext.tsx`). Since `items`
+excludes everything already cleared, the two never overlap, so no `Set` is
+needed.
+
 ```ts
 const clearAll = useCallback(() => {
   setCleared(items.map((n) => n.id));
@@ -18,7 +23,7 @@ absent from `items` is everything already in `cleared`. Assigning
 complement.
 
 Clear the inbox, receive two more notifications, clear again: the second sweep
-writes only those two ids, the first batch is no longer in `@jareesh/notifications-cleared`,
+writes only those two ids, the first batch is no longer in `@hail/notifications-cleared`,
 and it reappears on the next render. The customer clears their inbox and it
 refills with things they already dismissed.
 

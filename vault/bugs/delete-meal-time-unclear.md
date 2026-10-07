@@ -12,4 +12,4 @@ Two separate faults:
 ## Related
 - Page: [[plan-builder]]
 - Feature: [[meal-times]]
-- Enhancement: [[confirm-before-deleting-meal-time]]
+- Feature: [[confirm-before-deleting-meal-time]]

@@ -2,8 +2,12 @@ import React, { useEffect, useRef, useState } from 'react';
 import {
   Animated,
   Easing,
+  Image,
+  LayoutAnimation,
+  Platform,
   ScrollView,
   StyleSheet,
+  UIManager,
   useWindowDimensions,
   View,
 } from 'react-native';
@@ -12,22 +16,43 @@ import Screen from '../components/Screen';
 import Icon from '../components/Icon';
 import { icons } from '../components/icons';
 import Button from '../components/Button';
+import MacroRow from '../components/MacroRow';
 import PatternFill from '../components/PatternFill';
 import PressScale from '../components/PressScale';
+import Stepper from '../components/Stepper';
 import { colors, fonts, overlay, radius, shadow, spacing, type } from '../theme';
 import { useLanguage } from '../i18n/LanguageContext';
 import { formatNumber } from '../i18n/digits';
+import { ingredientLabel } from '../i18n/orderText';
 import { formatPrice, groupNumber } from '../data/menu';
 import {
   BUILT_MEAL_ID,
+  gramsOf,
+  gramsRange,
   ingredientGroups,
-  ingredientPrice,
+  ingredientPriceAt,
   isCompleteMeal,
+  mealMacros,
+  mealPrice,
 } from '../data/ingredients';
 import { useCart } from '../state/CartContext';
 import type { TabScreenProps } from '../navigation/RootNavigator';
 
 const STEP_MS = 260;
+
+// Android needs telling before it will animate a layout change at all; iOS has
+// always done it. Called once at module load rather than per render.
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
+
+// Ticking a part on grows a grams control under it, which is a height change —
+// the cards below slide down rather than jumping.
+const GRAMS_PANEL = LayoutAnimation.create(
+  180,
+  LayoutAnimation.Types.easeInEaseOut,
+  LayoutAnimation.Properties.opacity,
+);
 
 // Building a meal is a sequence, not a form: base, then what goes on it, then
 // what goes round it. One question per screen, so the customer is choosing
@@ -38,6 +63,10 @@ export default function MenuScreen({ navigation }: TabScreenProps<'Menu'>) {
 
   const [step, setStep] = useState(0);
   const [picked, setPicked] = useState<string[]>([]);
+  // Only the parts the customer moved off the kitchen's default weight. An
+  // absent entry means "as the kitchen packs it", so the meal carries only what
+  // was actually changed.
+  const [grams, setGrams] = useState<Record<string, number>>({});
   // Every step is rendered, side by side, and the row is what moves. Fading one
   // step out and the next in leaves an instant with nothing on screen, and no
   // curve makes that read as anything but a flash — so nothing fades: the step
@@ -60,15 +89,48 @@ export default function MenuScreen({ navigation }: TabScreenProps<'Menu'>) {
   const last = step === ingredientGroups.length - 1;
   const chosenHere = group.items.filter((item) => picked.includes(item.id));
 
-  const total = picked.reduce((sum, id) => sum + ingredientPrice(id), 0);
+  const total = mealPrice(picked, grams);
   const ready = isCompleteMeal(picked);
+  const macros = mealMacros(picked, grams);
 
   // The parts in the order they are chosen in, which is the order the box is
   // packed in — base first, then what sits on it.
   const inBox = ingredientGroups.flatMap((g) => g.items.filter((i) => picked.includes(i.id)));
 
-  const toggle = (id: string) =>
+  // The weight on the meal right now: what the customer set, or the amount the
+  // kitchen packs if they never touched it.
+  const weightOf = (id: string) => grams[id] ?? gramsOf(id);
+
+  // Each part names its weight wherever it is listed, so the price beside it
+  // has a reason. Pieces — a samoon, an egg — stay named on their own.
+  const partLabel = (id: string) => ingredientLabel(id, weightOf(id), t);
+
+  // Taking a part off drops its weight with it, so putting it back later starts
+  // from the kitchen's amount again rather than from a figure set on a choice
+  // the customer then reversed.
+  const toggle = (id: string) => {
+    LayoutAnimation.configureNext(GRAMS_PANEL);
     setPicked((prev) => (prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]));
+    setGrams((prev) => {
+      if (!(id in prev)) return prev;
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+  };
+
+  const changeGrams = (id: string, next: number) => {
+    const { min, max, step: by } = gramsRange(id);
+    // Land on the part's own step and inside what the kitchen will weigh, so a
+    // held-down button cannot walk the figure past either end.
+    const snapped = Math.min(max, Math.max(min, Math.round(next / by) * by));
+    setGrams((prev) => {
+      const out = { ...prev };
+      if (snapped === gramsOf(id)) delete out[id];
+      else out[id] = snapped;
+      return out;
+    });
+  };
 
   // The step leaves the way the customer is going and the next one comes in
   // from the far side, which is the only cue that says "same task, next part".
@@ -91,15 +153,25 @@ export default function MenuScreen({ navigation }: TabScreenProps<'Menu'>) {
   // coming back from the cart to add a second one had to build it twice.
   const add = () => {
     addItem(BUILT_MEAL_ID, 1, {
-      key: picked.slice().sort().join('+'),
-      label: inBox.map((item) => t(`ing.${item.id}`)).join(' + '),
+      // The weights are part of what makes two built meals different: 200g of
+      // kebab and 350g of it are not the same line on the kitchen's docket, so
+      // they cannot collapse into one.
+      key: picked
+        .slice()
+        .sort()
+        .map((id) => `${id}@${weightOf(id)}`)
+        .join('+'),
+      label: inBox.map((item) => partLabel(item.id)).join(' + '),
       unit: total,
     });
     navigation.navigate('Cart');
   };
 
   return (
-    <Screen scroll={false} texture>
+    /* No bottom edge: the tab bar underneath already pads itself past the home
+       indicator, so insetting here too left a band of dead cream under the
+       step buttons — space the row of choices above them wants. */
+    <Screen scroll={false} edges={['top', 'left', 'right']} texture>
       {/* The box being packed, kept in view: it is the only thing on this tab
           that says what the customer is actually making. */}
       <View style={[styles.box, shadow.raised]}>
@@ -109,10 +181,20 @@ export default function MenuScreen({ navigation }: TabScreenProps<'Menu'>) {
           <Text style={styles.boxTitle}>{t('build.title')}</Text>
           <Text style={styles.boxSub} numberOfLines={2}>
             {inBox.length > 0
-              ? inBox.map((item) => t(`ing.${item.id}`)).join(' + ')
+              ? inBox.map((item) => partLabel(item.id)).join(' + ')
               : t('build.subtitle')}
           </Text>
         </View>
+
+        {/* The box travels with the customer through every step, so the meal's
+            nutrition belongs on it rather than on a summary at the end: the
+            figures move as each part goes in, which is when a choice about them
+            can still be made. */}
+        {picked.length > 0 ? (
+          <View style={styles.boxMacros}>
+            <MacroRow macros={macros} size="sm" onDark />
+          </View>
+        ) : null}
 
         {/* One segment per part of the meal, filled as it is answered — a bar
             the customer can count, rather than a percentage. */}
@@ -167,36 +249,57 @@ export default function MenuScreen({ navigation }: TabScreenProps<'Menu'>) {
               >
                 {g.items.map((item) => {
                   const on = picked.includes(item.id);
+                  const weight = weightOf(item.id);
+                  const range = gramsRange(item.id);
                   return (
-                    <PressScale
-                      key={item.id}
-                      onPress={() => toggle(item.id)}
-                      scaleTo={0.97}
-                      accessibilityLabel={t(`ing.${item.id}`)}
-                      accessibilityState={{ selected: on }}
-                      style={[styles.card, on && styles.cardOn, shadow.card]}
-                    >
-                      <View style={[styles.cardTile, on && styles.cardTileOn]}>
-                        <Icon
-                          path={icons[g.icon]}
-                          size={18}
-                          color={on ? colors.white : colors.teal}
-                          strokeWidth={1.9}
-                        />
-                      </View>
-                      <Text style={styles.cardName} numberOfLines={2}>
-                        {t(`ing.${item.id}`)}
-                      </Text>
-                      <Text style={[styles.cardPrice, on && styles.cardPriceOn]}>
-                        {formatPrice(groupNumber(item.price), lang)}
-                      </Text>
+                    <View key={item.id} style={styles.cardWrap}>
+                      <PressScale
+                        onPress={() => toggle(item.id)}
+                        scaleTo={0.97}
+                        accessibilityLabel={t(`ing.${item.id}`)}
+                        accessibilityState={{ selected: on }}
+                        style={[styles.card, on && styles.cardOn, shadow.card]}
+                      >
+                        {/* The parts of a meal are told apart by sight before
+                            they are told apart by name — white rice against
+                            red — so each card carries its own photograph. */}
+                        <Image source={item.image} style={styles.cardImage} resizeMode="cover" />
+                        <Text style={styles.cardName} numberOfLines={2}>
+                          {t(`ing.${item.id}`)}
+                        </Text>
+                        <Text style={[styles.cardPrice, on && styles.cardPriceOn]}>
+                          {formatPrice(groupNumber(ingredientPriceAt(item.id, grams[item.id])), lang)}
+                        </Text>
 
-                      {on ? (
-                        <View style={styles.cardMark}>
-                          <Icon path={icons.check} size={11} color={colors.white} strokeWidth={3} />
-                        </View>
+                        {on ? (
+                          <View style={styles.cardMark}>
+                            <Icon
+                              path={icons.check}
+                              size={11}
+                              color={colors.white}
+                              strokeWidth={3}
+                            />
+                          </View>
+                        ) : null}
+                      </PressScale>
+
+                      {/* The weight only matters once the part is in the box,
+                          and the price follows the food — so the control
+                          arrives with the choice rather than sitting there
+                          greyed out beforehand. */}
+                      {on && item.byWeight ? (
+                        <Stepper
+                          compact
+                          value={weight}
+                          suffix={t('detail.gram')}
+                          onDecrement={() => changeGrams(item.id, weight - range.step)}
+                          onIncrement={() => changeGrams(item.id, weight + range.step)}
+                          canDecrement={weight > range.min}
+                          canIncrement={weight < range.max}
+                          style={styles.cardGrams}
+                        />
                       ) : null}
-                    </PressScale>
+                    </View>
                   );
                 })}
               </ScrollView>
@@ -210,7 +313,7 @@ export default function MenuScreen({ navigation }: TabScreenProps<'Menu'>) {
           <Button
             label={t('builder.prev')}
             variant="outline"
-            size="lg"
+            size="md"
             onPress={() => go(-1)}
             style={styles.back}
           />
@@ -220,7 +323,7 @@ export default function MenuScreen({ navigation }: TabScreenProps<'Menu'>) {
           <Button
             label={ready ? t('build.add') : t('build.needBoth')}
             variant="primary"
-            size="lg"
+            size="md"
             full
             disabled={!ready}
             onPress={add}
@@ -234,7 +337,7 @@ export default function MenuScreen({ navigation }: TabScreenProps<'Menu'>) {
               group.required || chosenHere.length > 0 ? t('builder.next') : t('build.skip')
             }
             variant="primary"
-            size="lg"
+            size="md"
             full
             disabled={group.required && chosenHere.length === 0}
             onPress={() => go(1)}
@@ -257,6 +360,11 @@ const styles = StyleSheet.create({
   },
   boxText: {
     gap: 2,
+  },
+  boxMacros: {
+    borderTopWidth: 1,
+    borderTopColor: overlay.white16,
+    paddingTop: spacing.lg,
   },
   boxTitle: {
     ...type.h3,
@@ -342,8 +450,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.huge,
     paddingBottom: spacing.xxl,
   },
-  card: {
+  // The card and its grams control are one column: the width lives out here so
+  // the control sits exactly as wide as the card it belongs to.
+  cardWrap: {
     width: '47.5%',
+    gap: spacing.md,
+  },
+  card: {
     gap: spacing.md,
     backgroundColor: colors.card,
     borderRadius: radius.card,
@@ -356,16 +469,19 @@ const styles = StyleSheet.create({
     borderColor: colors.teal,
     backgroundColor: colors.white,
   },
-  cardTile: {
-    width: 36,
-    height: 36,
+  cardImage: {
+    width: '100%',
+    height: 76,
     borderRadius: radius.sm,
     backgroundColor: colors.healthyBg,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
-  cardTileOn: {
-    backgroundColor: colors.teal,
+  cardGrams: {
+    backgroundColor: colors.card,
+    borderRadius: radius.card,
+    borderWidth: 1.5,
+    borderColor: colors.sand,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
   },
   cardName: {
     ...type.title,
@@ -392,19 +508,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  // Kept tight: every point this bar takes is a point off the row of choices
+  // above it, and the choices are what the customer came here to make.
   bar: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.lg,
+    gap: spacing.md,
     backgroundColor: colors.cream,
     borderTopWidth: 1,
     borderTopColor: colors.sandChip,
     paddingHorizontal: spacing.huge,
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.xl,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.md,
   },
   back: {
-    paddingHorizontal: spacing.xxl,
+    paddingHorizontal: spacing.xl,
   },
   next: {
     flex: 1,

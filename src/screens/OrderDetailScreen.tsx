@@ -11,13 +11,14 @@ import { colors, fonts, radius, spacing, type } from '../theme';
 import { useLanguage } from '../i18n/LanguageContext';
 import { useOrderText } from '../i18n/orderText';
 import { formatNumber } from '../i18n/digits';
+import { count } from '../i18n/count';
 import {
-  DELIVERY_FEE,
   formatPrice,
   getDish,
   groupNumber,
   orderGrandTotal,
   orderItemCount,
+  orderCharges,
   orderLineTotal,
   orderTotal,
 } from '../data/menu';
@@ -28,7 +29,7 @@ import type { RootStackScreenProps } from '../navigation/RootNavigator';
 export default function OrderDetailScreen({ route, navigation }: RootStackScreenProps<'OrderDetail'>) {
   const { t, lang } = useLanguage();
   const { dishName, whenLabel } = useOrderText();
-  const { addItem } = useCart();
+  const { addLines } = useCart();
   const { orders } = useOrders();
 
   const order = orders.find((o) => o.id === route.params.id) ?? null;
@@ -48,8 +49,10 @@ export default function OrderDetailScreen({ route, navigation }: RootStackScreen
     );
   }
 
+  const charges = orderCharges(order);
+
   const reorder = () => {
-    order.lines.forEach((line) => addItem(line.dishId, line.qty));
+    addLines(order.lines);
     navigation.navigate('Cart');
   };
 
@@ -69,7 +72,7 @@ export default function OrderDetailScreen({ route, navigation }: RootStackScreen
         <View style={styles.headerText}>
           <Text style={styles.title}>{`#${formatNumber(order.id)}`}</Text>
           <Text style={styles.subtitle}>
-            {`${whenLabel(order)} · ${formatNumber(orderItemCount(order))} ${t('orders.items')}`}
+            {`${whenLabel(order)} · ${count('count.items', orderItemCount(order), t)}`}
           </Text>
         </View>
         <View style={styles.statusPill}>
@@ -83,10 +86,11 @@ export default function OrderDetailScreen({ route, navigation }: RootStackScreen
         <Card padding={spacing.xl} style={styles.block}>
           <Text style={styles.blockLabel}>{t('orders.detail.items')}</Text>
 
-          {order.lines.map((line) => {
+          {/* Keyed by position: the same dish built two ways is two lines. */}
+          {order.lines.map((line, i) => {
             const dish = getDish(line.dishId);
             return (
-              <View key={line.dishId} style={styles.line}>
+              <View key={i} style={styles.line}>
                 {dish ? <Image source={dish.image} style={styles.thumb} /> : null}
                 <View style={styles.lineText}>
                   <Text style={styles.lineName} numberOfLines={2}>
@@ -109,10 +113,25 @@ export default function OrderDetailScreen({ route, navigation }: RootStackScreen
               {formatPrice(groupNumber(orderTotal(order)), lang)}
             </Text>
           </View>
+          {/* Every line checkout charged, so the receipt adds up to its total. */}
+          {charges.discount > 0 ? (
+            <View style={styles.totalRow}>
+              <Text style={styles.totalLabel}>{t('cart.discount')}</Text>
+              <Text style={styles.totalLabel}>
+                {`− ${formatPrice(groupNumber(charges.discount), lang)}`}
+              </Text>
+            </View>
+          ) : null}
           <View style={styles.totalRow}>
             <Text style={styles.totalLabel}>{t('cart.delivery')}</Text>
             <Text style={styles.totalLabel}>
-              {formatPrice(groupNumber(DELIVERY_FEE), lang)}
+              {formatPrice(groupNumber(charges.delivery), lang)}
+            </Text>
+          </View>
+          <View style={styles.totalRow}>
+            <Text style={styles.totalLabel}>{t('cart.service')}</Text>
+            <Text style={styles.totalLabel}>
+              {formatPrice(groupNumber(charges.service), lang)}
             </Text>
           </View>
           <DashedRule />

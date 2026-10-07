@@ -18,10 +18,12 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Button from '../components/Button';
+import Icon from '../components/Icon';
+import { icons } from '../components/icons';
 import { colors, fonts, overlay, radius, shadow, spacing, type } from '../theme';
-import { useLanguage } from '../i18n/LanguageContext';
-import { count } from '../i18n/count';
-import { useAuth, type IdentityChannel, type OtpFailure } from '../state/AuthContext';
+import { type Lang, useLanguage } from '../i18n/LanguageContext';
+import { useAuth, type IdentityChannel, type SignInFailure } from '../state/AuthContext';
+import { DIAL_CODE, normalizePhone, phoneValid } from '../data/phone';
 import type { RootStackScreenProps } from '../navigation/RootNavigator';
 
 const GRADIENT_COLORS = [colors.tealDark, colors.teal, colors.tealMid] as const;
@@ -33,9 +35,7 @@ const SPIN_MS = 40000;
 // fast and settles long. A generic ease-out drifts away from the keyboard
 // mid-flight, and the gap between the two is what reads as lag; this tracks it.
 const KEYBOARD_CURVE = Easing.bezier(0.38, 0.7, 0.125, 1);
-const CODE_LENGTH = 4;
-const DIAL_CODE = '+964';
-const LOGO = require('../../assets/logo-jareesh.jpg');
+const LOGO = require('../../assets/logo-hail.png');
 // Shipped at 1x/2x/3x so `repeat` tiles off the ~139pt base rather than the
 // full-width source, which would read as one stretched motif instead of texture.
 const PATTERN = require('../../assets/pattern-arabic.jpg');
@@ -49,23 +49,17 @@ const PATCH_TOP = 320;
 const PATCH_SIDE = 225;
 
 export default function LoginScreen({ navigation }: RootStackScreenProps<'Login'>) {
-  const { t, isRTL } = useLanguage();
+  const { t, isRTL, setLang } = useLanguage();
   const insets = useSafeAreaInsets();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
-  const { requestOtp, verifyOtp, continueAsGuest } = useAuth();
+  const { signIn, continueAsGuest } = useAuth();
 
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   // Which identity the customer is signing in with. Phone stays the default:
   // it is what most people have, and the other route is one tap away.
   const [channel, setChannel] = useState<IdentityChannel>('phone');
-  const [code, setCode] = useState('');
-  const [sent, setSent] = useState(false);
-  const [failure, setFailure] = useState<{ reason: OtpFailure; retryAfter?: number } | null>(null);
-  // Both calls hit the network, so the button has to stop being pressable while
-  // one is in flight — otherwise a second tap burns the customer's resend
-  // allowance on a code that was already on its way.
-  const [pending, setPending] = useState(false);
+  const [failure, setFailure] = useState<SignInFailure | null>(null);
 
   // KeyboardAvoidingView's `padding` behaviour squeezed the flex:1 brand block
   // as the keyboard came up, so the logo and title snapped smaller in one frame.
@@ -153,39 +147,24 @@ export default function LoginScreen({ navigation }: RootStackScreenProps<'Login'
 
   const isEmail = channel === 'email';
   const identityReady = isEmail
-    // Deliberately loose: the API decides what a real address is, and a stricter
-    // guess here only ever refuses somebody's perfectly good mailbox.
+    // Deliberately loose: a stricter guess at what a real address is only ever
+    // refuses somebody's perfectly good mailbox.
     ? /^\S+@\S+\.\S+$/.test(email.trim())
-    : phone.replace(/\D/g, '').length >= 10;
-  const codeReady = code.length === CODE_LENGTH;
+    // A phone is checked properly — an Iraqi mobile is 7 and nine more digits —
+    // because it is the number the courier dials, not just a login.
+    : phoneValid(phone);
 
   // The field sits behind a +964 chip, so what the customer types is the local
-  // part of the number and the dial code has to be put back before it is sent.
-  // Sending the field raw is how 7817768081 reaches the API as an already
-  // international number: +7 is Russia, and the code goes to a stranger.
-  //
-  // The trunk zero and a repeated country code are both stripped, so 0781…,
-  // 781… and 964781… are one customer rather than three accounts.
-  const e164 = `${DIAL_CODE}${phone.replace(/\D/g, '').replace(/^964/, '').replace(/^0+/, '')}`;
+  // part of the number and the dial code has to be put back before it is
+  // stored. The trunk zero and a repeated country code are both stripped, so
+  // 0781…, 781… and 964781… are one customer rather than three accounts.
+  const e164 = `${DIAL_CODE}${normalizePhone(phone)}`;
 
-  // What the code is actually sent to, and what the code step shows back.
+  // Which account is being opened.
   const identity = isEmail
     ? { channel: 'email' as const, value: email.trim() }
     : { channel: 'phone' as const, value: e164 };
 
-  const onSend = async () => {
-    if (pending) return;
-    setPending(true);
-    setFailure(null);
-    const result = await requestOtp(identity);
-    setPending(false);
-    if (result.ok) {
-      setSent(true);
-      setCode('');
-    } else {
-      setFailure({ reason: result.reason, retryAfter: result.retryAfter });
-    }
-  };
 
   // Reached from the checkout gate, sign-in returns the customer to the screen
   // that sent them here (their half-built plan is still on it); reached on cold
@@ -195,43 +174,16 @@ export default function LoginScreen({ navigation }: RootStackScreenProps<'Login'
     else navigation.replace('Tabs');
   };
 
-  const onVerify = async () => {
-    if (pending) return;
-    setPending(true);
-    setFailure(null);
-    const result = await verifyOtp(code);
-    setPending(false);
-    if (result.ok) {
-      proceed();
-    } else {
-      setFailure({ reason: result.reason, retryAfter: result.retryAfter });
-    }
+  // No code step: the identity is the sign-in.
+  const onSend = () => {
+    const result = signIn(identity);
+    if (result.ok) proceed();
+    else setFailure(result.reason);
   };
 
   // Resolved at render rather than stored, so the message follows the language
   // rather than whichever one was active when the request failed.
-  const errorText = ((): string | null => {
-    if (!failure) return null;
-    switch (failure.reason) {
-      case 'throttled':
-        return t('login.errorThrottled').replace(
-          '{n}',
-          count('count.seconds', failure.retryAfter ?? 0, t),
-        );
-      case 'invalid-identity':
-        return t(isEmail ? 'login.errorEmail' : 'login.errorPhone');
-      case 'network':
-        return t('login.errorNetwork');
-      default:
-        return t('login.codeError');
-    }
-  })();
-
-  const onChangeNumber = () => {
-    setSent(false);
-    setCode('');
-    setFailure(null);
-  };
+  const errorText = failure ? t(isEmail ? 'login.errorEmail' : 'login.errorPhone') : null;
 
   // Swapping the route clears the other field: carrying a half-typed number
   // into the email step and back is how a customer ends up sending the one they
@@ -259,8 +211,13 @@ export default function LoginScreen({ navigation }: RootStackScreenProps<'Login'
   // field, so the order is reversed back under RTL.
   const phoneRowSide = { flexDirection: isRTL ? 'row-reverse' : 'row' } as const;
 
+  // The toggle offers the language the customer is not in, shown under its own
+  // endonym — "English" while reading Arabic, "العربية" while reading English —
+  // so each name is legible to the speaker it is offered to.
+  const otherLang: Lang = isRTL ? 'en' : 'ar';
+
   return (
-    <View style={styles.root}>
+    <View style={[styles.root, { direction: isRTL ? 'rtl' : 'ltr' }]}>
       <StatusBar style="light" />
       <LinearGradient
         colors={GRADIENT_COLORS}
@@ -305,141 +262,106 @@ export default function LoginScreen({ navigation }: RootStackScreenProps<'Login'
               resizeMode="repeat"
               style={[styles.sheetPattern, { width: windowWidth, height: windowHeight }]}
             />
-            {sent ? (
-              <>
-                <View style={styles.headingBlock}>
-                  <Text style={[styles.heading, readingSide]}>{t('login.codeSent')}</Text>
-                  <Text style={[styles.subheading, readingSide]}>{t('login.codeHint')}</Text>
-                </View>
+            <View style={styles.headingBlock}>
+              <Text style={[styles.heading, readingSide]}>{t('login.title')}</Text>
+              <Text style={[styles.subheading, readingSide]}>
+                {t(isEmail ? 'login.subtitleEmail' : 'login.subtitle')}
+              </Text>
+            </View>
 
-                <View style={styles.field}>
-                  <Text style={[styles.fieldLabel, readingSide]}>{identity.value}</Text>
+            <View style={styles.field}>
+              <Text style={[styles.fieldLabel, readingSide]}>
+                {t(isEmail ? 'login.emailLabel' : 'login.phoneLabel')}
+              </Text>
+
+              {isEmail ? (
+                <TextInput
+                  value={email}
+                  onChangeText={(v) => {
+                    setEmail(v);
+                    setFailure(null);
+                  }}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  textContentType="emailAddress"
+                  placeholder={t('login.emailPlaceholder')}
+                  placeholderTextColor={colors.faint2}
+                  accessibilityLabel={t('login.emailLabel')}
+                  style={[styles.input, styles.emailInput, !!errorText && styles.inputError]}
+                />
+              ) : (
+                <View style={[styles.phoneRow, phoneRowSide]}>
+                  <View style={styles.prefix}>
+                    <Text style={styles.prefixText}>{DIAL_CODE}</Text>
+                  </View>
                   <TextInput
-                    value={code}
+                    value={phone}
                     onChangeText={(v) => {
-                      setCode(v.replace(/\D/g, '').slice(0, CODE_LENGTH));
+                      setPhone(v);
                       setFailure(null);
                     }}
-                    keyboardType="number-pad"
-                    maxLength={CODE_LENGTH}
-                    autoFocus
-                    placeholder="••••"
+                    keyboardType="phone-pad"
+                    placeholder="770 000 0000"
                     placeholderTextColor={colors.faint2}
-                    accessibilityLabel={t('login.codeHint')}
-                    style={[styles.input, styles.codeInput, !!errorText && styles.inputError]}
+                    accessibilityLabel={t('login.phoneLabel')}
+                    style={[styles.input, styles.phoneInput, !!errorText && styles.inputError]}
                   />
-                  {errorText ? (
-                    <Text style={[styles.error, readingSide]}>{errorText}</Text>
-                  ) : null}
                 </View>
+              )}
 
-                <View style={styles.actions}>
-                  <Button
-                    label={pending ? t('login.verifying') : t('common.continue')}
-                    variant="primary"
-                    size="lg"
-                    full
-                    disabled={!codeReady || pending}
-                    onPress={onVerify}
-                          />
-                  <TouchableOpacity
-                    activeOpacity={0.7}
-                    onPress={onChangeNumber}
-                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                    accessibilityRole="button"
-                  >
-                    <Text style={styles.link}>{t('login.changeNumber')}</Text>
-                  </TouchableOpacity>
-                </View>
-              </>
-            ) : (
-              <>
-                <View style={styles.headingBlock}>
-                  <Text style={[styles.heading, readingSide]}>{t('login.title')}</Text>
-                  <Text style={[styles.subheading, readingSide]}>
-                    {t(isEmail ? 'login.subtitleEmail' : 'login.subtitle')}
-                  </Text>
-                </View>
+              {errorText ? (
+                <Text style={[styles.error, readingSide]}>{errorText}</Text>
+              ) : null}
+            </View>
 
-                <View style={styles.field}>
-                  <Text style={[styles.fieldLabel, readingSide]}>
-                    {t(isEmail ? 'login.emailLabel' : 'login.phoneLabel')}
-                  </Text>
-
-                  {isEmail ? (
-                    <TextInput
-                      value={email}
-                      onChangeText={(v) => {
-                        setEmail(v);
-                        setFailure(null);
-                      }}
-                      keyboardType="email-address"
-                      autoCapitalize="none"
-                      autoCorrect={false}
-                      textContentType="emailAddress"
-                      placeholder={t('login.emailPlaceholder')}
-                      placeholderTextColor={colors.faint2}
-                      accessibilityLabel={t('login.emailLabel')}
-                      style={[styles.input, styles.emailInput, !!errorText && styles.inputError]}
-                    />
-                  ) : (
-                    <View style={[styles.phoneRow, phoneRowSide]}>
-                      <View style={styles.prefix}>
-                        <Text style={styles.prefixText}>{DIAL_CODE}</Text>
-                      </View>
-                      <TextInput
-                        value={phone}
-                        onChangeText={(v) => {
-                          setPhone(v);
-                          setFailure(null);
-                        }}
-                        keyboardType="phone-pad"
-                        placeholder="770 000 0000"
-                        placeholderTextColor={colors.faint2}
-                        accessibilityLabel={t('login.phoneLabel')}
-                        style={[styles.input, styles.phoneInput, !!errorText && styles.inputError]}
-                      />
-                    </View>
-                  )}
-
-                  {errorText ? (
-                    <Text style={[styles.error, readingSide]}>{errorText}</Text>
-                  ) : null}
-                </View>
-
-                <View style={styles.actions}>
-                  <Button
-                    label={pending ? t('login.sending') : t('common.continue')}
-                    variant="primary"
-                    size="lg"
-                    full
-                    disabled={!identityReady || pending}
-                    onPress={onSend}
-                          />
-                  <TouchableOpacity
-                    activeOpacity={0.7}
-                    onPress={onSwapChannel}
-                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                    accessibilityRole="button"
-                  >
-                    <Text style={styles.link}>
-                      {t(isEmail ? 'login.usePhone' : 'login.useEmail')}
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    activeOpacity={0.7}
-                    onPress={onGuest}
-                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                    accessibilityRole="button"
-                  >
-                    <Text style={styles.link}>{t('login.browse')}</Text>
-                  </TouchableOpacity>
-                </View>
-              </>
-            )}
+            <View style={styles.actions}>
+              <Button
+                label={t('common.continue')}
+                variant="primary"
+                size="lg"
+                full
+                disabled={!identityReady}
+                onPress={onSend}
+              />
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={onSwapChannel}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                accessibilityRole="button"
+              >
+                <Text style={styles.link}>
+                  {t(isEmail ? 'login.usePhone' : 'login.useEmail')}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={onGuest}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                accessibilityRole="button"
+              >
+                <Text style={styles.link}>{t('login.browse')}</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </Animated.View>
       </TouchableWithoutFeedback>
+
+      {/* Sits above the content so the keyboard lift never carries it off, and
+          at the reading-end corner within the safe area. `end` resolves against
+          the root's direction, set from the language, so it stays in the corner
+          under both scripts. */}
+      <TouchableOpacity
+        activeOpacity={0.8}
+        onPress={() => void setLang(otherLang)}
+        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        accessibilityRole="button"
+        accessibilityLabel={t('login.switchLanguage')}
+        style={[styles.langToggle, { top: insets.top + spacing.sm, end: spacing.huge }]}
+      >
+        <Icon path={icons.globe} size={15} color={colors.white} strokeWidth={1.8} />
+        <Text style={styles.langToggleText}>{t(`lang.${otherLang}.native`)}</Text>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -550,7 +472,7 @@ const styles = StyleSheet.create({
   sheetPattern: {
     position: 'absolute',
     top: 0,
-    left: 0,
+    start: 0,
     borderTopLeftRadius: radius.sheet2,
     borderTopRightRadius: radius.sheet2,
     opacity: 0.05,
@@ -613,11 +535,6 @@ const styles = StyleSheet.create({
     textAlign: 'left',
     writingDirection: 'ltr',
   },
-  codeInput: {
-    textAlign: 'center',
-    letterSpacing: 14,
-    fontSize: 24,
-  },
   inputError: {
     borderColor: colors.coral,
   },
@@ -633,5 +550,20 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.tealText,
     textAlign: 'center',
+  },
+  langToggle: {
+    position: 'absolute',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.pill,
+    backgroundColor: overlay.white16,
+  },
+  langToggleText: {
+    fontFamily: fonts.semibold,
+    fontSize: 13,
+    color: colors.white,
   },
 });

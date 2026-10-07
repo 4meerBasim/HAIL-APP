@@ -12,6 +12,7 @@ import { colors, fonts, radius, spacing, type } from '../theme';
 import { useLanguage } from '../i18n/LanguageContext';
 import { useOrderText } from '../i18n/orderText';
 import { formatNumber } from '../i18n/digits';
+import { count } from '../i18n/count';
 import {
   type Order,
   daysSince,
@@ -48,7 +49,7 @@ const inRange = (order: Order, range: (typeof RANGES)[number]): boolean => {
 export default function PastOrdersScreen({ navigation }: RootStackScreenProps<'PastOrders'>) {
   const { t, lang } = useLanguage();
   const { summarize, whenLabel } = useOrderText();
-  const { addItem } = useCart();
+  const { addLines } = useCart();
   const { orders } = useOrders();
   const [range, setRange] = useState<RangeKey>('all');
 
@@ -62,7 +63,7 @@ export default function PastOrdersScreen({ navigation }: RootStackScreenProps<'P
   const spent = useMemo(() => shown.reduce((sum, o) => sum + orderGrandTotal(o), 0), [shown]);
 
   const reorder = (order: Order) => {
-    order.lines.forEach((line) => addItem(line.dishId, line.qty));
+    addLines(order.lines);
     navigation.navigate('Cart');
   };
 
@@ -82,7 +83,7 @@ export default function PastOrdersScreen({ navigation }: RootStackScreenProps<'P
         <View style={styles.headerText}>
           <Text style={styles.title}>{t('orders.past')}</Text>
           <Text style={styles.subtitle}>
-            {`${formatNumber(past.length)} ${t('orders.past.count')}`}
+            {count('count.orders', past.length, t)}
           </Text>
         </View>
       </View>
@@ -117,7 +118,7 @@ export default function PastOrdersScreen({ navigation }: RootStackScreenProps<'P
                 filter a receipt list is usually to total it. */}
             <View style={styles.summary}>
               <Text style={styles.summaryLabel}>
-                {`${formatNumber(shown.length)} ${t('orders.past.count')}`}
+                {count('count.orders', shown.length, t)}
               </Text>
               <Text style={styles.summaryValue}>
                 {formatPrice(groupNumber(spent), lang)}
@@ -148,10 +149,11 @@ export default function PastOrdersScreen({ navigation }: RootStackScreenProps<'P
 
                   <View style={styles.pastFoot}>
                     <View style={styles.thumbs}>
-                      {order.lines.slice(0, MAX_THUMBS).map((line) => {
+                      {order.lines.slice(0, MAX_THUMBS).map((line, li) => {
                         const dish = getDish(line.dishId);
+                        // By position: the same dish built two ways is two lines.
                         return dish ? (
-                          <Image key={line.dishId} source={dish.image} style={styles.thumb} />
+                          <Image key={li} source={dish.image} style={styles.thumb} />
                         ) : null;
                       })}
                     </View>

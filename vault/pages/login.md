@@ -1,10 +1,10 @@
 # Login
 
 Route: `Login` (`src/screens/LoginScreen.tsx`)
-Summary: Phone plus a four-digit code sent by the API, or "browse without signing in". A correct code returns the token the app uses from then on.
+Summary: A phone number or an email address signs the customer in on the spot, or they browse without signing in. No code step and no API — see [[on-device-sign-in]].
 
 ## Related
 - Connects to: [[profile]], [[plans]], [[cart]], [[subscribe]], [[plan-builder]], [[orders]], [[box-detail]], [[boxes]]
-- Features: [[guest-mode]], [[phone-otp-sign-in]], [[email-sign-in]], [[real-customer-data-only]]
-- Bugs: [[dial-code-chip-not-sent]], [[customer-data-survives-sign-out]]
+- Features: [[on-device-sign-in]], [[guest-mode]], [[phone-otp-sign-in]], [[email-sign-in]], [[real-customer-data-only]], [[hail-rebrand]], [[language-switching]]
+- Bugs: [[dial-code-chip-not-sent]], [[customer-data-survives-sign-out]], [[phone-validation-too-loose]], [[modals-ignore-language-switch]], [[language-load-blanks-app]]
 - Enhancements: [[resend-code-button]], [[revoke-token-on-sign-out]]

@@ -49,13 +49,13 @@ function LiveDot() {
 // tab named after it — Orders is for deliveries, and a subscription is not one.
 export default function SubscriptionPanel() {
   const { t } = useLanguage();
-  const { subscription, subscriptionPricing, cancelSubscription } = usePlan();
+  const { subscription, subscriptionPricing, now, cancelSubscription } = usePlan();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [cancelling, setCancelling] = useState(false);
 
   const progress = useMemo(
-    () => (subscription ? planProgress(subscription) : null),
-    [subscription],
+    () => (subscription ? planProgress(subscription, now) : null),
+    [subscription, now],
   );
 
   // The date the paid span closes. A calendar date is something the customer

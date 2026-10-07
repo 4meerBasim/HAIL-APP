@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Image, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Image, Linking, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Text from '../components/AppText';
 import Screen from '../components/Screen';
@@ -14,12 +14,14 @@ import PressScale from '../components/PressScale';
 import { colors, radius, scrim, shadow, spacing, type } from '../theme';
 import { useLanguage } from '../i18n/LanguageContext';
 import { formatNumber } from '../i18n/digits';
+import { count } from '../i18n/count';
 import { useAuth } from '../state/AuthContext';
 import {
   type OccasionKey,
   GUEST_STEP,
   MAX_GUESTS,
   MIN_GUESTS,
+  SUPPORT_WHATSAPP,
   cateringHero,
   cateringTrays,
   currencyMark,
@@ -70,12 +72,31 @@ export default function CateringScreen({ navigation }: RootStackScreenProps<'Cat
   const short = Math.max(0, guests - covered);
   const mark = currencyMark(lang);
 
-  const onRequest = () => {
+  // The events team quotes over WhatsApp, so the request is the message they
+  // would otherwise have to ask for: occasion, headcount, trays and the
+  // estimate, already written. "Received" is only shown once WhatsApp has
+  // actually opened with it — with no WhatsApp the request went nowhere, and
+  // saying otherwise leaves the customer waiting on a call that never comes.
+  const onRequest = async () => {
     if (status !== 'authed') {
       navigation.navigate('Login');
       return;
     }
-    setSent(true);
+    const trays = cateringTrays
+      .filter((tray) => (qty[tray.id] ?? 0) > 0)
+      .map((tray) => `• ${t(`tray.${tray.id}`)} ×${formatNumber(qty[tray.id])}`)
+      .join('\n');
+    const message = t('catering.message')
+      .replace('{occasion}', t(`occasion.${occasion}`))
+      .replace('{guests}', formatNumber(guests))
+      .replace('{trays}', trays)
+      .replace('{total}', formatPrice(groupNumber(total), lang));
+    try {
+      await Linking.openURL(`https://wa.me/${SUPPORT_WHATSAPP}?text=${encodeURIComponent(message)}`);
+      setSent(true);
+    } catch {
+      // Nothing opened, so nothing was sent: the button stays for another try.
+    }
   };
 
   return (
@@ -203,7 +224,7 @@ export default function CateringScreen({ navigation }: RootStackScreenProps<'Cat
                   {trayCount === 0
                     ? t('catering.needTrays')
                     : short > 0
-                      ? t('catering.short').replace('{n}', formatNumber(short))
+                      ? count('catering.short', short, t)
                       : t('catering.enough')}
                 </Text>
               </View>
@@ -218,7 +239,7 @@ export default function CateringScreen({ navigation }: RootStackScreenProps<'Cat
               size="lg"
               full
               disabled={trayCount === 0}
-              onPress={onRequest}
+              onPress={() => void onRequest()}
             />
           </>
         )}

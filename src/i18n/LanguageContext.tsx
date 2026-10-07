@@ -6,7 +6,7 @@ import { strings } from './strings';
 export type Lang = 'ar' | 'en';
 export type Dir = 'rtl' | 'ltr';
 
-const STORAGE_KEY = '@jareesh/lang';
+const STORAGE_KEY = '@hail/lang';
 
 export interface LanguageContextValue {
   lang: Lang;
@@ -27,18 +27,23 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   const [lang, setLangState] = useState<Lang>('ar');
   const [ready, setReady] = useState(false);
 
-  // Arabic-only. The `en` dictionary and the `Lang` union stay in place so the
-  // option can be turned back on by restoring the stored-value read below, but
-  // nothing in the running app can reach it: the switcher is gone from Profile
-  // and any 'en' left in storage from a previous build is overwritten on boot,
-  // so an existing install comes back in Arabic rather than stuck in English.
   useEffect(() => {
     let active = true;
     (async () => {
-      await AsyncStorage.setItem(STORAGE_KEY, 'ar');
-      applyRTL('ar');
+      // Nothing renders until `ready`, so a storage error here must still end
+      // in a language: without the catch the app stayed blank for good. Arabic
+      // is the default either way.
+      let initial: Lang = 'ar';
+      try {
+        const stored = await AsyncStorage.getItem(STORAGE_KEY);
+        if (stored === 'ar' || stored === 'en') initial = stored;
+        else await AsyncStorage.setItem(STORAGE_KEY, 'ar');
+      } catch {
+        // Fall back to the default.
+      }
+      applyRTL(initial);
       if (active) {
-        setLangState('ar');
+        setLangState(initial);
         setReady(true);
       }
     })();
@@ -47,8 +52,16 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  const setLang = useCallback(async (_l: Lang) => {
-    // Intentionally inert while the app is Arabic-only.
+  // The switch happens on screen even when it cannot be saved — the customer
+  // asked for it now; only the next launch falls back to the default.
+  const setLang = useCallback(async (l: Lang) => {
+    try {
+      await AsyncStorage.setItem(STORAGE_KEY, l);
+    } catch {
+      // Not persisted; the in-memory language still changes.
+    }
+    applyRTL(l);
+    setLangState(l);
   }, []);
 
   const t = useCallback(

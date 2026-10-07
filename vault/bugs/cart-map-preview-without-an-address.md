@@ -1,10 +1,14 @@
 # The cart maps an address the customer has not set
 
-Status: not-fixed
+Status: fixed
 Found: `src/screens/CartScreen.tsx:189-196`
 Summary: `MapPreview` renders unconditionally at the top of the delivery card, so a customer with no saved address sees a map with a pin dropped on it directly above the line asking them to add one.
 
 ## Details
+Fixed: `MapPreview` only renders when an address is selected.
+
+The original report follows.
+
 The card draws the picture first and asks the question second:
 
 ```tsx

@@ -7,6 +7,7 @@ import type { CartItem } from './CartRow';
 import { colors, fonts, radius, shadow, spacing, type } from '../theme';
 import { useLanguage } from '../i18n/LanguageContext';
 import { formatNumber } from '../i18n/digits';
+import { buildLabel } from '../i18n/orderText';
 import { formatPrice } from '../data/menu';
 
 export interface CartItemCardProps {
@@ -14,28 +15,41 @@ export interface CartItemCardProps {
   width: number;
   onInc: () => void;
   onDec: () => void;
+  /** Opens the line. Only the photo and the name take the press — the quantity
+   *  buttons sit outside it, because a touchable wrapping a touchable is how
+   *  the +/- stop responding. */
+  onOpen?: () => void;
 }
 
 // The cart line as a card rather than a row: several of them slide sideways in
 // the space one row used to take, which is what keeps the address, the payment
 // and the total on the same screen as the food.
-export default function CartItemCard({ item, width, onInc, onDec }: CartItemCardProps) {
+export default function CartItemCard({ item, width, onInc, onDec, onOpen }: CartItemCardProps) {
   const { t, lang } = useLanguage();
   const name = lang === 'ar' ? item.name : t(`dish.${item.dishId}.name`, item.name);
   const last = item.qty <= 1;
 
   return (
     <View style={[styles.card, { width }, shadow.lifted]}>
-      <Image source={item.image} style={styles.image} resizeMode="cover" />
+      <TouchableOpacity
+        activeOpacity={onOpen ? 0.75 : 1}
+        disabled={!onOpen}
+        onPress={onOpen}
+        accessibilityRole={onOpen ? 'button' : undefined}
+        accessibilityLabel={onOpen ? name : undefined}
+        style={styles.head}
+      >
+        <Image source={item.image} style={styles.image} resizeMode="cover" />
 
-      <Text style={styles.name} numberOfLines={1}>
-        {name}
-      </Text>
-      {item.note ? (
-        <Text style={styles.note} numberOfLines={2}>
-          {item.note}
+        <Text style={styles.name} numberOfLines={1}>
+          {name}
         </Text>
-      ) : null}
+        {item.build ? (
+          <Text style={styles.note} numberOfLines={2}>
+            {buildLabel(item.build.key, t)}
+          </Text>
+        ) : null}
+      </TouchableOpacity>
 
       <View style={styles.foot}>
         <Text style={styles.price}>{formatPrice(item.price, lang)}</Text>
@@ -72,6 +86,12 @@ export default function CartItemCard({ item, width, onInc, onDec }: CartItemCard
 }
 
 const styles = StyleSheet.create({
+  // The card's own gap used to space the photo, name and note; those now sit
+  // inside the pressable head, so the gap lives there and the card only has to
+  // separate the head from the foot.
+  head: {
+    gap: spacing.md,
+  },
   card: {
     gap: spacing.md,
     backgroundColor: colors.card,

@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  
+<defs>
+  <linearGradient id="teal" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0" stop-color="#16a89a"/>
+    <stop offset="1" stop-color="#0a5f56"/>
+  </linearGradient>
+  <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0" stop-color="#e7c77e"/>
+    <stop offset="1" stop-color="#d6a23e"/>
+  </linearGradient>
+</defs>
+  <rect width="512" height="512" fill="#F7F2D4"/>
+  <g transform="translate(256,256) scale(0.5)"><g fill="none" stroke="#16a89a" stroke-width="6" opacity="0.1">
+    <path d="M0,-400 C110,-260 110,-140 0,-60 C-110,-140 -110,-260 0,-400 Z" transform="rotate(0)"/><path d="M0,-400 C110,-260 110,-140 0,-60 C-110,-140 -110,-260 0,-400 Z" transform="rotate(45)"/><path d="M0,-400 C110,-260 110,-140 0,-60 C-110,-140 -110,-260 0,-400 Z" transform="rotate(90)"/><path d="M0,-400 C110,-260 110,-140 0,-60 C-110,-140 -110,-260 0,-400 Z" transform="rotate(135)"/><path d="M0,-400 C110,-260 110,-140 0,-60 C-110,-140 -110,-260 0,-400 Z" transform="rotate(180)"/><path d="M0,-400 C110,-260 110,-140 0,-60 C-110,-140 -110,-260 0,-400 Z" transform="rotate(225)"/><path d="M0,-400 C110,-260 110,-140 0,-60 C-110,-140 -110,-260 0,-400 Z" transform="rotate(270)"/><path d="M0,-400 C110,-260 110,-140 0,-60 C-110,-140 -110,-260 0,-400 Z" transform="rotate(315)"/>
+    <circle r="430"/>
+    <rect x="-300" y="-300" width="600" height="600" transform="rotate(45)"/>
+    <rect x="-300" y="-300" width="600" height="600"/>
+  </g>
+  <g transform="translate(105,10) rotate(26)">
+  <path d="M0,-200 C156,-144 150,120 0,200
+           C-150,120 -156,-144 0,-200 Z" fill="url(#gold)"/>
+  <path d="M0,-172 C84,-100 84,90 0,180" fill="none" stroke="#8a5a24" stroke-width="6.4" stroke-linecap="round" opacity="0.5"/><path d="M0,-172 C0,-100 0,90 0,180" fill="none" stroke="#8a5a24" stroke-width="6.4" stroke-linecap="round" opacity="0.5"/><path d="M0,-172 C-84,-100 -84,90 0,180" fill="none" stroke="#8a5a24" stroke-width="6.4" stroke-linecap="round" opacity="0.5"/>
+  <path d="M0,-200 c4,-20 20,-36 40,-40" fill="none" stroke="#8a5a24" stroke-width="12" stroke-linecap="round"/></g>
+  <g transform="translate(-50,40) rotate(-20)">
+  <path d="M0,-235 C183.3,-169.2 176.25,141 0,235
+           C-176.25,141 -183.3,-169.2 0,-235 Z" fill="url(#teal)"/>
+  <path d="M0,-202.1 C98.69999999999999,-117.5 98.69999999999999,105.75 0,211.5" fill="none" stroke="#ffffff" stroke-width="7.5200000000000005" stroke-linecap="round" opacity="0.5"/><path d="M0,-202.1 C0,-117.5 0,105.75 0,211.5" fill="none" stroke="#ffffff" stroke-width="7.5200000000000005" stroke-linecap="round" opacity="0.5"/><path d="M0,-202.1 C-98.69999999999999,-117.5 -98.69999999999999,105.75 0,211.5" fill="none" stroke="#ffffff" stroke-width="7.5200000000000005" stroke-linecap="round" opacity="0.5"/>
+  <path d="M0,-235 c4.7,-23.5 23.5,-42.3 47,-47" fill="none" stroke="#8a5a24" stroke-width="14.1" stroke-linecap="round"/></g></g>
+</svg>

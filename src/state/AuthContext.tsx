@@ -1,11 +1,34 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { samePhone } from '../data/phone';
 
-const SESSION_KEY = '@jareesh/session';
+const SESSION_KEY = '@hail/session';
 
-// Set in .env.local — see .env.example. On a device this has to be the Mac's
-// LAN address, never localhost: the phone's localhost is the phone.
-const API_URL = process.env.EXPO_PUBLIC_API_URL ?? '';
+// Everything else written on behalf of the signed-in customer that no context
+// clears for itself: the saved card and how they pay, the hand-over choice,
+// notification bookkeeping and preferences, and the saved addresses. Orders and
+// the subscription are cleared by OrdersContext and PlanContext, which own them.
+const ACCOUNT_KEYS = [
+  '@hail/card',
+  '@hail/payment-method',
+  '@hail/drop',
+  '@hail/notifications-read',
+  '@hail/notifications-cleared',
+  '@hail/notifications',
+  '@hail/locations.v2',
+  '@hail/location-selected.v2',
+];
+
+/*
+ * Sign-in runs on the device. There is no API behind this build: entering a
+ * phone or an email signs the customer in, and the account is whatever they
+ * typed, kept in AsyncStorage.
+ *
+ * What this deliberately does NOT do is invent anything else. No name, no
+ * orders, no addresses, no subscription — see [[real-customer-data-only]]. An
+ * account here is an identity and nothing more, so every empty state is the one
+ * a genuinely new customer sees.
+ */
 
 export interface User {
   /** Empty when the customer signed up with an email and has no number yet. */
@@ -18,12 +41,11 @@ export interface User {
   secondary: string[];
 }
 
-// What is written to AsyncStorage. The token is the session: a stored user
-// without one cannot talk to the API at all, so it is dropped on boot rather
-// than restored into a state that looks signed in and fails on first request.
+// What is written to AsyncStorage. Sessions written by the API build also
+// carried a bearer token; it is ignored on read rather than rejected, so
+// signing back in is not forced on anyone who had one.
 interface Session {
   user: User;
-  token: string;
 }
 
 export type AuthStatus = 'loading' | 'guest' | 'authed';
@@ -32,34 +54,26 @@ export type IdentityChannel = 'phone' | 'email';
 
 /**
  * What the customer is signing in with. Not everyone has WhatsApp, so a phone
- * cannot be the only way in — the API takes either, and which one is being used
- * has to travel with the value rather than being guessed from its shape.
+ * cannot be the only way in — either identifies the account, and which one is
+ * being used has to travel with the value rather than being guessed from its
+ * shape.
  */
 export interface Identity {
   channel: IdentityChannel;
   value: string;
 }
 
-/**
- * Why a code request or a verification did not go through.
- *
- * `wrong-code` is deliberately the only verification failure. The API answers
- * a wrong code, an expired one, one guessed at too many times and a number it
- * has never seen with the same 422 — telling them apart would say which numbers
- * have accounts — so the app has nothing finer to report.
- */
-export type OtpFailure = 'invalid-identity' | 'throttled' | 'wrong-code' | 'network';
+/** The only way in can fail now: the phone or address is not usable as one. */
+export type SignInFailure = 'invalid-identity';
 
-export type OtpResult = { ok: true } | { ok: false; reason: OtpFailure; retryAfter?: number };
+export type SignInResult = { ok: true } | { ok: false; reason: SignInFailure };
 
 interface AuthValue {
   status: AuthStatus;
   user: User | null;
-  /** Bearer token for the API. Null unless status is 'authed'. */
-  token: string | null;
-  pendingIdentity: Identity | null;
-  requestOtp: (identity: Identity) => Promise<OtpResult>;
-  verifyOtp: (code: string) => Promise<OtpResult>;
+  /** Signs the customer in on the spot — there is no code step and nothing to
+   *  wait for, so this answers synchronously. */
+  signIn: (identity: Identity) => SignInResult;
   continueAsGuest: () => void;
   signOut: () => void;
   /** True if the number is already on the account, primary or secondary. */
@@ -73,30 +87,15 @@ interface AuthValue {
   makePrimary: (phone: string) => void;
 }
 
-// Numbers are stored as typed, so '0770 000 0000' and '+964 770 000 0000' are
-// two spellings of one number. Comparison is on the digits with the local
-// trunk zero and the country code taken off.
-const key = (phone: string) => phone.replace(/\D/g, '').replace(/^(964)?0?/, '');
-
-const post = (path: string, body: Record<string, string>) =>
-  fetch(`${API_URL}${path}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-    body: JSON.stringify(body),
-  });
-
 const AuthContext = createContext<AuthValue | undefined>(undefined);
 
-// Sign-in runs against the Laravel API: the phone gets a code, the code is
-// exchanged for a Sanctum token, and that token is the session. Everything the
-// rest of the app touches goes through this value.
+// Everything the rest of the app touches about who the customer is goes through
+// this value.
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [status, setStatus] = useState<AuthStatus>('loading');
   const [session, setSession] = useState<Session | null>(null);
-  const [pendingIdentity, setPendingIdentity] = useState<Identity | null>(null);
 
   const user = session?.user ?? null;
-  const token = session?.token ?? null;
 
   useEffect(() => {
     let alive = true;
@@ -105,10 +104,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const raw = await AsyncStorage.getItem(SESSION_KEY);
         if (!alive) return;
         const saved = raw ? (JSON.parse(raw) as Partial<Session>) : null;
-        // A session saved by the mock build has no token, and one saved before
-        // secondary numbers existed has no array. The first cannot authenticate
-        // and is dropped; the second is repaired.
-        if (saved?.token && (saved.user?.phone || saved.user?.email)) {
+        // An identity is the whole session now, so a stored one restores on
+        // either field. A session written before secondary numbers existed has
+        // no array and is repaired on the way in.
+        if (saved?.user?.phone || saved?.user?.email) {
           setSession({
             user: {
               ...saved.user,
@@ -116,7 +115,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               email: saved.user.email ?? '',
               secondary: saved.user.secondary ?? [],
             },
-            token: saved.token,
           });
           setStatus('authed');
         } else {
@@ -138,7 +136,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     void AsyncStorage.setItem(SESSION_KEY, JSON.stringify(next));
   }, []);
 
-  // Changing the numbers on the account keeps the token that was already issued.
   const saveUser = useCallback(
     (next: User) => {
       if (!session) return;
@@ -147,77 +144,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [session, save],
   );
 
-  const requestOtp = useCallback(async (identity: Identity): Promise<OtpResult> => {
-    try {
-      // The API takes `phone` or `email`, never both, and decides the transport
-      // from whichever arrived.
-      const res = await post('/api/auth/otp/request', { [identity.channel]: identity.value });
+  const signIn = useCallback(
+    (identity: Identity): SignInResult => {
+      const value = identity.value.trim();
+      if (!value) return { ok: false, reason: 'invalid-identity' };
 
-      if (res.status === 429) {
-        const body = (await res.json()) as { retry_after?: number };
-        return { ok: false, reason: 'throttled', retryAfter: Number(body.retry_after) || 0 };
-      }
-      if (res.status === 422) return { ok: false, reason: 'invalid-identity' };
-      if (!res.ok) return { ok: false, reason: 'network' };
-
-      // Only now: the code-entry step is meaningless if nothing was sent.
-      setPendingIdentity(identity);
+      save({
+        user: {
+          /*
+           * Only the field they signed in with is filled. The other is left
+           * empty on purpose — a customer who signed in with an email has no
+           * number yet, and the screens that show one already render an empty
+           * string rather than handling a null.
+           *
+           * `name` is empty for the same reason: nothing here knows it, and
+           * putting a placeholder in would be inventing a customer.
+           */
+          phone: identity.channel === 'phone' ? value : '',
+          email: identity.channel === 'email' ? value : '',
+          name: '',
+          secondary: [],
+        },
+      });
+      setStatus('authed');
       return { ok: true };
-    } catch {
-      return { ok: false, reason: 'network' };
-    }
-  }, []);
-
-  const verifyOtp = useCallback(
-    async (code: string): Promise<OtpResult> => {
-      if (!pendingIdentity) return { ok: false, reason: 'wrong-code' };
-
-      try {
-        const res = await post('/api/auth/otp/verify', {
-          [pendingIdentity.channel]: pendingIdentity.value,
-          code,
-        });
-        if (!res.ok) {
-          return { ok: false, reason: res.status === 422 ? 'wrong-code' : 'network' };
-        }
-
-        const body = (await res.json()) as {
-          token?: string;
-          user?: { phone?: string | null; email?: string | null; name?: string | null };
-        };
-        if (!body.token) return { ok: false, reason: 'network' };
-
-        save({
-          user: {
-            /*
-             * The API is the source of truth for both identities: it stores
-             * E.164 and lowercased addresses, so the account is keyed on
-             * +9647… and on the address however the customer typed it.
-             *
-             * Either can be absent — a customer who signed in with an email has
-             * no number yet, and vice versa — and the rest of the app renders
-             * these as strings rather than handling a null.
-             */
-            phone: body.user?.phone ?? '',
-            email: body.user?.email ?? '',
-            name: body.user?.name ?? '',
-            secondary: [],
-          },
-          token: body.token,
-        });
-        setStatus('authed');
-        setPendingIdentity(null);
-        return { ok: true };
-      } catch {
-        return { ok: false, reason: 'network' };
-      }
     },
-    [pendingIdentity, save],
+    [save],
   );
 
   const hasPhone = useCallback(
     (phone: string) =>
-      !!user && [user.phone, ...user.secondary].some((p) => key(p) === key(phone)),
+      !!user && [user.phone, ...user.secondary].some((p) => samePhone(p, phone)),
     [user],
   );
 
@@ -242,42 +199,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const removeSecondary = useCallback(
     (phone: string) => {
       if (!user) return;
-      saveUser({ ...user, secondary: user.secondary.filter((p) => key(p) !== key(phone)) });
+      saveUser({ ...user, secondary: user.secondary.filter((p) => !samePhone(p, phone)) });
     },
     [user, saveUser],
   );
 
   const makePrimary = useCallback(
     (phone: string) => {
-      if (!user || key(phone) === key(user.phone)) return;
-      saveUser({
-        ...user,
-        phone,
-        secondary: [user.phone, ...user.secondary.filter((p) => key(p) !== key(phone))],
-      });
+      if (!user || samePhone(phone, user.phone)) return;
+      const rest = user.secondary.filter((p) => !samePhone(p, phone));
+      // A customer who signed in with an email has no primary yet, so there is
+      // nothing to swap down — an empty string in the list would render as a
+      // blank backup row.
+      saveUser({ ...user, phone, secondary: user.phone ? [user.phone, ...rest] : rest });
     },
     [user, saveUser],
   );
 
   const continueAsGuest = useCallback(() => {
     setStatus('guest');
-    setPendingIdentity(null);
   }, []);
 
+  // Signing out hands the handset to whoever signs in next, so the account's
+  // card, addresses and preferences go with the session rather than being
+  // inherited by the next customer.
   const signOut = useCallback(() => {
     setSession(null);
     setStatus('guest');
-    void AsyncStorage.removeItem(SESSION_KEY);
+    void AsyncStorage.multiRemove([SESSION_KEY, ...ACCOUNT_KEYS]);
   }, []);
 
   const value = useMemo(
     () => ({
       status,
       user,
-      token,
-      pendingIdentity,
-      requestOtp,
-      verifyOtp,
+      signIn,
       continueAsGuest,
       signOut,
       hasPhone,
@@ -289,10 +245,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [
       status,
       user,
-      token,
-      pendingIdentity,
-      requestOtp,
-      verifyOtp,
+      signIn,
       continueAsGuest,
       signOut,
       hasPhone,

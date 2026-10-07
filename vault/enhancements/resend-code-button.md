@@ -1,9 +1,11 @@
 # Resend the code
 
-Status: planned
+Status: done
 Summary: The code step offers no way to ask for another code — the only route is "change number", back, and continue, which trips the API's resend cooldown.
 
 ## Notes
+No longer applies: [[on-device-sign-in]] removed the code step and the API, so there is no code to resend. Kept for when [[phone-otp-sign-in]] returns.
+
 A code that never arrives is the common failure in any OTP flow, and the screen
 has no answer for it. Today the customer taps [[login]]'s "change number", comes
 back, and presses continue — which is a fresh request, so within sixty seconds the

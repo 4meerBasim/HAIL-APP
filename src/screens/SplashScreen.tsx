@@ -18,7 +18,7 @@ import { useLanguage } from '../i18n/LanguageContext';
 const GRADIENT_COLORS = [colors.tealDark, colors.teal, colors.tealMid] as const;
 const GRADIENT_LOCATIONS = [0, 0.62, 1] as const;
 
-const LOGO = require('../../assets/logo-jareesh.jpg');
+const LOGO = require('../../assets/logo-hail.png');
 const PATTERN_GOLD = require('../../assets/pattern-arabic-gold.png');
 const PATCH_TOP = 320;
 const PATCH_SIDE = 225;
@@ -228,7 +228,9 @@ export default function SplashScreen({ ready = false, onDone }: SplashScreenProp
   };
 
   return (
-    <Animated.View style={[styles.root, { opacity: fade }]}>
+    // `direction` from the language rather than left to forceRTL, which only
+    // applies after a restart: the patches sit on `start`/`end`.
+    <Animated.View style={[styles.root, { opacity: fade, direction: isRTL ? 'rtl' : 'ltr' }]}>
       <StatusBar style="light" />
       <LinearGradient
         colors={GRADIENT_COLORS}

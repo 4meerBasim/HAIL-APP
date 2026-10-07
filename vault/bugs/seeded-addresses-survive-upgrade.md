@@ -1,15 +1,19 @@
 # Seeded addresses survive the upgrade
 
-Status: not-fixed
+Status: fixed
 Found: `src/state/LocationContext.tsx:4`, read back at `src/state/LocationContext.tsx:36-45`
-Summary: The storage key is unchanged, so the fabricated home and work rows the previous build wrote to `@jareesh/locations` hydrate back on an existing install — blank-titled, because the field they were named through is gone.
+Summary: The storage key is unchanged, so the fabricated home and work rows the previous build wrote to `@hail/locations` hydrate back on an existing install — blank-titled, because the field they were named through is gone.
 
 ## Details
+Fixed: Both keys were bumped to `@hail/locations.v2` and `@hail/location-selected.v2`.
+
+The original report follows.
+
 [[real-customer-data-only]] deleted the seed array, but not what the seed had
 already written. `STORAGE_KEY` is still:
 
 ```ts
-const STORAGE_KEY = '@jareesh/locations';
+const STORAGE_KEY = '@hail/locations';
 ```
 
 Every install that ran the previous build has the Karrada "home" and the
@@ -27,7 +31,7 @@ that will happily deliver to Karrada.
 A fresh install is clean, which is why this does not show up in testing: the
 defect only exists where the old build ran first.
 
-The fix is to bump the key — `@jareesh/locations.v2`, with `@jareesh/location-selected`
+The fix is to bump the key — `@hail/locations.v2`, with `@hail/location-selected`
 following it, since a pointer at a discarded id is worse than none. Deleting the
 old key on read would also work but is a migration for data that has no value.
 Bumping is one line and cannot half-succeed.

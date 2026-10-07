@@ -22,6 +22,7 @@ import { useLanguage } from '../i18n/LanguageContext';
 import { dishesOfCourse, formatPrice, getDish, groupNumber, parsePrice } from '../data/menu';
 import { extraGroups, priceOf } from '../data/extras';
 import { formatNumber } from '../i18n/digits';
+import { useOrderText } from '../i18n/orderText';
 import { useMealBuild } from '../state/MealBuildContext';
 import type { RootStackScreenProps } from '../navigation/RootNavigator';
 
@@ -43,6 +44,7 @@ const PANEL = LayoutAnimation.create(200, LayoutAnimation.Types.easeInEaseOut, L
 // the errand is the same, and so are the header, the spacing and the way back.
 export default function MealExtrasScreen({ navigation }: RootStackScreenProps<'MealExtras'>) {
   const { t, lang } = useLanguage();
+  const { dishName } = useOrderText();
   const { build, chooseExtra, countItem } = useMealBuild();
 
   // Everything the customer has put on the meal so far, named and priced. The
@@ -50,14 +52,11 @@ export default function MealExtrasScreen({ navigation }: RootStackScreenProps<'M
   // actually adding?", which the choices themselves never say together.
   const lines = [
     ...build.extras.map((id) => ({ id, label: t(`opt.${id}`), price: priceOf(id) })),
-    ...Object.entries(build.items).map(([id, n]) => {
-      const item = getDish(id);
-      return {
-        id,
-        label: n > 1 ? `${item?.name ?? id} ×${formatNumber(n)}` : (item?.name ?? id),
-        price: parsePrice(item?.price ?? '0') * n,
-      };
-    }),
+    ...Object.entries(build.items).map(([id, n]) => ({
+      id,
+      label: n > 1 ? `${dishName(id)} ×${formatNumber(n)}` : dishName(id),
+      price: parsePrice(getDish(id)?.price ?? '0') * n,
+    })),
   ];
   const addedTotal = lines.reduce((sum, line) => sum + line.price, 0);
   // Only one row stands open at a time: the page is a list of decisions, and

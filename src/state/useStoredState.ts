@@ -15,17 +15,22 @@ export function useStoredState<T>(
 ): [T, (next: T) => void, () => void] {
   const [value, setValue] = useState<T>(initial);
   const dirty = useRef(false);
+  const initialRef = useRef(initial);
 
   // Exposed as well as run on mount: when another screen writes the same key —
   // the card form saving into the key the payments list reads — the list is
   // still mounted behind it and would otherwise show the value it loaded on
   // first render. Callers reload it on focus.
+  //
+  // A missing key goes back to the initial value rather than keeping the old
+  // one: sign-out removes the saved card, and a list that kept showing it would
+  // offer the previous customer's card to the next one.
   const reload = useCallback(() => {
     let active = true;
     (async () => {
       try {
         const raw = await AsyncStorage.getItem(key);
-        if (active && raw != null) setValue(JSON.parse(raw) as T);
+        if (active) setValue(raw != null ? (JSON.parse(raw) as T) : initialRef.current);
       } catch {
         // Corrupt or unreadable: keep the default rather than crash a settings row.
       }

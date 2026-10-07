@@ -1,11 +1,12 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useAuth } from './AuthContext';
 
 // v2 namespace: the v1 keys still hold the fabricated Karrada/Al-Mansour seed on
 // any install that ran the old build and saved or starred an address. Reading a
 // fresh key drops those rows for good rather than hydrating them back blank.
-const STORAGE_KEY = '@jareesh/locations.v2';
-const SELECTED_KEY = '@jareesh/location-selected.v2';
+const STORAGE_KEY = '@hail/locations.v2';
+const SELECTED_KEY = '@hail/location-selected.v2';
 
 export interface SavedLocation {
   id: string;
@@ -36,26 +37,47 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
   const [locations, setLocations] = useState<SavedLocation[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [hydrated, setHydrated] = useState(false);
+  const { status } = useAuth();
+  const prevStatus = useRef(status);
 
   useEffect(() => {
     let active = true;
     (async () => {
-      const [rawList, rawSelected] = await AsyncStorage.multiGet([STORAGE_KEY, SELECTED_KEY]);
-      if (!active) return;
-      const stored = rawList[1] ? (JSON.parse(rawList[1]) as SavedLocation[]) : null;
-      if (stored?.length) {
-        setLocations(stored);
-        // A stale pointer would leave `selected` falling back to the first row
-        // on every launch, silently discarding the customer's choice.
-        const id = rawSelected[1];
-        setSelectedId(id && stored.some((l) => l.id === id) ? id : stored[0].id);
+      // Unreadable or corrupt storage is the same as none: without the catch a
+      // bad row left `hydrated` false for good, and every screen that waits on
+      // it showed nothing at all instead of the empty state.
+      try {
+        const [rawList, rawSelected] = await AsyncStorage.multiGet([STORAGE_KEY, SELECTED_KEY]);
+        if (!active) return;
+        const stored = rawList[1] ? (JSON.parse(rawList[1]) as SavedLocation[]) : null;
+        if (stored?.length) {
+          setLocations(stored);
+          // A stale pointer would leave `selected` falling back to the first row
+          // on every launch, silently discarding the customer's choice.
+          const id = rawSelected[1];
+          setSelectedId(id && stored.some((l) => l.id === id) ? id : stored[0].id);
+        }
+      } catch {
+        // Fall through to the empty, hydrated state.
       }
-      setHydrated(true);
+      if (active) setHydrated(true);
     })();
     return () => {
       active = false;
     };
   }, []);
+
+  // Sign-out removes the stored addresses (AuthContext), but the list already in
+  // memory would still be offered to whoever signs in next. Only the authed →
+  // guest edge clears it: a launch straight into guest has nothing to drop, and
+  // clearing there could race the read above.
+  useEffect(() => {
+    if (prevStatus.current === 'authed' && status === 'guest') {
+      setLocations([]);
+      setSelectedId(null);
+    }
+    prevStatus.current = status;
+  }, [status]);
 
   const persist = useCallback((next: SavedLocation[]) => {
     setLocations(next);

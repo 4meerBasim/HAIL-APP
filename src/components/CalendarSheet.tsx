@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Modal, Pressable, StyleSheet, TouchableOpacity, View } from 'react-native';
 import Text from './AppText';
 import Icon from './Icon';
@@ -47,6 +47,16 @@ export default function CalendarSheet({
   const [month, setMonth] = useState(() => new Date(anchor).getMonth());
   const [year, setYear] = useState(() => new Date(anchor).getFullYear());
 
+  // The sheet stays mounted while closed, so the month it was left on would
+  // otherwise be the month it reopens on — not the one holding the delivery
+  // now selected. Each open starts from the selection.
+  useEffect(() => {
+    if (!visible) return;
+    const at = new Date(anchor);
+    setMonth(at.getMonth());
+    setYear(at.getFullYear());
+  }, [visible, anchor]);
+
   const delivered = useMemo(() => new Set(deliveries), [deliveries]);
 
   // Leading blanks so the 1st lands under its weekday, then every day of the
@@ -69,8 +79,9 @@ export default function CalendarSheet({
   const weekdayLabels = useMemo(() => dayKeys.map((k) => t(k)), [t]);
 
   return (
+    // A Modal is its own native root and does not inherit the Screen's direction.
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={styles.backdrop} onPress={onClose}>
+      <Pressable style={[styles.backdrop, { direction: isRTL ? 'rtl' : 'ltr' }]} onPress={onClose}>
         {/* Swallows taps so a press inside the card never dismisses it. */}
         <Pressable style={styles.card} onPress={() => {}}>
           <View style={styles.head}>

@@ -5,9 +5,9 @@ import {
   Modal,
   StyleSheet,
   TouchableOpacity,
-  View,
 } from 'react-native';
 import {
+  GestureHandlerRootView,
   PanGestureHandler,
   type PanGestureHandlerStateChangeEvent,
   PinchGestureHandler,
@@ -37,7 +37,7 @@ export interface ImageViewerProps {
 // runs the transform off the JS thread here.
 export default function ImageViewer({ visible, source, onClose }: ImageViewerProps) {
   const insets = useSafeAreaInsets();
-  const { t } = useLanguage();
+  const { t, isRTL } = useLanguage();
   const [zoomed, setZoomed] = useState(false);
 
   const pinchRef = useRef(null);
@@ -125,7 +125,12 @@ export default function ImageViewer({ visible, source, onClose }: ImageViewerPro
       statusBarTranslucent
       onRequestClose={close}
     >
-      <View style={styles.backdrop}>
+      {/* A Modal is a new native root on Android, outside the app's own
+          GestureHandlerRootView — without one of its own here, the pinch, pan
+          and double-tap below never receive a touch. Being a new root, it also
+          inherits no direction, and forceRTL only lands after a restart: set
+          here, the close button follows a language switched moments ago. */}
+      <GestureHandlerRootView style={[styles.backdrop, { direction: isRTL ? 'rtl' : 'ltr' }]}>
         <PanGestureHandler
           ref={panRef}
           enabled={zoomed}
@@ -166,7 +171,7 @@ export default function ImageViewer({ visible, source, onClose }: ImageViewerPro
         >
           <Icon path={icons.close} size={16} color={colors.ink} strokeWidth={2.4} />
         </TouchableOpacity>
-      </View>
+      </GestureHandlerRootView>
     </Modal>
   );
 }
