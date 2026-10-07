@@ -13,11 +13,11 @@ import type { RootStackScreenProps } from '../navigation/RootNavigator';
 
 export default function UpcomingScreen({ navigation }: RootStackScreenProps<'Upcoming'>) {
   const { t } = useLanguage();
-  const { subscription } = usePlan();
+  const { subscription, now } = usePlan();
 
   const progress = useMemo(
-    () => (subscription ? planProgress(subscription) : null),
-    [subscription],
+    () => (subscription ? planProgress(subscription, now) : null),
+    [subscription, now],
   );
 
   return (

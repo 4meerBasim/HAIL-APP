@@ -46,7 +46,7 @@ const LANGS: Lang[] = ['ar', 'en'];
 export default function ProfileScreen({ navigation }: TabScreenProps<'Profile'>) {
   const { t, lang, isRTL, setLang } = useLanguage();
   const { status, user, signOut } = useAuth();
-  const { subscription } = usePlan();
+  const { subscription, now } = usePlan();
   const { orders } = useOrders();
   const { items } = useCart();
   const { unreadCount } = useNotifications();
@@ -69,8 +69,8 @@ export default function ProfileScreen({ navigation }: TabScreenProps<'Profile'>)
   };
 
   const progress = useMemo(
-    () => (subscription ? planProgress(subscription) : null),
-    [subscription],
+    () => (subscription ? planProgress(subscription, now) : null),
+    [subscription, now],
   );
 
   // 'auto' resolves against the paragraph's writing direction; a physical

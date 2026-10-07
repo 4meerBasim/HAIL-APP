@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   ScrollView,
   StyleSheet,
@@ -78,7 +78,11 @@ export default function CartScreen({ navigation }: RootStackScreenProps<'Cart'>)
   const [why, setWhy] = useState<'delivery' | 'service' | null>(null);
   const [noteOn, setNoteOn] = useState(false);
   const [drop, setDrop] = useStoredState<DropChoice>('@hail/drop', 'hand');
-  const [card] = useStoredState<StoredCard | null>('@hail/card', null);
+  const [card, , reloadCard] = useStoredState<StoredCard | null>('@hail/card', null);
+
+  // The card sheet sends the customer to AddCard, which pops straight back here
+  // with the cart still mounted — re-read the card or confirm keeps asking for one.
+  useEffect(() => navigation.addListener('focus', reloadCard), [navigation, reloadCard]);
 
   const readingSide = { textAlign: 'auto', writingDirection: isRTL ? 'rtl' : 'ltr' } as const;
   const chevron = isRTL ? icons.chevronLeft : icons.chevronRight;

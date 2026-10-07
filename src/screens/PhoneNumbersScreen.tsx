@@ -31,7 +31,7 @@ const display = (phone: string) => `\u200e${formatPhone(phone)}`;
 
 export default function PhoneNumbersScreen({ navigation }: RootStackScreenProps<'PhoneNumbers'>) {
   const { t, isRTL } = useLanguage();
-  const { user, hasPhone, changePrimary, addSecondary, removeSecondary, makePrimary } = useAuth();
+  const { user, changePrimary, addSecondary, removeSecondary, makePrimary } = useAuth();
 
   const [mode, setMode] = useState<Mode | null>(null);
   const [phone, setPhone] = useState('');
