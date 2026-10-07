@@ -100,11 +100,15 @@ export default function PlanMenuScreen({ navigation }: RootStackScreenProps<'Pla
             contentContainerStyle={styles.listContent}
             showsVerticalScrollIndicator={false}
           >
+            {/* One row per meal of the rotation, and a dish that comes round on
+                two days is two rows — so the index is part of the key. */}
             {shown.map((meal, i) => (
-              <Reveal key={meal.dishId} index={i}>
+              <Reveal key={`${meal.dishId}-${i}`} index={i}>
                 <MealRow
                   meal={meal}
-                  onPress={() => navigation.navigate('DishDetail', { id: meal.dishId, fromPlan: true })}
+                  onPress={() =>
+                    navigation.navigate('DishDetail', { id: meal.dishId, fromPlan: true, building: true })
+                  }
                 />
               </Reveal>
             ))}

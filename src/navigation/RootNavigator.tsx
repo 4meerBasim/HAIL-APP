@@ -6,7 +6,7 @@ import {
   type NativeStackScreenProps,
 } from '@react-navigation/native-stack';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
-import { BoxGoal, TrackingStatus } from '../data/menu';
+import { BoxGoal } from '../data/menu';
 import { useAuth } from '../state/AuthContext';
 import Tabs from './Tabs';
 import SplashScreen from '../screens/SplashScreen';
@@ -58,16 +58,23 @@ export type RootStackParamList = {
   PlanBuilder: { boxId?: BoxGoal } | undefined;
   Subscribe: undefined;
   // `siblings` is the day's whole rotation and `fromPlan` marks a meal that
-  // arrives under a subscription — those are cooked as specified, so they are
-  // not customisable.
+  // arrives under a plan — it opens read-only and is tailored, not bought.
+  // `building` says that plan is the one on the builder rather than the
+  // running subscription, so the tailoring is saved onto the right one.
   /** `built` carries a cart line's build key, so a meal assembled on the Menu
    *  tab can be reopened read-only from the basket. */
-  DishDetail: { id: string; siblings?: string[]; fromPlan?: boolean; built?: string };
+  DishDetail: {
+    id: string;
+    siblings?: string[];
+    fromPlan?: boolean;
+    building?: boolean;
+    built?: string;
+  };
   MealExtras: undefined;
   Cart: undefined;
   PastOrders: undefined;
   OrderDetail: { id: string };
-  Tracking: { status?: TrackingStatus } | undefined;
+  Tracking: undefined;
   Map: undefined;
   Addresses: undefined;
   PhoneNumbers: undefined;

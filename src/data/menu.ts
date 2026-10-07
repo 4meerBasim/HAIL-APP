@@ -22,7 +22,7 @@ export interface Dish {
   image: ImageSourcePropType;
 }
 
-// Catering photos came off the restaurant's live menu (SUPPORT_SITE) and
+// Catering photos came off the restaurant's live online menu and
 // are now bundled: every image in the app ships with it, so nothing on screen
 // waits on a network that a customer in a lift does not have.
 
@@ -317,13 +317,11 @@ export const suggestTrays = (guests: number): Record<string, number> => {
 };
 
 // ── Support contact ─────────────────────────────────────────────────────────
-// The website is the restaurant's live menu host and is verified. The phone
-// line is a PLACEHOLDER — swap both numbers for the real support line before
-// release, or the call and WhatsApp rows dial nowhere. E.164, no spaces, so
-// `tel:` and `wa.me` can both take them as-is.
+// The phone line is a PLACEHOLDER — swap both numbers for the real support
+// line before release, or the call and WhatsApp rows dial nowhere. E.164, no
+// spaces, so `tel:` and `wa.me` can both take them as-is.
 export const SUPPORT_PHONE = '+9647700000000';
 export const SUPPORT_WHATSAPP = '9647700000000';
-export const SUPPORT_SITE = 'https://menu.jareesh.com';
 
 export const formatPrice = (price: string, lang: 'ar' | 'en'): string =>
   lang === 'ar' ? `${price} د.ع` : `IQD ${price}`;
@@ -469,34 +467,16 @@ export const formatTime = (minutes: number, t: (k: string, f?: string) => string
 // delivery a day is a real cost, so it is chosen rather than assumed.
 export const defaultSlots = (): MealSlot[] => [{ ...builtInSlots[0] }];
 
+// The three steps a delivery is shown in, in order. Each one has a
+// `track.step.*` and a `track.headline.*` string.
 export type TrackingStatus = 'preparing' | 'ontheway' | 'delivered';
 
-export const trackingStepIndex: Record<TrackingStatus, number> = {
-  preparing: 0,
-  ontheway: 1,
-  delivered: 2,
-};
-
-export const trackingSteps: string[] = ['قيد التحضير', 'في الطريق', 'تم التوصيل'];
-
-export const trackingHeadlines: Record<TrackingStatus, string> = {
-  preparing: 'مطبخنا يحضّر طلبك',
-  ontheway: 'كرار في الطريق إليك',
-  delivered: 'وصل طلبك — بالعافية!',
-};
-
-export const DEFAULT_TRACKING: TrackingStatus = 'ontheway';
-
-export const trackingOrder = {
-  number: '4821',
-  meal: 'وجبة الغداء',
-  minutes: '18',
-} as const;
+export const trackingStatuses: TrackingStatus[] = ['preparing', 'ontheway', 'delivered'];
 
 // Demo geography for the live-tracking map, Karrada to Jadriyah in Baghdad.
-// Fixed waypoints rather than a routing service: the tracked order is sample
-// data, and a real route would need a directions API and a key for a screen
-// that is not yet wired to a backend. Swap `trackingRoute` for the polyline
+// Fixed waypoints rather than a routing service: nothing reports where a driver
+// actually is yet, and a real route would need a directions API and a key for a
+// screen that is not wired to a backend. Swap `trackingRoute` for the polyline
 // from that API when one exists — nothing else on the screen has to change.
 export const trackingRestaurant = { lat: 33.3062, lng: 44.4152 } as const;
 export const trackingDestination = { lat: 33.2794, lng: 44.3872 } as const;
@@ -510,13 +490,6 @@ export const trackingRoute: [number, number][] = [
   [33.2843, 44.3931],
   [33.2794, 44.3872],
 ];
-
-// How far along `trackingRoute` the driver sits in each state, 0–1.
-export const trackingProgress: Record<TrackingStatus, number> = {
-  preparing: 0,
-  ontheway: 0.55,
-  delivered: 1,
-};
 
 // ── Schedule exceptions ─────────────────────────────────────────────────────
 // A subscription runs on its selected weekdays, minus any one-off dates the
@@ -546,10 +519,41 @@ export const saverKeys: SaverKey[] = ['fewerMeals', 'fewerDays', 'swapCheaper', 
 // its own copy.
 export type OrderStatus = 'active' | 'delivered';
 
+// A built meal is its own line: two lots of the same dish with different extras
+// are two different things to cook and two different prices, so the line's key
+// carries the build and `dishId` stays the thing the kitchen reads.
+export interface Build {
+  key: string;
+  label: string;
+  /** Price of one, extras included. */
+  unit: number;
+}
+
 export interface OrderLine {
   dishId: string;
   qty: number;
+  /** Price of one as charged, extras included. Absent on orders saved before it was recorded. */
+  unit?: number;
+  /** The build a made-to-order line was assembled from — what a reorder rebuilds. */
+  build?: Build;
 }
+
+/** What was added and taken off at checkout, recorded so a receipt matches the charge. */
+export interface OrderCharges {
+  discount: number;
+  delivery: number;
+  service: number;
+}
+
+// The same three ids the Payments screen stores as the customer's default
+// under '@hail/payment-method', so checkout can start from that choice as-is.
+export type PaymentMethod = 'card' | 'zain' | 'cash';
+
+/** In checkout's order: the two that are paid up front, then cash. */
+export const paymentMethods: PaymentMethod[] = ['card', 'zain', 'cash'];
+
+export const isPaymentMethod = (value: unknown): value is PaymentMethod =>
+  paymentMethods.includes(value as PaymentMethod);
 
 export interface Order {
   id: string;
@@ -560,6 +564,9 @@ export interface Order {
   note?: string;
   /** What the driver should do on arrival — see `dropKeys`. */
   drop?: DropChoice;
+  /** Absent on orders saved before charges were recorded — see `orderCharges`. */
+  charges?: OrderCharges;
+  payment?: PaymentMethod;
 }
 
 // What happens when the driver reaches the address. Kept short and concrete:
@@ -571,6 +578,32 @@ export const dropKeys: DropChoice[] = ['hand', 'door', 'lobby'];
 
 /** A rough door-to-door estimate, in minutes, quoted as a range. */
 export const DELIVERY_MINUTES: [number, number] = [35, 50];
+
+// Nothing reports a real handover yet, so an order's progress is read off the
+// clock: the kitchen has it for the first PREP_MINUTES, the driver has it until
+// the late end of the quoted window, and past that it has landed. Quoting the
+// customer a window and then showing "on the way" an hour after it closed is
+// the one thing this must never do.
+export const PREP_MINUTES = 15;
+
+const MINUTE = 60_000;
+
+/** The late end of the quoted window — when an order counts as delivered. */
+export const deliveredBy = (order: Order): number =>
+  order.placedAt + DELIVERY_MINUTES[1] * MINUTE;
+
+export const trackingStatusOf = (order: Order, now: number): TrackingStatus => {
+  if (order.status === 'delivered' || now >= deliveredBy(order)) return 'delivered';
+  return now - order.placedAt < PREP_MINUTES * MINUTE ? 'preparing' : 'ontheway';
+};
+
+// How far along `trackingRoute` the driver sits, 0–1: parked at the kitchen
+// while it cooks, then moving at an even pace to land when the window closes.
+export const trackingProgressOf = (order: Order, now: number): number => {
+  const leftAt = order.placedAt + PREP_MINUTES * MINUTE;
+  const ratio = (now - leftAt) / (deliveredBy(order) - leftAt);
+  return Math.max(0, Math.min(1, ratio));
+};
 
 /** Charged per order on top of delivery, the way the branch bills it. */
 export const SERVICE_FEE = 500;
@@ -599,19 +632,27 @@ export const daysSince = (placedAt: number, now: number = Date.now()): number =>
 // receipt adds up the same way the checkout that produced it did.
 export const DELIVERY_FEE = 2000;
 
+// A line's own unit price wins: a built meal or a dish with extras costs more
+// than the menu price, and the menu price may have moved since it was ordered.
+export const orderLineTotal = (line: OrderLine): number => {
+  if (line.unit !== undefined) return line.unit * line.qty;
+  const dish = getDish(line.dishId);
+  return dish ? parsePrice(dish.price) * line.qty : 0;
+};
+
 export const orderTotal = (order: Order): number =>
-  order.lines.reduce((sum, line) => {
-    const dish = getDish(line.dishId);
-    return dish ? sum + parsePrice(dish.price) * line.qty : sum;
-  }, 0);
+  order.lines.reduce((sum, line) => sum + orderLineTotal(line), 0);
 
 export const orderItemCount = (order: Order): number =>
   order.lines.reduce((sum, line) => sum + line.qty, 0);
 
-// What the customer actually paid — the number a receipt should lead with.
-export const orderGrandTotal = (order: Order): number => orderTotal(order) + DELIVERY_FEE;
+// Older orders didn't record their charges; checkout has always added both fees,
+// and a discount that wasn't written down can't be recovered.
+export const orderCharges = (order: Order): OrderCharges =>
+  order.charges ?? { discount: 0, delivery: DELIVERY_FEE, service: SERVICE_FEE };
 
-export const orderLineTotal = (line: OrderLine): number => {
-  const dish = getDish(line.dishId);
-  return dish ? parsePrice(dish.price) * line.qty : 0;
+// What the customer actually paid — the number a receipt should lead with.
+export const orderGrandTotal = (order: Order): number => {
+  const { discount, delivery, service } = orderCharges(order);
+  return orderTotal(order) - discount + delivery + service;
 };

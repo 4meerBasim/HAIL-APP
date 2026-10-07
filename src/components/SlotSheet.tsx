@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Modal, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import Text from './AppText';
 import Button from './Button';
+import Dialog from './Dialog';
 import TimePicker from './TimePicker';
 import { colors, fonts, radius, scrim, shadow, spacing, type } from '../theme';
 import { useLanguage } from '../i18n/LanguageContext';
@@ -18,7 +19,8 @@ export interface SlotSheetProps {
   initial: SlotDraft | null;
   onClose: () => void;
   onSave: (draft: SlotDraft) => void;
-  /** Absent on the last remaining slot — a day with no meal times is not a plan. */
+  /** Absent on the last remaining slot — a day with no meal times is not a plan.
+   *  Called once the customer has confirmed; the sheet asks first. */
   onDelete?: () => void;
 }
 
@@ -34,21 +36,30 @@ export default function SlotSheet({ visible, initial, onClose, onSave, onDelete 
   const { t, isRTL } = useLanguage();
   const [name, setName] = useState('');
   const [time, setTime] = useState(DEFAULT_SLOT_TIME);
+  const [confirming, setConfirming] = useState(false);
 
   // Reset from the slot each time it opens rather than on mount: the sheet
   // stays mounted between edits, so a second open would otherwise still be
   // holding the first slot's name.
+  //
+  // Keyed on the values, not the `initial` object: the parent builds that
+  // object fresh on every render, so depending on it reset the draft — and
+  // wiped whatever was being typed — whenever anything above re-rendered.
+  const initialName = initial?.name;
+  const initialTime = initial?.time;
   useEffect(() => {
     if (!visible) return;
-    setName(initial?.name ?? '');
-    setTime(initial?.time ?? DEFAULT_SLOT_TIME);
-  }, [visible, initial]);
+    setName(initialName ?? '');
+    setTime(initialTime ?? DEFAULT_SLOT_TIME);
+    setConfirming(false);
+  }, [visible, initialName, initialTime]);
 
   const ready = name.trim().length > 0;
 
   return (
+    // A Modal is its own native root and does not inherit the Screen's direction.
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <View style={styles.backdrop}>
+      <View style={[styles.backdrop, { direction: isRTL ? 'rtl' : 'ltr' }]}>
         {/* The dismiss target is a sibling behind the card, not its parent. A
             Pressable wrapping the card claims the touch on press-in and never
             hands it back, which is what stopped the time wheels scrolling. */}
@@ -92,7 +103,7 @@ export default function SlotSheet({ visible, initial, onClose, onSave, onDelete 
 
           {onDelete ? (
             <Pressable
-              onPress={onDelete}
+              onPress={() => setConfirming(true)}
               accessibilityRole="button"
               accessibilityLabel={t('slot.delete')}
               hitSlop={8}
@@ -102,6 +113,23 @@ export default function SlotSheet({ visible, initial, onClose, onSave, onDelete 
           ) : null}
         </View>
       </View>
+
+      {/* Rendered inside the sheet's own modal rather than beside it: a second
+          modal presented while the first is still on screen does not reliably
+          appear on iOS, and this way the sheet stays put behind the question. */}
+      <Dialog
+        visible={confirming}
+        title={t('slot.delete.title').replace('{slot}', initialName ?? '')}
+        message={t('slot.delete.message')}
+        primaryLabel={t('common.cancel')}
+        onPrimary={() => setConfirming(false)}
+        secondaryLabel={t('builder.removeSlot').replace('{slot}', initialName ?? '')}
+        onSecondary={() => {
+          setConfirming(false);
+          onDelete?.();
+        }}
+        onClose={() => setConfirming(false)}
+      />
     </Modal>
   );
 }

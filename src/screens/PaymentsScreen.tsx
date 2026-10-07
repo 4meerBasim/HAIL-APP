@@ -10,11 +10,12 @@ import { colors, radius, spacing, type } from '../theme';
 import { useLanguage } from '../i18n/LanguageContext';
 import { useStoredState } from '../state/useStoredState';
 import { type StoredCard, brandLabel } from '../data/card';
+import type { PaymentMethod } from '../data/menu';
 import type { RootStackScreenProps } from '../navigation/RootNavigator';
 
 // Cash first because it is how most orders in Baghdad are actually paid, and a
 // default the customer never has to change is the best default there is.
-const METHODS: { id: string; icon: IconName }[] = [
+const METHODS: { id: PaymentMethod; icon: IconName }[] = [
   { id: 'cash', icon: 'bag' },
   { id: 'zain', icon: 'phone' },
   { id: 'card', icon: 'creditCard' },
@@ -22,7 +23,7 @@ const METHODS: { id: string; icon: IconName }[] = [
 
 export default function PaymentsScreen({ navigation }: RootStackScreenProps<'Payments'>) {
   const { t } = useLanguage();
-  const [method, setMethod, reloadMethod] = useStoredState('@hail/payment-method', 'cash');
+  const [method, setMethod, reloadMethod] = useStoredState<PaymentMethod>('@hail/payment-method', 'cash');
   const [card, , reloadCard] = useStoredState<StoredCard | null>('@hail/card', null);
 
   // The card form writes both keys and pops straight back to here, so this
@@ -38,7 +39,7 @@ export default function PaymentsScreen({ navigation }: RootStackScreenProps<'Pay
   );
 
   // Selecting "card" with nothing on file is really a request to add one.
-  const choose = (id: string) => {
+  const choose = (id: PaymentMethod) => {
     if (id === 'card' && !card) {
       navigation.navigate('AddCard');
       return;
@@ -46,7 +47,7 @@ export default function PaymentsScreen({ navigation }: RootStackScreenProps<'Pay
     setMethod(id);
   };
 
-  const subFor = (id: string) =>
+  const subFor = (id: PaymentMethod) =>
     id === 'card' && card
       ? `${brandLabel[card.brand]} •••• ${card.last4} · ${card.expiry}`
       : t(`payments.${id}.sub`);

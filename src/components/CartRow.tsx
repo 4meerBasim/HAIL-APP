@@ -14,7 +14,8 @@ import { icons } from './icons';
 import { colors, fonts, radius, shadow } from '../theme';
 import { useLanguage } from '../i18n/LanguageContext';
 import { formatNumber } from '../i18n/digits';
-import { formatPrice } from '../data/menu';
+import { buildLabel } from '../i18n/orderText';
+import { type Build, formatPrice } from '../data/menu';
 
 export interface CartItem {
   /** The line's own key: the dish, plus its build when it has one. */
@@ -25,8 +26,8 @@ export interface CartItem {
   price: string;
   image: ImageSourcePropType;
   qty: number;
-  /** What the customer added or left out, as they chose it. */
-  note?: string;
+  /** What a made-to-order line was assembled from — drawn as its note. */
+  build?: Build;
 }
 
 export interface CartRowProps {
@@ -60,9 +61,9 @@ export default function CartRow({ item, onInc, onDec, onOpen, style }: CartRowPr
           <Text style={styles.name} numberOfLines={1}>
             {name}
           </Text>
-          {item.note ? (
+          {item.build ? (
             <Text style={styles.note} numberOfLines={2}>
-              {item.note}
+              {buildLabel(item.build.key, t)}
             </Text>
           ) : null}
           <Text style={styles.price}>{formatPrice(item.price, lang)}</Text>

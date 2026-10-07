@@ -1,10 +1,14 @@
 # Seeded addresses survive the upgrade
 
-Status: not-fixed
+Status: fixed
 Found: `src/state/LocationContext.tsx:4`, read back at `src/state/LocationContext.tsx:36-45`
 Summary: The storage key is unchanged, so the fabricated home and work rows the previous build wrote to `@hail/locations` hydrate back on an existing install — blank-titled, because the field they were named through is gone.
 
 ## Details
+Fixed: Both keys were bumped to `@hail/locations.v2` and `@hail/location-selected.v2`.
+
+The original report follows.
+
 [[real-customer-data-only]] deleted the seed array, but not what the seed had
 already written. `STORAGE_KEY` is still:
 

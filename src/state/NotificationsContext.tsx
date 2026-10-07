@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useMemo } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef } from 'react';
 import type { IconName } from '../components/icons';
 import { useAuth } from './AuthContext';
 import { useStoredState } from './useStoredState';
@@ -42,6 +42,18 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
   const { status } = useAuth();
   const [read, setRead] = useStoredState<string[]>(READ_KEY, []);
   const [cleared, setCleared] = useStoredState<string[]>(CLEARED_KEY, []);
+  const prevStatus = useRef(status);
+
+  // Sign-out removes both keys from storage, but these copies are already in
+  // memory and the next account to sign in would start with the last one's
+  // read and cleared ids.
+  useEffect(() => {
+    if (prevStatus.current === 'authed' && status === 'guest') {
+      setRead([]);
+      setCleared([]);
+    }
+    prevStatus.current = status;
+  }, [status, setRead, setCleared]);
 
   // Every notification is about an order or a delivery, and a guest has
   // neither. The feed is empty for them, which also takes the bell's badge to

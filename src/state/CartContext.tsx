@@ -6,19 +6,10 @@ import React, {
   useMemo,
   useState,
 } from 'react';
-import { getDish, groupNumber, parsePrice } from '../data/menu';
+import { type Build, type OrderLine, getDish, groupNumber, parsePrice } from '../data/menu';
+import { BUILT_MEAL_ID } from '../data/ingredients';
 import { useAuth } from './AuthContext';
 import type { CartItem } from '../components/CartRow';
-
-// A built meal is its own line: two lots of the same dish with different extras
-// are two different things to cook and two different prices, so the line's key
-// carries the build and `dishId` stays the thing the kitchen reads.
-export interface Build {
-  key: string;
-  label: string;
-  /** Price of one, extras included. */
-  unit: number;
-}
 
 const buildItem = (dishId: string, qty: number, build?: Build): CartItem | null => {
   const dish = getDish(dishId);
@@ -30,13 +21,15 @@ const buildItem = (dishId: string, qty: number, build?: Build): CartItem | null 
     price: build ? groupNumber(build.unit) : dish.price,
     image: dish.image,
     qty,
-    note: build?.label,
+    build,
   };
 };
 
 export interface CartContextValue {
   items: CartItem[];
   addItem: (dishId: string, qty?: number, build?: Build) => void;
+  /** Puts a past order's lines back in the basket — a reorder. */
+  addLines: (lines: OrderLine[]) => void;
   changeQty: (id: string, delta: number) => void;
   clearCart: () => void;
   subtotal: number;
@@ -70,6 +63,19 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
+  // A built meal is only its build: one saved before builds were recorded on
+  // the order has nothing to rebuild it from, and adding the bare placeholder
+  // dish would put a free, empty "meal of your choice" in the basket.
+  const addLines = useCallback(
+    (lines: OrderLine[]) => {
+      lines.forEach((line) => {
+        if (line.dishId === BUILT_MEAL_ID && !line.build) return;
+        addItem(line.dishId, line.qty, line.build);
+      });
+    },
+    [addItem],
+  );
+
   // Stepping the last one down takes the line off the list. Clamping at one
   // instead left no way to drop an item short of ordering it.
   const changeQty = useCallback((id: string, delta: number) => {
@@ -90,8 +96,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   );
 
   const value = useMemo<CartContextValue>(
-    () => ({ items, addItem, changeQty, clearCart, subtotal }),
-    [items, addItem, changeQty, clearCart, subtotal],
+    () => ({ items, addItem, addLines, changeQty, clearCart, subtotal }),
+    [items, addItem, addLines, changeQty, clearCart, subtotal],
   );
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;

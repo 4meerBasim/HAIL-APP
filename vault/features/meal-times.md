@@ -14,6 +14,5 @@ Stored plans written before times existed are migrated on hydrate: a built-in ta
 
 ## Related
 - Page: [[plan-builder]], [[box-detail]], [[upcoming]]
-- Feature: [[time-picker]], [[chronological-meal-order]], [[multi-select-dishes]]
-- Bugs: [[drag-reorder-unreliable]], [[delete-meal-time-unclear]], [[slot-labels-wrong-under-multi-select]]
-- Enhancement: [[confirm-before-deleting-meal-time]]
+- Feature: [[time-picker]], [[chronological-meal-order]], [[multi-select-dishes]], [[confirm-before-deleting-meal-time]]
+- Bugs: [[drag-reorder-unreliable]], [[delete-meal-time-unclear]], [[slot-labels-wrong-under-multi-select]], [[slot-delete-dropped-wrong-column]], [[slot-sheet-draft-reset-on-render]], [[slot-edit-landed-on-wrong-step]]

@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Animated,
   Easing,
+  Linking,
   StyleSheet,
   TextStyle,
   TouchableOpacity,
@@ -16,22 +17,25 @@ import Icon from '../components/Icon';
 import { icons } from '../components/icons';
 import { colors, fonts, radius, shadow, spacing, type } from '../theme';
 import { useLanguage } from '../i18n/LanguageContext';
-import { toWesternDigits } from '../i18n/digits';
+import { formatNumber, toWesternDigits } from '../i18n/digits';
+import { useOrderText } from '../i18n/orderText';
 import {
-  DEFAULT_TRACKING,
+  DELIVERY_MINUTES,
+  SUPPORT_PHONE,
+  SUPPORT_WHATSAPP,
+  type TrackingStatus,
+  deliveredBy,
   trackingDestination,
-  trackingProgress,
+  trackingProgressOf,
   trackingRestaurant,
   trackingRoute,
-  trackingOrder,
-  trackingStepIndex,
-  trackingSteps,
-  type TrackingStatus,
+  trackingStatusOf,
+  trackingStatuses,
 } from '../data/menu';
+import { useNow, useOrders } from '../state/OrdersContext';
 import type { RootStackScreenProps } from '../navigation/RootNavigator';
 import { LEAFLET_CSS, LEAFLET_JS } from '../vendor/leaflet';
 
-// Step labels are localized via t(); these are the strings.ts keys in step order.
 // The tracking basemap is the same CARTO Positron + tone chain the address
 // picker uses, so the two map surfaces read as one product. Tone before hue for
 // the reason documented there: Positron sits at the top of the value range, so
@@ -155,18 +159,39 @@ const buildHtml = (fromLabel: string, toLabel: string): string => `
 
 const MAP_FADE = ['rgba(232,235,226,0)', 'rgba(232,235,226,0.75)'] as const;
 
-const STEP_KEYS = ['track.step.preparing', 'track.step.ontheway', 'track.step.delivered'] as const;
+const MINUTE = 60_000;
 
-// Status cycle order derived from the exported step-index map (preparing -> ontheway -> delivered).
-const STATUS_ORDER = (Object.keys(trackingStepIndex) as TrackingStatus[]).sort(
-  (a, b) => trackingStepIndex[a] - trackingStepIndex[b],
-);
+// Often enough that the step and the minutes left never visibly lag the clock,
+// rarely enough that the map is not re-driven for nothing.
+const TICK_MS = 30_000;
 
-export default function TrackingScreen({ route, navigation }: RootStackScreenProps<'Tracking'>) {
+const clock = (ms: number): string => {
+  const at = new Date(ms);
+  return toWesternDigits(
+    `${String(at.getHours()).padStart(2, '0')}:${String(at.getMinutes()).padStart(2, '0')}`,
+  );
+};
+
+export default function TrackingScreen({ navigation }: RootStackScreenProps<'Tracking'>) {
   const { t, isRTL } = useLanguage();
+  const { summarize } = useOrderText();
   const insets = useSafeAreaInsets();
-  const [status, setStatus] = useState<TrackingStatus>(route.params?.status ?? DEFAULT_TRACKING);
+  const { orders } = useOrders();
+  const now = useNow(TICK_MS);
   const web = useRef<WebView>(null);
+
+  // The order this screen opened on stays on screen once it lands, so the
+  // customer sees it reach "delivered" instead of the page going blank under
+  // them the moment the window closes.
+  const live = orders.find((o) => o.status === 'active') ?? null;
+  const [pinnedId, setPinnedId] = useState<string | null>(live?.id ?? null);
+  useEffect(() => {
+    if (live) setPinnedId(live.id);
+  }, [live]);
+  const order = orders.find((o) => o.id === pinnedId) ?? null;
+
+  const status: TrackingStatus = order ? trackingStatusOf(order, now) : 'delivered';
+  const progress = order && status !== 'delivered' ? trackingProgressOf(order, now) : 1;
 
   // Built once. Rebuilding the document on a status change would reload the map
   // and lose the driver's position mid-animation; the marker moves through
@@ -176,14 +201,12 @@ export default function TrackingScreen({ route, navigation }: RootStackScreenPro
   // Also fired from onLoadEnd: on mount this runs before Leaflet has parsed, so
   // `window.jr` does not exist yet and the first position would be dropped.
   const applyProgress = useCallback(() => {
-    web.current?.injectJavaScript(
-      `window.jr && window.jr.setProgress(${trackingProgress[status]});true;`,
-    );
-  }, [status]);
+    web.current?.injectJavaScript(`window.jr && window.jr.setProgress(${progress});true;`);
+  }, [progress]);
 
   useEffect(applyProgress, [applyProgress]);
 
-  const idx = trackingStepIndex[status];
+  const idx = trackingStatuses.indexOf(status);
 
   // Native-driven value for the marker/live-dot pulses (transform + opacity).
   const pulse = useRef(new Animated.Value(0)).current;
@@ -206,22 +229,6 @@ export default function TrackingScreen({ route, navigation }: RootStackScreenPro
   const ringScale = pulse.interpolate({ inputRange: [0, 0.7, 1], outputRange: [1, 2.2, 2.2] });
   const ringOpacity = pulse.interpolate({ inputRange: [0, 0.7, 1], outputRange: [0.45, 0, 0] });
 
-  const cycleStatus = () =>
-    setStatus((s) => STATUS_ORDER[(trackingStepIndex[s] + 1) % STATUS_ORDER.length]);
-
-  const minutes = toWesternDigits(trackingOrder.minutes);
-  const avatar = t('track.driver.name').trim().charAt(0);
-
-  // Clock time the order lands, so the ETA is an arrival and not just a
-  // countdown the customer has to add to the current time themselves.
-  const arrivesAt = useMemo(() => {
-    const at = new Date(Date.now() + Number(minutes) * 60_000);
-    return toWesternDigits(
-      `${String(at.getHours()).padStart(2, '0')}:${String(at.getMinutes()).padStart(2, '0')}`,
-    );
-  }, [minutes]);
-
-
   // 'auto' resolves against the paragraph's own writing direction. A physical
   // 'right' is mirrored back to the left by RN's RTL swap — the same trap the
   // login screen documents.
@@ -229,6 +236,51 @@ export default function TrackingScreen({ route, navigation }: RootStackScreenPro
     textAlign: 'auto',
     writingDirection: isRTL ? 'rtl' : 'ltr',
   };
+
+  // The phone and WhatsApp lines are the support desk's: there is no driver
+  // feed to put a name or a number on, so the honest contact is the one that
+  // can reach whoever has the order.
+  const call = () => void Linking.openURL(`tel:${SUPPORT_PHONE}`).catch(() => undefined);
+  const chat = () =>
+    void Linking.openURL(`https://wa.me/${SUPPORT_WHATSAPP}`).catch(() => undefined);
+
+  const backButton = (
+    <TouchableOpacity
+      activeOpacity={0.85}
+      onPress={() => navigation.goBack()}
+      accessibilityRole="button"
+      accessibilityLabel={t('common.back')}
+      style={[styles.backBtn, styles.lead, { top: insets.top + spacing.xl }]}
+    >
+      <Icon
+        path={isRTL ? icons.chevronRight : icons.chevronLeft}
+        size={14}
+        color={colors.ink}
+        strokeWidth={2.4}
+      />
+    </TouchableOpacity>
+  );
+
+  // Nothing in flight: a sample delivery here would be a driver who is not
+  // coming, so the screen says there is nothing to follow instead.
+  if (!order) {
+    return (
+      <Screen texture edges={['left', 'right', 'bottom']}>
+        {backButton}
+        <View style={styles.none}>
+          <Icon path={icons.truck} size={30} color={colors.faint} strokeWidth={1.6} />
+          <Text style={styles.noneTitle}>{t('track.none.title')}</Text>
+          <Text style={styles.noneSub}>{t('track.none.sub')}</Text>
+        </View>
+      </Screen>
+    );
+  }
+
+  // The quoted window, counted down: a range while the early end is still
+  // ahead, then just what is left until the late end.
+  const early = Math.max(0, Math.ceil((order.placedAt + DELIVERY_MINUTES[0] * MINUTE - now) / MINUTE));
+  const late = Math.max(0, Math.ceil((deliveredBy(order) - now) / MINUTE));
+  const minutesLeft = early > 0 ? `${formatNumber(early)}–${formatNumber(late)}` : formatNumber(late);
 
   return (
     <Screen background={colors.mapBg} edges={['left', 'right']}>
@@ -253,40 +305,23 @@ export default function TrackingScreen({ route, navigation }: RootStackScreenPro
           pointerEvents="none"
         />
 
-        <TouchableOpacity
-          activeOpacity={0.85}
-          onPress={() => navigation.goBack()}
-          accessibilityRole="button"
-          accessibilityLabel={t('common.back')}
-          style={[styles.backBtn, styles.lead, { top: insets.top + spacing.xl }]}
-        >
-          <Icon
-            path={isRTL ? icons.chevronRight : icons.chevronLeft}
-            size={14}
-            color={colors.ink}
-            strokeWidth={2.4}
-          />
-        </TouchableOpacity>
+        {backButton}
 
-        <TouchableOpacity
-          activeOpacity={0.85}
-          onPress={cycleStatus}
-          accessibilityRole="button"
-          accessibilityLabel={t('track.cycle')}
-          style={[styles.livePill, styles.trail, { top: insets.top + spacing.xl }]}
-        >
-          <View style={styles.liveDotWrap}>
-            <Animated.View
-              style={[
-                styles.liveDot,
-                styles.liveRing,
-                { transform: [{ scale: ringScale }], opacity: ringOpacity },
-              ]}
-            />
-            <View style={styles.liveDot} />
+        {status !== 'delivered' ? (
+          <View style={[styles.livePill, styles.trail, { top: insets.top + spacing.xl }]}>
+            <View style={styles.liveDotWrap}>
+              <Animated.View
+                style={[
+                  styles.liveDot,
+                  styles.liveRing,
+                  { transform: [{ scale: ringScale }], opacity: ringOpacity },
+                ]}
+              />
+              <View style={styles.liveDot} />
+            </View>
+            <Text style={styles.liveText}>{t('track.live')}</Text>
           </View>
-          <Text style={styles.liveText}>{t('track.live')}</Text>
-        </TouchableOpacity>
+        ) : null}
       </View>
 
       <View style={[styles.sheet, { paddingBottom: insets.bottom + spacing.giant }]}>
@@ -298,25 +333,29 @@ export default function TrackingScreen({ route, navigation }: RootStackScreenPro
               {t(`track.headline.${status}`)}
             </Text>
             <Text style={[styles.orderLine, readingSide]} numberOfLines={1}>
-              {t('track.orderLine')}
+              {`${t('track.orderLine').replace('{id}', formatNumber(order.id))} · ${summarize(order)}`}
             </Text>
           </View>
-          <View style={styles.minuteBox}>
-            <Text style={styles.minuteNum}>{minutes}</Text>
-            <Text style={styles.minuteLabel}>{t('track.minute')}</Text>
-            <Text style={styles.minuteAt}>{`${t('track.arrivesAt')} ${arrivesAt}`}</Text>
-          </View>
+          {status !== 'delivered' ? (
+            <View style={styles.minuteBox}>
+              <Text style={styles.minuteNum}>{minutesLeft}</Text>
+              <Text style={styles.minuteLabel}>{t('track.minute')}</Text>
+              <Text style={styles.minuteAt}>
+                {`${t('track.arrivesAt')} ${clock(deliveredBy(order))}`}
+              </Text>
+            </View>
+          ) : null}
         </View>
 
         <View style={styles.steps}>
           <View style={styles.stepRow}>
-            {trackingSteps.map((_, i) => {
+            {trackingStatuses.map((step, i) => {
               const done = i < idx;
               const active = i === idx;
               const filled = done || active;
-              const last = i === trackingSteps.length - 1;
+              const last = i === trackingStatuses.length - 1;
               return (
-                <View key={STEP_KEYS[i]} style={styles.stepCol}>
+                <View key={step} style={styles.stepCol}>
                   {i > 0 ? (
                     <View
                       style={[styles.rail, styles.railLead, done || active ? styles.railOn : null]}
@@ -353,7 +392,7 @@ export default function TrackingScreen({ route, navigation }: RootStackScreenPro
                       },
                     ]}
                   >
-                    {t(STEP_KEYS[i])}
+                    {t(`track.step.${step}`)}
                   </Text>
                 </View>
               );
@@ -363,18 +402,19 @@ export default function TrackingScreen({ route, navigation }: RootStackScreenPro
 
         <View style={styles.driverCard}>
           <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{avatar}</Text>
+            <Icon path={icons.truck} size={20} color={colors.white} strokeWidth={1.9} />
           </View>
           <View style={styles.driverInfo}>
             <Text style={[styles.driverName, readingSide]} numberOfLines={1}>
-              {t('track.driver.name')}
+              {t('track.contact')}
             </Text>
             <Text style={[styles.driverRole, readingSide]} numberOfLines={1}>
-              {t('track.driver.role')}
+              {t('track.contact.sub')}
             </Text>
           </View>
           <TouchableOpacity
             activeOpacity={0.8}
+            onPress={call}
             accessibilityRole="button"
             accessibilityLabel={t('track.call')}
             style={styles.iconBtn}
@@ -383,6 +423,7 @@ export default function TrackingScreen({ route, navigation }: RootStackScreenPro
           </TouchableOpacity>
           <TouchableOpacity
             activeOpacity={0.8}
+            onPress={chat}
             accessibilityRole="button"
             accessibilityLabel={t('track.chat')}
             style={styles.iconBtn}
@@ -592,10 +633,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarText: {
-    ...type.h3,
-    color: colors.white,
-  },
   driverInfo: {
     flex: 1,
     gap: 2,
@@ -608,6 +645,23 @@ const styles = StyleSheet.create({
   driverRole: {
     ...type.caption,
     color: colors.muted2,
+  },
+  none: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.lg,
+    paddingHorizontal: spacing.huge,
+  },
+  noneTitle: {
+    ...type.h3,
+    color: colors.ink,
+    textAlign: 'center',
+  },
+  noneSub: {
+    ...type.caption,
+    color: colors.muted2,
+    textAlign: 'center',
   },
   iconBtn: {
     width: 40,

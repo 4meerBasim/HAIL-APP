@@ -2,6 +2,7 @@ import React from 'react';
 import { Modal, Pressable, StyleSheet, View } from 'react-native';
 import Text from './AppText';
 import Button from './Button';
+import { useLanguage } from '../i18n/LanguageContext';
 import { colors, radius, scrim, shadow, spacing, type } from '../theme';
 
 export interface DialogProps {
@@ -27,9 +28,13 @@ export default function Dialog({
   onSecondary,
   onClose,
 }: DialogProps) {
+  const { isRTL } = useLanguage();
+  // A Modal is a new native root, so it does not inherit the direction a Screen
+  // sets; and forceRTL only takes effect after a restart. Set here, the dialog
+  // follows a language switched moments ago.
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={styles.backdrop} onPress={onClose}>
+      <Pressable style={[styles.backdrop, { direction: isRTL ? 'rtl' : 'ltr' }]} onPress={onClose}>
         {/* Swallows taps so a press inside the card never dismisses it. */}
         <Pressable style={styles.card} onPress={() => {}}>
           <Text style={styles.title}>{title}</Text>

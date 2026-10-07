@@ -23,6 +23,7 @@ import { icons } from '../components/icons';
 import { colors, fonts, overlay, radius, shadow, spacing, type } from '../theme';
 import { type Lang, useLanguage } from '../i18n/LanguageContext';
 import { useAuth, type IdentityChannel, type SignInFailure } from '../state/AuthContext';
+import { DIAL_CODE, normalizePhone, phoneValid } from '../data/phone';
 import type { RootStackScreenProps } from '../navigation/RootNavigator';
 
 const GRADIENT_COLORS = [colors.tealDark, colors.teal, colors.tealMid] as const;
@@ -34,7 +35,6 @@ const SPIN_MS = 40000;
 // fast and settles long. A generic ease-out drifts away from the keyboard
 // mid-flight, and the gap between the two is what reads as lag; this tracks it.
 const KEYBOARD_CURVE = Easing.bezier(0.38, 0.7, 0.125, 1);
-const DIAL_CODE = '+964';
 const LOGO = require('../../assets/logo-hail.png');
 // Shipped at 1x/2x/3x so `repeat` tiles off the ~139pt base rather than the
 // full-width source, which would read as one stretched motif instead of texture.
@@ -147,19 +147,18 @@ export default function LoginScreen({ navigation }: RootStackScreenProps<'Login'
 
   const isEmail = channel === 'email';
   const identityReady = isEmail
-    // Deliberately loose: the API decides what a real address is, and a stricter
-    // guess here only ever refuses somebody's perfectly good mailbox.
+    // Deliberately loose: a stricter guess at what a real address is only ever
+    // refuses somebody's perfectly good mailbox.
     ? /^\S+@\S+\.\S+$/.test(email.trim())
-    : phone.replace(/\D/g, '').length >= 10;
+    // A phone is checked properly — an Iraqi mobile is 7 and nine more digits —
+    // because it is the number the courier dials, not just a login.
+    : phoneValid(phone);
 
   // The field sits behind a +964 chip, so what the customer types is the local
-  // part of the number and the dial code has to be put back before it is sent.
-  // Sending the field raw is how 7817768081 reaches the API as an already
-  // international number: +7 is Russia, and the code goes to a stranger.
-  //
-  // The trunk zero and a repeated country code are both stripped, so 0781…,
-  // 781… and 964781… are one customer rather than three accounts.
-  const e164 = `${DIAL_CODE}${phone.replace(/\D/g, '').replace(/^964/, '').replace(/^0+/, '')}`;
+  // part of the number and the dial code has to be put back before it is
+  // stored. The trunk zero and a repeated country code are both stripped, so
+  // 0781…, 781… and 964781… are one customer rather than three accounts.
+  const e164 = `${DIAL_CODE}${normalizePhone(phone)}`;
 
   // Which account is being opened.
   const identity = isEmail
@@ -473,7 +472,7 @@ const styles = StyleSheet.create({
   sheetPattern: {
     position: 'absolute',
     top: 0,
-    left: 0,
+    start: 0,
     borderTopLeftRadius: radius.sheet2,
     borderTopRightRadius: radius.sheet2,
     opacity: 0.05,

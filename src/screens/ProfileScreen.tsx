@@ -20,6 +20,7 @@ import { useAuth } from '../state/AuthContext';
 import { useCart } from '../state/CartContext';
 import { useNotifications } from '../state/NotificationsContext';
 import { planProgress, usePlan } from '../state/PlanContext';
+import { formatPhone } from '../data/phone';
 import type { TabScreenProps } from '../navigation/RootNavigator';
 
 // Every row here opens a screen of its own — none of them is a dead tap.
@@ -115,8 +116,14 @@ export default function ProfileScreen({ navigation }: TabScreenProps<'Profile'>)
             <Text style={[styles.name, readingSide]} numberOfLines={1}>
               {/* A customer who signed in with an email has no number, so the
                   address is what identifies them here. Falling through to the
-                  phone alone would leave this line blank. */}
-              {authed ? user?.phone || user?.email : t('profile.guest')}
+                  phone alone would leave this line blank. The number gets the
+                  same grouping and left-to-right mark as the phone screen, or
+                  its groups read last-to-first inside an Arabic line. */}
+              {authed
+                ? user?.phone
+                  ? `\u200e${formatPhone(user.phone)}`
+                  : user?.email
+                : t('profile.guest')}
             </Text>
             <Text style={[styles.identitySub, readingSide]} numberOfLines={2}>
               {authed ? t('phones.manage') : t('profile.guest.sub')}

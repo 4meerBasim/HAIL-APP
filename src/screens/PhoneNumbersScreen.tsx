@@ -13,26 +13,21 @@ import SettingRow from '../components/SettingRow';
 import { colors, fonts, radius, shadow, spacing, type } from '../theme';
 import { useLanguage } from '../i18n/LanguageContext';
 import { useAuth } from '../state/AuthContext';
+import { DIAL_CODE, formatPhone, normalizePhone, phoneValid } from '../data/phone';
 import type { RootStackScreenProps } from '../navigation/RootNavigator';
 
-const CODE_LENGTH = 4;
-const DIAL_CODE = '+964';
-
-// 'change' replaces the primary outright — a new SIM. 'add' appends a backup
-// number and leaves the primary alone.
+// 'change' replaces the primary outright — a new SIM, or the first number on
+// an account opened with an email. 'add' appends a backup number and leaves the
+// primary alone.
 type Mode = 'change' | 'add';
 
-// Numbers are stored as typed, so one may already carry the country code and
-// the next a local trunk zero. They are shown in one shape.
+// Shown in the local 0770 123 4567 grouping however the number was typed.
 //
 // The leading U+200E is a left-to-right mark: inside an Arabic paragraph the
-// digits are neutral and the '+' would be flung to the far end, so the mark
+// space-separated groups would otherwise be laid out last-to-first, so the mark
 // pins the whole number into one LTR run. Alignment is left to the paragraph —
 // the number still starts at the reading edge, which under Arabic is the right.
-const display = (phone: string) => {
-  const p = phone.trim();
-  return `‎${p.startsWith('+') ? p : `${DIAL_CODE} ${p.replace(/^0/, '')}`}`;
-};
+const display = (phone: string) => `\u200e${formatPhone(phone)}`;
 
 export default function PhoneNumbersScreen({ navigation }: RootStackScreenProps<'PhoneNumbers'>) {
   const { t, isRTL } = useLanguage();
@@ -40,8 +35,6 @@ export default function PhoneNumbersScreen({ navigation }: RootStackScreenProps<
 
   const [mode, setMode] = useState<Mode | null>(null);
   const [phone, setPhone] = useState('');
-  const [code, setCode] = useState('');
-  const [sent, setSent] = useState(false);
   const [duplicate, setDuplicate] = useState(false);
 
   const readingSide = { textAlign: 'auto', writingDirection: isRTL ? 'rtl' : 'ltr' } as const;
@@ -53,53 +46,50 @@ export default function PhoneNumbersScreen({ navigation }: RootStackScreenProps<
   const toList = () => {
     setMode(null);
     setPhone('');
-    setCode('');
-    setSent(false);
     setDuplicate(false);
   };
 
-  // Back walks the flow one step at a time — code → number → list → Profile —
-  // so a mistyped number costs one tap, not the whole screen.
+  // Back walks the flow one step at a time — number → list → Profile — so a
+  // mistyped number costs one tap, not the whole screen.
   const onBack = () => {
-    if (sent) setSent(false);
-    else if (mode) toList();
+    if (mode) toList();
     else navigation.goBack();
   };
 
-  const phoneReady = phone.replace(/\D/g, '').length >= 10;
+  // Same rule as sign-in: an Iraqi mobile, 7 and nine more digits once the
+  // country code and trunk zero are off.
+  const phoneReady = phoneValid(phone);
 
-  // Checked before the code is sent rather than after it is entered: there is
-  // no point verifying a number the account already holds.
-  const onSend = () => {
-    if (hasPhone(phone)) {
-      setDuplicate(true);
-      return;
-    }
-    setDuplicate(false);
-    setSent(true);
-  };
-
-  const onConfirm = () => {
-    const saved = mode === 'change' ? changePrimary(phone) : addSecondary(phone);
+  // No code step, the same as signing in: there is no API to send one, and a
+  // code nobody sent that accepts any four digits verifies nothing. Stored in
+  // the shape sign-in stores, so the two compare as one number.
+  const onSave = () => {
+    const value = `${DIAL_CODE}${normalizePhone(phone)}`;
+    const saved = mode === 'change' ? changePrimary(value) : addSecondary(value);
     if (saved) toList();
-    else {
-      setSent(false);
-      setDuplicate(true);
-    }
+    else setDuplicate(true);
   };
 
-  // The screen is only reachable from the signed-in hero, but the session can
-  // end underneath it — signing out while it is open pops back to Login.
+  // Only reachable from the signed-in hero, so there is always a user here; the
+  // guard is what lets the rest of the render read it without a null check.
   if (!user) return null;
 
+  // An account opened with an email has no number yet, so "change" would be
+  // changing nothing — the same step is offered as adding one.
+  const hasPrimary = user.phone !== '';
+
   const title = mode
-    ? t(mode === 'change' ? 'phones.changeTitle' : 'phones.addTitle')
+    ? t(
+        mode === 'add'
+          ? 'phones.addTitle'
+          : hasPrimary
+            ? 'phones.changeTitle'
+            : 'phones.addPrimaryTitle',
+      )
     : t('phones.title');
-  const subtitle = sent
-    ? t('login.codeHint')
-    : mode
-      ? t(mode === 'change' ? 'phones.primary.sub' : 'phones.secondary.sub')
-      : t('phones.subtitle');
+  const subtitle = mode
+    ? t(mode === 'change' ? 'phones.primary.sub' : 'phones.secondary.sub')
+    : t('phones.subtitle');
 
   const addRow = (
     <TouchableOpacity
@@ -135,7 +125,7 @@ export default function PhoneNumbersScreen({ navigation }: RootStackScreenProps<
           <Icon path={icons.close} size={16} color={colors.ink} strokeWidth={2.4} />
         </TouchableOpacity>
         <View style={styles.headerText}>
-          <Text style={styles.title}>{sent ? t('login.codeSent') : title}</Text>
+          <Text style={styles.title}>{title}</Text>
           <Text style={styles.subtitle}>{subtitle}</Text>
         </View>
       </View>
@@ -147,47 +137,30 @@ export default function PhoneNumbersScreen({ navigation }: RootStackScreenProps<
       >
         {mode ? (
           <>
-            {sent ? (
-              <View style={styles.field}>
-                <Text style={[styles.fieldLabel, readingSide]}>{display(phone)}</Text>
+            <View style={styles.field}>
+              <Text style={[styles.fieldLabel, readingSide]}>{t('phones.newLabel')}</Text>
+              <View style={[styles.phoneRow, phoneRowSide]}>
+                <View style={styles.prefix}>
+                  <Text style={styles.prefixText}>{DIAL_CODE}</Text>
+                </View>
                 <TextInput
-                  value={code}
-                  onChangeText={(v) => setCode(v.replace(/\D/g, '').slice(0, CODE_LENGTH))}
-                  keyboardType="number-pad"
-                  maxLength={CODE_LENGTH}
+                  value={phone}
+                  onChangeText={(v) => {
+                    setPhone(v);
+                    setDuplicate(false);
+                  }}
+                  keyboardType="phone-pad"
                   autoFocus
-                  placeholder="••••"
+                  placeholder="770 000 0000"
                   placeholderTextColor={colors.faint2}
-                  accessibilityLabel={t('login.codeHint')}
-                  style={[styles.input, styles.codeInput]}
+                  accessibilityLabel={t('phones.newLabel')}
+                  style={[styles.input, styles.phoneInput, duplicate && styles.inputError]}
                 />
               </View>
-            ) : (
-              <View style={styles.field}>
-                <Text style={[styles.fieldLabel, readingSide]}>{t('phones.newLabel')}</Text>
-                <View style={[styles.phoneRow, phoneRowSide]}>
-                  <View style={styles.prefix}>
-                    <Text style={styles.prefixText}>{DIAL_CODE}</Text>
-                  </View>
-                  <TextInput
-                    value={phone}
-                    onChangeText={(v) => {
-                      setPhone(v);
-                      setDuplicate(false);
-                    }}
-                    keyboardType="phone-pad"
-                    autoFocus
-                    placeholder="770 000 0000"
-                    placeholderTextColor={colors.faint2}
-                    accessibilityLabel={t('phones.newLabel')}
-                    style={[styles.input, styles.phoneInput, duplicate && styles.inputError]}
-                  />
-                </View>
-                {duplicate ? (
-                  <Text style={[styles.error, readingSide]}>{t('phones.duplicate')}</Text>
-                ) : null}
-              </View>
-            )}
+              {duplicate ? (
+                <Text style={[styles.error, readingSide]}>{t('phones.duplicate')}</Text>
+              ) : null}
+            </View>
 
             <View style={styles.actions}>
               <Button
@@ -195,8 +168,8 @@ export default function PhoneNumbersScreen({ navigation }: RootStackScreenProps<
                 variant="primary"
                 size="lg"
                 full
-                disabled={sent ? code.length !== CODE_LENGTH : !phoneReady}
-                onPress={sent ? onConfirm : onSend}
+                disabled={!phoneReady}
+                onPress={onSave}
               />
               <TouchableOpacity
                 activeOpacity={0.7}
@@ -223,16 +196,22 @@ export default function PhoneNumbersScreen({ navigation }: RootStackScreenProps<
                   onPress={() => setMode('change')}
                   scaleTo={0.94}
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                  accessibilityLabel={t('phones.changeTitle')}
+                  accessibilityLabel={t(hasPrimary ? 'phones.changeTitle' : 'phones.addPrimaryTitle')}
                   style={styles.chip}
                 >
-                  <Text style={styles.chipText}>{t('common.change')}</Text>
+                  <Text style={styles.chipText}>{t(hasPrimary ? 'common.change' : 'common.add')}</Text>
                 </PressScale>
               </View>
-              <Text style={[styles.primaryNumber, readingSide]} numberOfLines={1}>
-                {display(user.phone)}
+              {hasPrimary ? (
+                <Text style={[styles.primaryNumber, readingSide]} numberOfLines={1}>
+                  {display(user.phone)}
+                </Text>
+              ) : (
+                <Text style={[styles.primaryNone, readingSide]}>{t('phones.primary.none')}</Text>
+              )}
+              <Text style={[styles.primarySub, readingSide]}>
+                {t(hasPrimary ? 'phones.primary.sub' : 'phones.primary.noneSub')}
               </Text>
-              <Text style={[styles.primarySub, readingSide]}>{t('phones.primary.sub')}</Text>
             </View>
 
             <View style={styles.section}>
@@ -369,6 +348,10 @@ const styles = StyleSheet.create({
     ...type.h2,
     color: colors.ink,
   },
+  primaryNone: {
+    ...type.h2,
+    color: colors.muted,
+  },
   primarySub: {
     ...type.caption,
     color: colors.muted,
@@ -469,11 +452,6 @@ const styles = StyleSheet.create({
     flex: 1,
     textAlign: 'left',
     writingDirection: 'ltr',
-  },
-  codeInput: {
-    textAlign: 'center',
-    letterSpacing: 14,
-    fontSize: 24,
   },
   inputError: {
     borderColor: colors.coral,

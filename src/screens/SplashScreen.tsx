@@ -228,7 +228,9 @@ export default function SplashScreen({ ready = false, onDone }: SplashScreenProp
   };
 
   return (
-    <Animated.View style={[styles.root, { opacity: fade }]}>
+    // `direction` from the language rather than left to forceRTL, which only
+    // applies after a restart: the patches sit on `start`/`end`.
+    <Animated.View style={[styles.root, { opacity: fade, direction: isRTL ? 'rtl' : 'ltr' }]}>
       <StatusBar style="light" />
       <LinearGradient
         colors={GRADIENT_COLORS}

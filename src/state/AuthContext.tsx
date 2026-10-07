@@ -1,7 +1,23 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { samePhone } from '../data/phone';
 
 const SESSION_KEY = '@hail/session';
+
+// Everything else written on behalf of the signed-in customer that no context
+// clears for itself: the saved card and how they pay, the hand-over choice,
+// notification bookkeeping and preferences, and the saved addresses. Orders and
+// the subscription are cleared by OrdersContext and PlanContext, which own them.
+const ACCOUNT_KEYS = [
+  '@hail/card',
+  '@hail/payment-method',
+  '@hail/drop',
+  '@hail/notifications-read',
+  '@hail/notifications-cleared',
+  '@hail/notifications',
+  '@hail/locations.v2',
+  '@hail/location-selected.v2',
+];
 
 /*
  * Sign-in runs on the device. There is no API behind this build: entering a
@@ -70,11 +86,6 @@ interface AuthValue {
   /** Promotes a backup number; the old primary swaps down into the list. */
   makePrimary: (phone: string) => void;
 }
-
-// Numbers are stored as typed, so '0770 000 0000' and '+964 770 000 0000' are
-// two spellings of one number. Comparison is on the digits with the local
-// trunk zero and the country code taken off.
-const key = (phone: string) => phone.replace(/\D/g, '').replace(/^(964)?0?/, '');
 
 const AuthContext = createContext<AuthValue | undefined>(undefined);
 
@@ -163,7 +174,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const hasPhone = useCallback(
     (phone: string) =>
-      !!user && [user.phone, ...user.secondary].some((p) => key(p) === key(phone)),
+      !!user && [user.phone, ...user.secondary].some((p) => samePhone(p, phone)),
     [user],
   );
 
@@ -188,19 +199,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const removeSecondary = useCallback(
     (phone: string) => {
       if (!user) return;
-      saveUser({ ...user, secondary: user.secondary.filter((p) => key(p) !== key(phone)) });
+      saveUser({ ...user, secondary: user.secondary.filter((p) => !samePhone(p, phone)) });
     },
     [user, saveUser],
   );
 
   const makePrimary = useCallback(
     (phone: string) => {
-      if (!user || key(phone) === key(user.phone)) return;
-      saveUser({
-        ...user,
-        phone,
-        secondary: [user.phone, ...user.secondary.filter((p) => key(p) !== key(phone))],
-      });
+      if (!user || samePhone(phone, user.phone)) return;
+      const rest = user.secondary.filter((p) => !samePhone(p, phone));
+      // A customer who signed in with an email has no primary yet, so there is
+      // nothing to swap down — an empty string in the list would render as a
+      // blank backup row.
+      saveUser({ ...user, phone, secondary: user.phone ? [user.phone, ...rest] : rest });
     },
     [user, saveUser],
   );
@@ -209,10 +220,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setStatus('guest');
   }, []);
 
+  // Signing out hands the handset to whoever signs in next, so the account's
+  // card, addresses and preferences go with the session rather than being
+  // inherited by the next customer.
   const signOut = useCallback(() => {
     setSession(null);
     setStatus('guest');
-    void AsyncStorage.removeItem(SESSION_KEY);
+    void AsyncStorage.multiRemove([SESSION_KEY, ...ACCOUNT_KEYS]);
   }, []);
 
   const value = useMemo(

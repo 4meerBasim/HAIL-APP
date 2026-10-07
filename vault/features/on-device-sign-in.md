@@ -30,8 +30,9 @@ import, and the strings `login.codeError`, `login.changeNumber`,
 `login.verifying`, plus the whole `count.seconds.*` plural set, which only
 `errorThrottled` used.
 
-`login.codeSent` and `login.codeHint` stay: [[phone-numbers]] has its own code
-step for adding a backup number, and that one never touched the API.
+`login.codeSent` and `login.codeHint` stayed at first for the phone numbers
+screen's own code step; that step was a stub and is gone too, so they went with
+it — see [[phone-code-step-stub]].
 
 **It still invents nothing.** `signIn` fills only the field the customer typed
 and leaves `name`, the other identity, and `secondary` empty — so every empty
@@ -53,3 +54,4 @@ network-bound.
 ## Related
 - Page: [[login]], [[profile]], [[map]]
 - Features: [[phone-otp-sign-in]], [[email-sign-in]], [[guest-mode]], [[real-customer-data-only]]
+- Bugs: [[phone-code-step-stub]]

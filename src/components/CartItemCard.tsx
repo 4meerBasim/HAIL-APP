@@ -7,6 +7,7 @@ import type { CartItem } from './CartRow';
 import { colors, fonts, radius, shadow, spacing, type } from '../theme';
 import { useLanguage } from '../i18n/LanguageContext';
 import { formatNumber } from '../i18n/digits';
+import { buildLabel } from '../i18n/orderText';
 import { formatPrice } from '../data/menu';
 
 export interface CartItemCardProps {
@@ -43,9 +44,9 @@ export default function CartItemCard({ item, width, onInc, onDec, onOpen }: Cart
         <Text style={styles.name} numberOfLines={1}>
           {name}
         </Text>
-        {item.note ? (
+        {item.build ? (
           <Text style={styles.note} numberOfLines={2}>
-            {item.note}
+            {buildLabel(item.build.key, t)}
           </Text>
         ) : null}
       </TouchableOpacity>

@@ -1,7 +1,23 @@
 import { useCallback } from 'react';
 import { type Order, daysSince, getDish } from '../data/menu';
+import { gramsOf, isByWeight, parseBuildKey } from '../data/ingredients';
+import { count } from './count';
 import { formatNumber } from './digits';
 import { useLanguage } from './LanguageContext';
+
+type Translate = (key: string, fallback?: string) => string;
+
+/** One part of a built meal as the customer reads it — "Kebab 200g". */
+export const ingredientLabel = (id: string, grams: number, t: Translate): string =>
+  isByWeight(id) ? `${t(`ing.${id}`)} ${formatNumber(grams)}${t('detail.gram')}` : t(`ing.${id}`);
+
+// A built meal's parts, read off its build key each time it is drawn rather
+// than from a label written when it was added — that label is frozen in
+// whatever language the app was in at the time, and outlives a switch.
+export const buildLabel = (key: string, t: Translate): string => {
+  const { picked, grams } = parseBuildKey(key);
+  return picked.map((id) => ingredientLabel(id, grams[id] ?? gramsOf(id), t)).join(' + ');
+};
 
 export interface OrderText {
   dishName: (id: string) => string;
@@ -43,7 +59,7 @@ export function useOrderText(): OrderText {
       const days = daysSince(order.placedAt);
       if (days === 0) return t('orders.when.today');
       if (days === 1) return t('orders.when.yesterday');
-      return t('orders.when.daysAgo').replace('{n}', formatNumber(days));
+      return count('orders.when.daysAgo', days, t);
     },
     [t],
   );

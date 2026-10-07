@@ -17,6 +17,7 @@ import {
   roundMoney,
   subscriptionPrice,
 } from './menu';
+import { priceOf as optionPrice } from './extras';
 
 export interface PlanState {
   boxId: BoxGoal | null;
@@ -265,17 +266,27 @@ export const sortSlotsByTime = (p: PlanState): PlanState => {
 
 // Drops a slot and rehomes whatever was picked for it onto a surviving one, so
 // removing an occasion never silently loses dishes out of the rotation.
+//
+// The grid has to lose the same column. Shrinking `mealSlots` alone left every
+// row one cell too wide, and `gridOf` trims a too-wide row from the end — so
+// deleting breakfast threw away dinner's dishes and slid the rest one meal
+// time earlier.
 export const withoutSlot = (p: PlanState, slotId: string): PlanState => {
   if (p.mealSlots.length <= 1) return p;
   const idx = p.mealSlots.findIndex((s) => s.id === slotId);
   if (idx < 0) return p;
   const mealSlots = p.mealSlots.filter((s) => s.id !== slotId);
-  const fallback = mealSlots[Math.max(0, idx - 1)].id;
-  const slots = { ...p.slots };
-  for (const id of Object.keys(slots)) {
-    if (slots[id] === slotId) slots[id] = fallback;
-  }
-  return { ...p, mealSlots, slots };
+  const fallback = Math.max(0, idx - 1);
+  const grid = gridOf(p).map((row) => {
+    const next = row.filter((_cell, i) => i !== idx).map((cell) => [...cell]);
+    // A cell holds a dish once — picking it again takes it back out — so a
+    // dish already on the neighbouring meal time is not added a second time.
+    (row[idx] ?? []).forEach((id) => {
+      if (!next[fallback].includes(id)) next[fallback].push(id);
+    });
+    return next;
+  });
+  return withGrid({ ...p, mealSlots }, grid);
 };
 
 const baseOf = (dishId: string): Macros => dishMacros[dishId] ?? ZERO_MACROS;
@@ -302,15 +313,30 @@ const dishesInGrid = (rows: string[][][]): number =>
 
 const dishPrice = (dishId: string): number => parsePrice(getDish(dishId)?.price ?? '0');
 
+// What tailoring a meal adds to it: the bigger size, each extra, and every
+// sweet or drink at its menu price. The same sum the meal page itemises, so
+// the line on the plan and the total on that page agree.
+const buildSurcharge = (build: MealBuildState | undefined): number =>
+  build
+    ? optionPrice(build.size) +
+      build.extras.reduce((sum, id) => sum + optionPrice(id), 0) +
+      Object.entries(build.items).reduce((sum, [id, n]) => sum + dishPrice(id) * n, 0)
+    : 0;
+
 // Every line on a plan is priced the same way, whether the plan came from a box
 // or was built from scratch: the dish's own menu price less the subscription
-// saving, on a 250 step. The rate is no longer anchored per box, so what a
-// rotation costs is simply what its meals cost.
+// saving, on a 250 step, plus whatever tailoring it carries. The rate is no
+// longer anchored per box, so what a rotation costs is simply what its meals
+// cost — a double portion included, or the plan would deliver more than it
+// charged for.
+const linePrice = (plan: PlanState, dishId: string): number =>
+  subscriptionPrice(dishId) + buildSurcharge(plan.mealBuilds?.[dishId]);
+
 export const buildMeals = (plan: PlanState): MealLine[] =>
   plan.dishIds.map((dishId) => ({
     dishId,
     macros: baseOf(dishId),
-    price: subscriptionPrice(dishId),
+    price: linePrice(plan, dishId),
   }));
 
 // The rotation split the way the customer actually eats it: one entry per day,
@@ -362,31 +388,61 @@ export const cycleNoteKey = (dayCount: number): string =>
 // from the same line prices the screens list, so the total always adds up to
 // what is shown above it.
 export const rotationTotal = (plan: PlanState): number =>
-  plan.dishIds.reduce((sum, id) => sum + subscriptionPrice(id), 0);
+  plan.dishIds.reduce((sum, id) => sum + linePrice(plan, id), 0);
 
 const perMealOf = (plan: PlanState): number =>
   plan.dishIds.length > 0 ? roundMoney(rotationTotal(plan) / plan.dishIds.length) : 0;
 
+// Which weekday a day offset falls on, as an index into `dayKeys` (Sunday 0).
+// Day zero is the day the subscription started, not a Sunday — reading
+// `dayIndex % 7` as the weekday meant a plan confirmed on a Tuesday delivered
+// on the wrong days and labelled every row with a day it was not. A plan still
+// being built has no start yet; it will start the day it is confirmed.
+export const weekdayOf = (plan: PlanState, dayIndex: number): number => {
+  const start = new Date(plan.startedAt > 0 ? plan.startedAt : Date.now()).getDay();
+  return (start + dayIndex) % 7;
+};
+
 // A delivery the plan would otherwise make: inside the span, on a chosen weekday.
 const isScheduled = (plan: PlanState, dayIndex: number): boolean =>
-  dayIndex >= 0 && dayIndex < plan.dayCount && plan.weekdays.includes(dayIndex % 7);
+  dayIndex >= 0 && dayIndex < plan.dayCount && plan.weekdays.includes(weekdayOf(plan, dayIndex));
 
-// Days the plan actually delivers on: walk `dayCount` days from the start and
-// keep the ones on a selected weekday, then drop the ones the customer skipped
-// and the ones they postponed past the last day of the paid span — a delivery
-// pushed beyond the end is never made, so it is never charged for.
-export const countActiveDays = (plan: PlanState): number => {
-  if (plan.weekdays.length === 0) return 0;
-  let count = 0;
+/** One delivery of the run. */
+export interface Delivery {
+  /** The scheduled day it belongs to — what a skip or a postpone is keyed by. */
+  dayIndex: number;
+  /** The day it actually arrives: `dayIndex`, unless it was postponed. */
+  at: number;
+  /** Its place in the run, which picks the rotation day it eats. */
+  nth: number;
+}
+
+// Every delivery the plan makes: walk `dayCount` days from the start, keep the
+// ones on a selected weekday, drop the ones the customer skipped and the ones
+// they postponed past the last day of the paid span — a delivery pushed beyond
+// the end is never made, so it is never charged for.
+//
+// One entry per scheduled day, not per date. A postponed day can land on one
+// the plan already delivers on, and that is still two deliveries: the price
+// charges both, so the list has to show both. Each keeps the day it was
+// scheduled for, which is what its exception — and its Undo — hangs off.
+export const deliveries = (plan: PlanState): Delivery[] => {
+  const moved = new Map<number, number>();
+  const skipped = new Set<number>();
+  plan.exceptions.forEach((e) => {
+    if (e.kind === 'skip') skipped.add(e.dayIndex);
+    else if (e.kind === 'postpone') moved.set(e.dayIndex, e.movedTo ?? e.dayIndex);
+  });
+
+  const out: { dayIndex: number; at: number }[] = [];
   for (let i = 0; i < plan.dayCount; i += 1) {
-    if (plan.weekdays.includes(i % 7)) count += 1;
+    if (!isScheduled(plan, i) || skipped.has(i)) continue;
+    const at = moved.get(i) ?? i;
+    if (at < plan.dayCount) out.push({ dayIndex: i, at });
   }
-  const dropped = plan.exceptions.filter(
-    (e) =>
-      isScheduled(plan, e.dayIndex) &&
-      (e.kind === 'skip' || (e.movedTo ?? e.dayIndex) >= plan.dayCount),
-  ).length;
-  return Math.max(0, count - dropped);
+  return out
+    .sort((a, b) => a.at - b.at || a.dayIndex - b.dayIndex)
+    .map((d, nth) => ({ ...d, nth }));
 };
 
 // How far a delivery has been pushed, 0 when it runs on its original day.
@@ -401,20 +457,23 @@ export const postponedOffPlan = (plan: PlanState, dayIndex: number): boolean => 
   return by > 0 && dayIndex + by >= plan.dayCount;
 };
 
-export const priceOf = (plan: PlanState): PlanPricing => {
-  const activeDays = countActiveDays(plan);
-  const mealsPerDay = mealsPerDayOf(plan);
-  // Counted by walking the rotation over the delivery days rather than
-  // multiplying an average: days need not carry the same number of dishes, and
-  // an average would over- or under-charge whichever day the plan ends on.
+// How many meals a run of deliveries carries. Counted by walking the rotation
+// over the delivery days rather than multiplying an average: days need not
+// carry the same number of dishes, and an average would over- or under-count
+// whichever day the plan ends on.
+const mealsOn = (plan: PlanState, run: Delivery[]): number => {
   const perDay = dishesPerDay(gridOf(plan));
-  const mealCount =
-    perDay.length > 0
-      ? Array.from({ length: activeDays }, (_v, i) => perDay[i % perDay.length]).reduce(
-          (sum, n) => sum + n,
-          0,
-        )
-      : 0;
+  if (perDay.length === 0) return 0;
+  return run.reduce((sum, d) => sum + perDay[d.nth % perDay.length], 0);
+};
+
+export const priceOf = (plan: PlanState): PlanPricing => {
+  // The same walk the upcoming list makes, so the price and the list of
+  // deliveries can never count differently.
+  const run = deliveries(plan);
+  const activeDays = run.length;
+  const mealsPerDay = mealsPerDayOf(plan);
+  const mealCount = mealsOn(plan, run);
   const perMeal = perMealOf(plan);
   const subtotal = perMeal * mealCount;
   const discount = discountForDays(plan.dayCount);
@@ -463,12 +522,14 @@ export const applySaverTo = (p: PlanState, key: SaverKey): PlanState => {
       if (pool.length === 0) return p;
       const cheapest = pool.reduce((a, b) => (dishPrice(b) < dishPrice(a) ? b : a));
       if (dishPrice(cheapest) >= dishPrice(dearest)) return p;
-      const { [dearest]: dearestSlot, ...rest } = p.slots;
-      return {
-        ...p,
-        dishIds: p.dishIds.map((id) => (id === dearest ? cheapest : id)),
-        slots: { ...rest, [cheapest]: dearestSlot ?? p.mealSlots[0]?.id ?? '' },
-      };
+      // Swapped in the grid, cell by cell: the flat list is derived from it,
+      // so editing only that was undone by the next `gridOf`.
+      return withGrid(
+        p,
+        gridOf(p).map((row) =>
+          row.map((cell) => cell.map((id) => (id === dearest ? cheapest : id))),
+        ),
+      );
     }
     case 'longerTerm': {
       const next = nextDiscountDays(p.dayCount);
@@ -487,7 +548,7 @@ export const saverSaving = (p: PlanState, key: SaverKey): number =>
 // ── Progress ────────────────────────────────────────────────────────────────
 // Everything the customer needs to answer "how much of this have I had, how
 // much is left, and when does it end". All of it derives from `startedAt` plus
-// the same schedule rules `countActiveDays` uses, so the totals here and the
+// the same `deliveries` walk the price uses, so the totals here and the
 // price on the plan card can never disagree.
 
 const DAY_MS = 86_400_000;
@@ -516,33 +577,39 @@ export interface PlanProgress {
 }
 
 /** Day offsets the plan delivers on, honouring skips and postpones. */
-export const deliveryDays = (plan: PlanState): number[] => {
-  const moved = new Map<number, number>();
-  const skipped = new Set<number>();
-  plan.exceptions.forEach((e) => {
-    if (e.kind === 'skip') skipped.add(e.dayIndex);
-    else if (e.kind === 'postpone') moved.set(e.dayIndex, e.movedTo ?? e.dayIndex);
-  });
+export const deliveryDays = (plan: PlanState): number[] => deliveries(plan).map((d) => d.at);
 
-  // A Set, because a postponed day can land on one the plan already delivers
-  // on — Sunday pushed onto Monday when Monday was already a delivery. Two
-  // entries for one date is not two deliveries: it is one day listed twice,
-  // and every list that renders these keys off the offset ends up with a
-  // duplicate key for it.
-  const out = new Set<number>();
-  for (let i = 0; i < plan.dayCount; i += 1) {
-    if (!plan.weekdays.includes(i % 7) || skipped.has(i)) continue;
-    const at = moved.get(i) ?? i;
-    if (at < plan.dayCount) out.add(at);
-  }
-  return [...out].sort((a, b) => a - b);
-};
+/** One row of the upcoming list: a delivery, or a scheduled day that will not arrive. */
+export interface UpcomingDay extends Delivery {
+  /** Skipped, or postponed past the end of the run: listed, but not delivered. */
+  dropped: boolean;
+}
 
-/** The next `count` delivery offsets at or after `from`. */
-export const upcomingDeliveries = (plan: PlanState, from: number, count: number): number[] =>
-  deliveryDays(plan)
-    .filter((d) => d >= from)
+/**
+ * The next `count` scheduled days arriving at or after `from`, deliveries and
+ * dropped days together. A skipped day — or one pushed off the end of the run
+ * — stays on the list so it can be undone; it eats nothing, so it borrows the
+ * rotation day the next delivery will, which is what it would have been.
+ */
+export const upcomingDeliveries = (plan: PlanState, from: number, count: number): UpcomingDay[] => {
+  const run = deliveries(plan);
+  const dropped = plan.exceptions
+    .filter(
+      (e) =>
+        isScheduled(plan, e.dayIndex) &&
+        (e.kind === 'skip' || (e.movedTo ?? e.dayIndex) >= plan.dayCount),
+    )
+    .map((e) => ({
+      dayIndex: e.dayIndex,
+      at: e.dayIndex,
+      nth: run.find((d) => d.at >= e.dayIndex)?.nth ?? run.length,
+      dropped: true,
+    }));
+  return [...run.map((d) => ({ ...d, dropped: false })), ...dropped]
+    .filter((d) => d.at >= from)
+    .sort((a, b) => a.at - b.at || a.dayIndex - b.dayIndex)
     .slice(0, count);
+};
 
 export const planProgress = (plan: PlanState, now: number = Date.now()): PlanProgress => {
   // A subscription restored from a build that predates `startedAt` reads as
@@ -550,13 +617,17 @@ export const planProgress = (plan: PlanState, now: number = Date.now()): PlanPro
   const start = plan.startedAt > 0 ? plan.startedAt : now;
   const elapsedDays = Math.max(0, Math.floor((now - start) / DAY_MS));
 
-  const days = deliveryDays(plan);
-  const totalDays = days.length;
-  const deliveredDays = days.filter((d) => d < elapsedDays).length;
+  const run = deliveries(plan);
+  const delivered = run.filter((d) => d.at < elapsedDays);
+  const totalDays = run.length;
+  const deliveredDays = delivered.length;
   const remainingDays = totalDays - deliveredDays;
 
-  const perDay = mealsPerDayOf(plan);
-  const next = days.find((d) => d >= elapsedDays);
+  // Walked day by day, like the price: a rotation whose days carry different
+  // numbers of dishes would otherwise drift from what was paid for.
+  const totalMeals = mealsOn(plan, run);
+  const deliveredMeals = mealsOn(plan, delivered);
+  const next = run.find((d) => d.at >= elapsedDays);
   const endsInDays = Math.max(0, plan.dayCount - elapsedDays);
 
   return {
@@ -564,13 +635,13 @@ export const planProgress = (plan: PlanState, now: number = Date.now()): PlanPro
     deliveredDays,
     remainingDays,
     totalDays,
-    deliveredMeals: deliveredDays * perDay,
-    remainingMeals: remainingDays * perDay,
-    totalMeals: totalDays * perDay,
+    deliveredMeals,
+    remainingMeals: totalMeals - deliveredMeals,
+    totalMeals,
     ratio: totalDays > 0 ? deliveredDays / totalDays : 0,
     endsInDays,
     endsAt: start + plan.dayCount * DAY_MS,
-    nextDayIndex: next ?? null,
+    nextDayIndex: next?.at ?? null,
     finished: remainingDays === 0,
   };
 };

@@ -30,10 +30,16 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let active = true;
     (async () => {
-      const stored = await AsyncStorage.getItem(STORAGE_KEY);
-      const initial: Lang = stored === 'ar' || stored === 'en' ? stored : 'ar';
-      if (stored !== 'ar' && stored !== 'en') {
-        await AsyncStorage.setItem(STORAGE_KEY, 'ar');
+      // Nothing renders until `ready`, so a storage error here must still end
+      // in a language: without the catch the app stayed blank for good. Arabic
+      // is the default either way.
+      let initial: Lang = 'ar';
+      try {
+        const stored = await AsyncStorage.getItem(STORAGE_KEY);
+        if (stored === 'ar' || stored === 'en') initial = stored;
+        else await AsyncStorage.setItem(STORAGE_KEY, 'ar');
+      } catch {
+        // Fall back to the default.
       }
       applyRTL(initial);
       if (active) {
@@ -46,8 +52,14 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
+  // The switch happens on screen even when it cannot be saved — the customer
+  // asked for it now; only the next launch falls back to the default.
   const setLang = useCallback(async (l: Lang) => {
-    await AsyncStorage.setItem(STORAGE_KEY, l);
+    try {
+      await AsyncStorage.setItem(STORAGE_KEY, l);
+    } catch {
+      // Not persisted; the in-memory language still changes.
+    }
     applyRTL(l);
     setLangState(l);
   }, []);

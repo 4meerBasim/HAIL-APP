@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { Animated, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Animated, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Text from '../components/AppText';
 import Screen from '../components/Screen';
@@ -89,7 +89,6 @@ export default function SubscribeScreen({ navigation }: RootStackScreenProps<'Su
     pricing,
     dailyMacros,
     subscription,
-    replaceSubscription,
     setDayCount,
     toggleWeekday,
     applySaver,
@@ -261,7 +260,9 @@ export default function SubscribeScreen({ navigation }: RootStackScreenProps<'Su
             <UpcomingMeals
               plan={plan}
               meals={meals}
-              onPressMeal={(id) => navigation.navigate('DishDetail', { id, fromPlan: true })}
+              onPressMeal={(id) =>
+                navigation.navigate('DishDetail', { id, fromPlan: true, building: true })
+              }
             />
           </Reveal>
         ) : null}
@@ -372,7 +373,7 @@ export default function SubscribeScreen({ navigation }: RootStackScreenProps<'Su
         secondaryLabel={t('subscribe.exists.replace')}
         onSecondary={() => {
           setAlreadySubscribed(false);
-          replaceSubscription();
+          confirm();
           toPlans();
         }}
         onClose={() => setAlreadySubscribed(false)}

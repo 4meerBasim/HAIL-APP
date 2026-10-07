@@ -30,7 +30,6 @@ import {
 } from '../data/menu';
 import type { RootStackScreenProps } from '../navigation/RootNavigator';
 
-
 export default function BoxDetailScreen({ route, navigation }: RootStackScreenProps<'BoxDetail'>) {
   const { id } = route.params;
   const { t, lang, isRTL } = useLanguage();
@@ -46,10 +45,27 @@ export default function BoxDetailScreen({ route, navigation }: RootStackScreenPr
     if (box && plan.boxId !== box.id) startFromBox(box.id as BoxGoal);
   }, [box, plan.boxId, startFromBox]);
 
-  if (!box) {
+  // The headline is the whole subscription, not one turn of the rotation listed
+  // below it: the line under it names a span, and a rotation total under "for a
+  // month" reads as a month costing two days' worth. `priceOf` is the same call
+  // Subscribe makes, so the price does not move when the customer gets there.
+  // Worked out above the missing-box return so the hook runs on every render.
+  const fallback = useMemo(() => (box ? priceOf(planFromBox(box)) : null), [box]);
+
+  // An id that names no box — a stale link, a box since retired — gets a way
+  // back rather than a blank page with no controls on it.
+  if (!box || !fallback) {
     return (
       <Screen texture>
-        <View />
+        <View style={styles.missing}>
+          <Text style={styles.missingText}>{t('box.missing')}</Text>
+          <Button
+            label={t('common.back')}
+            variant="outline"
+            size="md"
+            onPress={() => navigation.goBack()}
+          />
+        </View>
       </Screen>
     );
   }
@@ -58,11 +74,6 @@ export default function BoxDetailScreen({ route, navigation }: RootStackScreenPr
   const name = t(`box.${box.id}.name`);
   const seeded = plan.boxId === box.id && plan.dishIds.length > 0;
   const daily = seeded ? dailyMacros : boxDaily(box);
-  // The headline is the whole subscription, not one turn of the rotation listed
-  // above it: the line under it names a span, and a rotation total under "for a
-  // month" reads as a month costing two days' worth. `priceOf` is the same call
-  // Subscribe makes, so the price does not move when the customer gets there.
-  const fallback = useMemo(() => priceOf(planFromBox(box)), [box]);
   const money = seeded ? pricing : fallback;
   // The rotation broken into days, shown one day at a time: six cards in a row
   // is a pile of dishes, three under a day tab is a schedule.
@@ -174,8 +185,15 @@ export default function BoxDetailScreen({ route, navigation }: RootStackScreenPr
                       <MealRow
                         key={`${meal.dishId}-${i}`}
                         meal={meal}
+                        // The box on screen is the plan being built (seeded by
+                        // `startFromBox` above), so tailoring a meal lands on it
+                        // rather than on a subscription already running.
                         onPress={() =>
-                          navigation.navigate('DishDetail', { id: meal.dishId, fromPlan: true })
+                          navigation.navigate('DishDetail', {
+                            id: meal.dishId,
+                            fromPlan: true,
+                            building: true,
+                          })
                         }
                       />
                     ))}
@@ -251,6 +269,18 @@ export default function BoxDetailScreen({ route, navigation }: RootStackScreenPr
 }
 
 const styles = StyleSheet.create({
+  missing: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xl,
+    paddingHorizontal: spacing.huge,
+  },
+  missingText: {
+    ...type.body,
+    color: colors.muted2,
+    textAlign: 'center',
+  },
   page: {
     flex: 1,
     overflow: 'hidden',

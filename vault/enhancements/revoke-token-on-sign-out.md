@@ -1,9 +1,11 @@
 # Revoke the token on sign out
 
-Status: planned
+Status: done
 Summary: Signing out only forgets the token on the device; the API still accepts it, and Sanctum tokens in this project never expire.
 
 ## Notes
+No longer applies: [[on-device-sign-in]] removed the API and the token, so there is nothing to revoke. Kept for when [[phone-otp-sign-in]] returns.
+
 `AuthContext.signOut` clears state and `AsyncStorage`. It does not tell the API,
 and `config/sanctum.php` in the API repo sets `'expiration' => null`, so every
 token ever issued stays valid forever. A token read off a device that was sold,

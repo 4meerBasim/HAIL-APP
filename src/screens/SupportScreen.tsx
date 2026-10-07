@@ -8,13 +8,15 @@ import Card from '../components/Card';
 import SettingRow from '../components/SettingRow';
 import { colors, radius, spacing, type } from '../theme';
 import { useLanguage } from '../i18n/LanguageContext';
-import { SUPPORT_PHONE, SUPPORT_SITE, SUPPORT_WHATSAPP } from '../data/menu';
+import { SUPPORT_PHONE, SUPPORT_WHATSAPP } from '../data/menu';
 import type { RootStackScreenProps } from '../navigation/RootNavigator';
 
+// No website row: the only site there is still carries the old brand's domain,
+// and linking a Hail customer to it reads as a different restaurant. It comes
+// back when a Hail domain exists.
 const CHANNELS: { id: string; icon: IconName; url: string }[] = [
   { id: 'call', icon: 'phone', url: `tel:${SUPPORT_PHONE}` },
   { id: 'whatsapp', icon: 'chat', url: `https://wa.me/${SUPPORT_WHATSAPP}` },
-  { id: 'site', icon: 'globe', url: SUPPORT_SITE },
 ];
 
 export default function SupportScreen({ navigation }: RootStackScreenProps<'Support'>) {

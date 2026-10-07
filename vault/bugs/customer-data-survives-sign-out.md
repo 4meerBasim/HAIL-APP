@@ -1,10 +1,23 @@
 # Customer data survives sign out
 
-Status: not-fixed
+Status: fixed
 Found: `src/state/AuthContext.tsx:267-271`
 Summary: Sign-out removes only the session key, so the next customer to sign in on the same handset inherits the last one's orders, subscription, card and addresses.
 
 ## Details
+Fixed by clearing on sign-out rather than scoping per account.
+`AuthContext.signOut` now `multiRemove`s the session plus every key no other
+context clears for itself — `@hail/card`, `@hail/payment-method`, `@hail/drop`,
+`@hail/notifications-read`, `@hail/notifications-cleared`,
+`@hail/notifications`, `@hail/locations.v2`, `@hail/location-selected.v2`.
+Orders and the subscription are cleared by `OrdersContext` and `PlanContext`,
+which own those keys and watch for `status === 'guest'`. The in-memory copies go
+too: `LocationContext` and `NotificationsContext` reset on the authed → guest
+edge, and `useStoredState`'s `reload` falls back to the initial value when a key
+is gone, so the payments list stops showing the old card on focus.
+
+What follows is the original report.
+
 `signOut` drops the session from state and calls
 `AsyncStorage.removeItem(SESSION_KEY)`. Everything else the app has written is
 device-scoped and stays on disk:

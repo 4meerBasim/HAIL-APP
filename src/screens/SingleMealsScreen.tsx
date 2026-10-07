@@ -18,7 +18,7 @@ import { icons } from '../components/icons';
 import Chip from '../components/Chip';
 import Badge from '../components/Badge';
 import DishCard from '../components/DishCard';
-import { colors, fonts, radius, spacing, type } from '../theme';
+import { colors, radius, spacing, type } from '../theme';
 import { useScrollToTop } from '@react-navigation/native';
 import { useLanguage } from '../i18n/LanguageContext';
 import { type Dish, dishesOfCourse, searchHints } from '../data/menu';

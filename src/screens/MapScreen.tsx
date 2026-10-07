@@ -149,11 +149,20 @@ const buildHtml = (markers: SavedLocation[], center: { lat: number; lng: number 
 
   // Best-effort street name. Nominatim rate-limits hard and can refuse, so a
   // failure just leaves the coordinates showing rather than blocking the save.
+  // Answers can come back out of order: one for a pin the customer has since
+  // moved is dropped, or it would name — and save — the earlier spot.
+  var stillPinned = function (lat, lng) {
+    if (!picked) return false;
+    var at = picked.getLatLng();
+    return at.lat === lat && at.lng === lng;
+  };
   var reverse = function (lat, lng) {
     fetch('https://nominatim.openstreetmap.org/reverse?format=json&zoom=18&lat=' + lat + '&lon=' + lng)
       .then(function (r) { return r.json(); })
       .then(function (d) {
-        if (d && d.display_name) send({ type: 'pick', lat: lat, lng: lng, address: d.display_name });
+        if (d && d.display_name && stillPinned(lat, lng)) {
+          send({ type: 'pick', lat: lat, lng: lng, address: d.display_name });
+        }
       })
       .catch(function () {});
   };

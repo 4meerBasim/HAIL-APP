@@ -1,5 +1,5 @@
 import React from 'react';
-import { Animated, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Animated, StyleSheet, View } from 'react-native';
 import Text from '../components/AppText';
 import Screen from '../components/Screen';
 import Icon from '../components/Icon';
@@ -14,15 +14,16 @@ import { colors, fonts, overlay, radius, shadow, spacing, type } from '../theme'
 import { useLanguage } from '../i18n/LanguageContext';
 import { useOrderText } from '../i18n/orderText';
 import { formatNumber } from '../i18n/digits';
+import { count } from '../i18n/count';
 import {
-  DEFAULT_TRACKING,
   currencyMark,
   groupNumber,
   orderGrandTotal,
   orderItemCount,
+  trackingStatusOf,
 } from '../data/menu';
 import { usePlan } from '../state/PlanContext';
-import { useOrders } from '../state/OrdersContext';
+import { useNow, useOrders } from '../state/OrdersContext';
 import { useAuth } from '../state/AuthContext';
 import type { TabScreenProps } from '../navigation/RootNavigator';
 
@@ -49,6 +50,8 @@ export default function OrdersScreen({ navigation }: TabScreenProps<'Orders'>) {
   const { orders } = useOrders();
   const { subscription } = usePlan();
   const { status } = useAuth();
+  // The live order's step moves with the clock; a minute is as fine as it reads.
+  const now = useNow(60_000);
 
   const active = orders.find((o) => o.status === 'active') ?? null;
   const past = orders.filter((o) => o.status !== 'active');
@@ -112,12 +115,14 @@ export default function OrdersScreen({ navigation }: TabScreenProps<'Orders'>) {
               <View style={styles.planText}>
                 <Text style={styles.planName}>{`#${formatNumber(active.id)}`}</Text>
                 <Text style={styles.planMeta}>
-                  {`${whenLabel(active)} · ${formatNumber(orderItemCount(active))} ${t('orders.items')}`}
+                  {`${whenLabel(active)} · ${count('count.items', orderItemCount(active), t)}`}
                 </Text>
               </View>
               <View style={styles.statusPillOnDark}>
                 <LiveDot />
-                <Text style={styles.statusTextOnDark}>{t(`track.step.${DEFAULT_TRACKING}`)}</Text>
+                <Text style={styles.statusTextOnDark}>
+                  {t(`track.step.${trackingStatusOf(active, now)}`)}
+                </Text>
               </View>
             </View>
 
@@ -163,7 +168,7 @@ export default function OrdersScreen({ navigation }: TabScreenProps<'Orders'>) {
               <View style={styles.archiveText}>
                 <Text style={styles.archiveTitle}>{t('orders.past')}</Text>
                 <Text style={styles.archiveMeta} numberOfLines={1}>
-                  {`${formatNumber(past.length)} ${t('orders.past.count')} · ${t('orders.past.latest')} ${whenLabel(past[0])}`}
+                  {`${count('count.orders', past.length, t)} · ${t('orders.past.latest')} ${whenLabel(past[0])}`}
                 </Text>
               </View>
 

@@ -30,3 +30,4 @@ Copy lives in `src/i18n/strings.ts` in both `ar` and `en`: `lang.ar`/`lang.en`,
 ## Related
 - Page: [[profile]], [[login]]
 - Features: [[hail-rebrand]]
+- Bugs: [[modals-ignore-language-switch]], [[language-load-blanks-app]]

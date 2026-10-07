@@ -11,7 +11,15 @@ import { useLanguage } from '../i18n/LanguageContext';
 import { useOrderText } from '../i18n/orderText';
 import { formatNumber } from '../i18n/digits';
 import { MAX_POSTPONE_DAYS, dayKeys, getDish, slotLabel } from '../data/menu';
-import { postponedBy, postponedOffPlan, planProgress, upcomingDeliveries, usePlan } from '../state/PlanContext';
+import {
+  planProgress,
+  postponedBy,
+  postponedOffPlan,
+  rotationDays,
+  upcomingDeliveries,
+  usePlan,
+  weekdayOf,
+} from '../state/PlanContext';
 
 interface DayMeal {
   dishId: string;
@@ -205,13 +213,13 @@ export default function UpcomingDays({
   } | null>(null);
   const { t, isRTL } = useLanguage();
   const { dishName } = useOrderText();
-  const { subscription, subscriptionMeals, skipDay, postponeDay, clearException } = usePlan();
+  const { subscription, subscriptionMeals, now, skipDay, postponeDay, clearException } = usePlan();
 
   // Anchored to today rather than to day zero: a subscription three weeks in
   // would otherwise still list its first week as "upcoming".
   const progress = useMemo(
-    () => (subscription ? planProgress(subscription) : null),
-    [subscription],
+    () => (subscription ? planProgress(subscription, now) : null),
+    [subscription, now],
   );
 
   const days = useMemo(
@@ -222,29 +230,28 @@ export default function UpcomingDays({
     [subscription, progress, from, howMany],
   );
 
+  // The plan's own day grid, so a day lists what was built for it rather than
+  // the flat rotation chopped into equal lengths.
+  const rotation = useMemo(
+    () => (subscription ? rotationDays(subscription, subscriptionMeals) : []),
+    [subscription, subscriptionMeals],
+  );
+
   if (!subscription || days.length === 0) return null;
 
   const skipIcon = isRTL ? icons.skipBack : icons.skipForward;
 
-  // The rotation repeats across delivery days, so slot N gets the next
-  // `mealsPerDay` meals in the plan's order.
-  const mealsForSlot = (slot: number) => {
-    if (subscriptionMeals.length === 0) return [];
-    const perDay = subscription.mealSlots.length;
-    return Array.from(
-      { length: perDay },
-      (_, k) => subscriptionMeals[(slot * perDay + k) % subscriptionMeals.length],
-    );
-  };
-
   return (
     <View style={styles.days}>
-      {days.map((dayIndex, i) => {
-        // Counted from the start of the run, not from the first row rendered,
-        // so a list that skips ahead still lands on that day's own rotation.
+      {days.map(({ dayIndex, at, nth, dropped }, i) => {
+        // Placed by its position in the whole run, not by the first row
+        // rendered: the k-th delivery since the plan started eats rotation day
+        // k, so a list that starts part-way through still lands on the right one.
         const slot = from + i;
+        // Keyed by the day it was scheduled for — a postponed delivery arrives
+        // on another day, but its exception, and its Undo, stay with this one.
         const ex = subscription.exceptions.find((e) => e.dayIndex === dayIndex);
-        const dayMeals = mealsForSlot(slot);
+        const dayMeals = rotation.length > 0 ? rotation[nth % rotation.length] : [];
         const rowMeals: DayMeal[] = dayMeals.map((m) => ({
           dishId: m.dishId,
           name: dishName(m.dishId),
@@ -252,12 +259,13 @@ export default function UpcomingDays({
         }));
         const shifted = postponedBy(subscription, dayIndex);
         const offPlan = postponedOffPlan(subscription, dayIndex);
+        const day = t(dayKeys[weekdayOf(subscription, at)]);
 
         return (
           <DayRow
             key={dayIndex}
             index={revealFrom + slot}
-            label={t(dayKeys[dayIndex % 7])}
+            label={day}
             meals={rowMeals}
             statusText={
               ex
@@ -267,14 +275,14 @@ export default function UpcomingDays({
                 : subscription.mealSlots.map((s) => slotLabel(s, t)).join(' · ')
             }
             exKind={ex?.kind}
-            next={slot === 0 && !ex}
+            next={slot === 0 && !dropped && !ex}
             canPostponeMore={shifted < MAX_POSTPONE_DAYS}
             skipIcon={skipIcon}
             onSkip={() =>
               setAsk({
                 kind: 'skip',
                 dayIndex,
-                day: t(dayKeys[dayIndex % 7]),
+                day,
                 shifted,
                 offPlan,
               })
@@ -283,12 +291,12 @@ export default function UpcomingDays({
               setAsk({
                 kind: 'postpone',
                 dayIndex,
-                day: t(dayKeys[dayIndex % 7]),
+                day,
                 shifted,
                 // One more day than it already carries: if that lands past the
                 // end of the run, the day is gone rather than moved, and the
                 // question has to say so.
-                offPlan: postponedOffPlan(subscription, dayIndex + 1),
+                offPlan: dayIndex + shifted + 1 >= subscription.dayCount,
               })
             }
             onUndo={() => ex && clearException(ex.id)}

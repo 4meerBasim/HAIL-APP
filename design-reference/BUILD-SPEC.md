@@ -1,7 +1,7 @@
 # Hail (هيل) — React Native Build Spec (single source of truth)
 
 Iraqi-kitchen restaurant app. **Arabic-first RTL**, with an EN (LTR) toggle. Expo + TypeScript + React Navigation.
-Clone the design in `design-reference/jareesh-design.html` (11 screens, marked `<!-- 01 SPLASH -->` … `<!-- 11 ENGLISH HOME -->`) and `design-reference/tabbar.html`.
+Clone the design in `design-reference/hail-design.html` (11 screens, marked `<!-- 01 SPLASH -->` … `<!-- 11 ENGLISH HOME -->`) and `design-reference/tabbar.html`.
 
 The design HTML is the PIXEL SOURCE OF TRUTH: every color, px size, radius, gap, shadow, font-size and copy string is taken from there. Match it faithfully. `image-slot` → `<Image>`; the `ios-frame` wrapper is just the device (use SafeAreaView, don't recreate a frame). `66px` top padding in the design = safe-area/status-bar space.
 

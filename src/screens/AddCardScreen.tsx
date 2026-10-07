@@ -22,8 +22,10 @@ import {
   cvvLength,
   detectBrand,
   digitsOnly,
+  expiryValid,
   formatExpiryInput,
   formatNumberInput,
+  luhnValid,
   numberLength,
 } from '../data/card';
 import type { RootStackScreenProps } from '../navigation/RootNavigator';
@@ -42,10 +44,16 @@ export default function AddCardScreen({ navigation }: RootStackScreenProps<'AddC
 
   const brand = useMemo(() => detectBrand(number), [number]);
 
-  // Nothing is checked beyond "there is a number here". A card that fails the
-  // Luhn test is the bank's answer to give, not this screen's, and refusing to
-  // save one is how a customer ends up with no payment method at all.
-  const complete = number.length > 0;
+  // Only what the device can know for certain: the full length for the brand,
+  // a passing Luhn check (a transposed digit, the mistake people actually make),
+  // an expiry that is a real month and not already past, and a CVV of the
+  // brand's length. Whether the card is good is still the bank's answer — this
+  // only stops one that cannot be.
+  const complete =
+    number.length === numberLength(brand) &&
+    luhnValid(number) &&
+    expiryValid(expiry, new Date()) &&
+    cvv.length === cvvLength(brand);
 
   // Every field is kept as bare digits in state and formatted on the way out,
   // so a paste with spaces or dashes lands the same as typing does. The brand is
@@ -54,7 +62,11 @@ export default function AddCardScreen({ navigation }: RootStackScreenProps<'AddC
   // brand's length.
   const onNumber = (value: string) => {
     const raw = digitsOnly(value);
-    setNumber(raw.slice(0, numberLength(detectBrand(raw))));
+    const next = detectBrand(raw);
+    setNumber(raw.slice(0, numberLength(next)));
+    // An Amex CVV is four digits; leaving Amex would otherwise keep a fourth
+    // digit the field can no longer show or delete past its new maxLength.
+    setCvv((c) => c.slice(0, cvvLength(next)));
   };
   const onExpiry = (value: string) => setExpiry(digitsOnly(value).slice(0, 4));
   const onCvv = (value: string) => setCvv(digitsOnly(value).slice(0, cvvLength(brand)));
@@ -169,7 +181,7 @@ export default function AddCardScreen({ navigation }: RootStackScreenProps<'AddC
                   formatExpiryInput(expiry),
                   onExpiry,
                   'expiry',
-                  { placeholder: 'MM/YY', maxLength: 5 },
+                  { placeholder: t('card.expiryPlaceholder'), maxLength: 5 },
                 )}
               </View>
               <View style={styles.flex}>

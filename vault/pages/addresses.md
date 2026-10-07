@@ -6,4 +6,4 @@ Summary: The saved delivery addresses — pick the one in use, favourite it, del
 ## Related
 - Connects to: [[map]], [[profile]]
 - Features: [[real-customer-data-only]]
-- Bugs: [[customer-data-survives-sign-out]], [[seeded-addresses-survive-upgrade]], [[location-hydration-has-no-loaded-flag]], [[unnamed-pin-label-inconsistent]]
+- Bugs: [[customer-data-survives-sign-out]], [[seeded-addresses-survive-upgrade]], [[location-hydration-has-no-loaded-flag]], [[unnamed-pin-label-inconsistent]], [[location-storage-error-never-hydrates]], [[profile-addresses-sub-missing]], [[address-delete-without-confirm]]

@@ -6,4 +6,4 @@ Summary: One diet box — photo, a full day's nutrition, the rotation day by day
 ## Related
 - Connects to: [[plans]], [[boxes]], [[plan-builder]], [[subscribe]], [[dish-detail]], [[login]]
 - Features: [[subscription-pricing]], [[full-day-macros]], [[scrolling-hero]], [[meal-times]], [[guest-mode]], [[multi-select-dishes]]
-- Bugs: [[box-hero-pinned-while-scrolling]], [[slot-labels-wrong-under-multi-select]]
+- Bugs: [[box-hero-pinned-while-scrolling]], [[slot-labels-wrong-under-multi-select]], [[box-detail-hook-after-early-return]], [[image-viewer-gestures-dead-on-android]]

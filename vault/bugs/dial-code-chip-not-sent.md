@@ -40,3 +40,4 @@ number, and nothing downstream can tell that it is the wrong one.
 ## Related
 - Page: [[login]]
 - Feature: [[phone-otp-sign-in]]
+- Bugs: [[phone-validation-too-loose]]

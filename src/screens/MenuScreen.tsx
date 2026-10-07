@@ -23,6 +23,7 @@ import Stepper from '../components/Stepper';
 import { colors, fonts, overlay, radius, shadow, spacing, type } from '../theme';
 import { useLanguage } from '../i18n/LanguageContext';
 import { formatNumber } from '../i18n/digits';
+import { ingredientLabel } from '../i18n/orderText';
 import { formatPrice, groupNumber } from '../data/menu';
 import {
   BUILT_MEAL_ID,
@@ -30,7 +31,6 @@ import {
   gramsRange,
   ingredientGroups,
   ingredientPriceAt,
-  isByWeight,
   isCompleteMeal,
   mealMacros,
   mealPrice,
@@ -103,10 +103,7 @@ export default function MenuScreen({ navigation }: TabScreenProps<'Menu'>) {
 
   // Each part names its weight wherever it is listed, so the price beside it
   // has a reason. Pieces — a samoon, an egg — stay named on their own.
-  const partLabel = (id: string) =>
-    isByWeight(id)
-      ? `${t(`ing.${id}`)} ${formatNumber(weightOf(id))}${t('detail.gram')}`
-      : t(`ing.${id}`);
+  const partLabel = (id: string) => ingredientLabel(id, weightOf(id), t);
 
   // Taking a part off drops its weight with it, so putting it back later starts
   // from the kitchen's amount again rather than from a figure set on a choice

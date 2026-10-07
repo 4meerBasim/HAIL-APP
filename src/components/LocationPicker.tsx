@@ -15,7 +15,7 @@ export interface LocationPickerProps {
 }
 
 export default function LocationPicker({ visible, onClose, onOpenMap }: LocationPickerProps) {
-  const { t } = useLanguage();
+  const { t, isRTL } = useLanguage();
   const insets = useSafeAreaInsets();
   const { locations, selected, selectLocation, toggleFavourite, hydrated } = useLocations();
 
@@ -28,7 +28,14 @@ export default function LocationPicker({ visible, onClose, onOpenMap }: Location
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       {/* Scrim closes on tap; the sheet swallows its own presses so a tap on a
           row never reaches it. */}
-      <Pressable style={styles.scrim} onPress={onClose} accessibilityRole="button">
+      {/* A Modal is its own native root and inherits no direction from the
+          Screen behind it — set here so it follows a language switched without
+          a restart. */}
+      <Pressable
+        style={[styles.scrim, { direction: isRTL ? 'rtl' : 'ltr' }]}
+        onPress={onClose}
+        accessibilityRole="button"
+      >
         <Pressable
           style={[styles.sheet, { marginTop: insets.top + 64 }]}
           onPress={(e) => e.stopPropagation()}

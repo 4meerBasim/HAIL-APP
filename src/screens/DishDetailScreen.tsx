@@ -19,6 +19,7 @@ import Hero, { heroAspect } from '../components/Hero';
 import BuildRow from '../components/BuildRow';
 import { colors, fonts, radius, scrim, shadow, spacing, type } from '../theme';
 import { useLanguage } from '../i18n/LanguageContext';
+import { useOrderText } from '../i18n/orderText';
 import { formatNumber } from '../i18n/digits';
 import {
   type Dish,
@@ -41,7 +42,7 @@ import {
 } from '../data/ingredients';
 import { type MealBuild, emptyBuild, useMealBuild } from '../state/MealBuildContext';
 import { useCart } from '../state/CartContext';
-import { usePlan } from '../state/PlanContext';
+import { type BuildTarget, usePlan } from '../state/PlanContext';
 import type { RootStackScreenProps } from '../navigation/RootNavigator';
 
 const DEFAULT_DISH_ID = 'quzi';
@@ -112,6 +113,7 @@ function DishPage({
   unit,
 }: PageProps) {
   const { t, lang } = useLanguage();
+  const { dishName: nameOf } = useOrderText();
   const fmtNum = (n: number | string): string => formatNumber(n);
 
   const dishName = lang === 'ar' ? dish.name : t(`dish.${dish.id}.name`, dish.name);
@@ -158,10 +160,7 @@ function DishPage({
   const counted = Object.entries(build?.items ?? {});
   const added = [
     ...(build?.extras ?? []).map((id) => t(`opt.${id}`)),
-    ...counted.map(([id, n]) => {
-      const item = getDish(id);
-      return n > 1 ? `${item?.name ?? id} ×${formatNumber(n)}` : (item?.name ?? id);
-    }),
+    ...counted.map(([id, n]) => (n > 1 ? `${nameOf(id)} ×${formatNumber(n)}` : nameOf(id))),
   ];
   const addedPrice =
     (build?.extras ?? []).reduce((sum, id) => sum + priceOf(id), 0) +
@@ -331,14 +330,11 @@ function DishPage({
                   ? [{ id: build.size, label: t(`opt.${build.size}`), price: priceOf(build.size) }]
                   : []),
                 ...build.extras.map((id) => ({ id, label: t(`opt.${id}`), price: priceOf(id) })),
-                ...counted.map(([id, n]) => {
-                  const item = getDish(id);
-                  return {
-                    id,
-                    label: n > 1 ? `${item?.name ?? id} ×${formatNumber(n)}` : (item?.name ?? id),
-                    price: parsePrice(item?.price ?? '0') * n,
-                  };
-                }),
+                ...counted.map(([id, n]) => ({
+                  id,
+                  label: n > 1 ? `${nameOf(id)} ×${formatNumber(n)}` : nameOf(id),
+                  price: parsePrice(getDish(id)?.price ?? '0') * n,
+                })),
               ].map((line) => (
                 <View key={line.id} style={styles.totalLine}>
                   <Text style={styles.totalLabel} numberOfLines={1}>
@@ -430,14 +426,17 @@ function DishPage({
 
 export default function DishDetailScreen({ route, navigation }: RootStackScreenProps<'DishDetail'>) {
   const { t, isRTL } = useLanguage();
+  const { dishName: nameOf } = useOrderText();
   const { addItem } = useCart();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const [qty, setQty] = useState(1);
-  const [fav, setFav] = useState(false);
   // A meal ordered on its own is built by the customer; one arriving under a
   // plan is not, so the whole block is absent rather than disabled.
   const fromPlan = route.params?.fromPlan === true;
+  // Which plan this meal is tailored on: the one being built, or the one
+  // already running. Both open read-only; they differ in where the edit lands.
+  const target: BuildTarget = route.params?.building === true ? 'plan' : 'subscription';
   // Opened from the basket: the parts and the weights come back out of the cart
   // line's own key, which is the only place a built meal is recorded.
   const builtKey = route.params?.built;
@@ -446,7 +445,8 @@ export default function DishDetailScreen({ route, navigation }: RootStackScreenP
     [builtKey],
   );
   const { build, start, load, setSize, clearAdded } = useMealBuild();
-  const { setMealBuild, subscription } = usePlan();
+  const { setMealBuild, plan, subscription } = usePlan();
+  const mealBuilds = (target === 'plan' ? plan : subscription)?.mealBuilds;
   // A plan meal is already paid for, so this page does not sell it. It opens
   // read-only with one button — edit — and the same builder the à-la-carte
   // meal uses appears in place once that is pressed.
@@ -543,12 +543,12 @@ export default function DishDetailScreen({ route, navigation }: RootStackScreenP
   // Opening the editor seeds it from whatever the plan already remembers about
   // this meal, so editing twice does not start from plain the second time.
   const edit = () => {
-    load(dish.id, subscription?.mealBuilds?.[dish.id] ?? { size: sizes[0].id, extras: [], items: {} });
+    load(dish.id, mealBuilds?.[dish.id] ?? { size: sizes[0].id, extras: [], items: {} });
     setEditing(true);
   };
 
   const saveEdit = () => {
-    setMealBuild(dish.id, { size: build.size, extras: build.extras, items: build.items });
+    setMealBuild(target, dish.id, { size: build.size, extras: build.extras, items: build.items });
     setEditing(false);
   };
 
@@ -561,18 +561,17 @@ export default function DishDetailScreen({ route, navigation }: RootStackScreenP
   // lookup and a map, so there is nothing to save by deferring it.
   const savedFor = useCallback(
     (dishId: string): string[] => {
-      const stored = subscription?.mealBuilds?.[dishId];
+      const stored = mealBuilds?.[dishId];
       if (!stored) return [];
       return [
         ...(stored.size !== sizes[0].id ? [t(`opt.${stored.size}`)] : []),
         ...stored.extras.map((id) => t(`opt.${id}`)),
-        ...Object.entries(stored.items).map(([id, n]) => {
-          const item = getDish(id);
-          return n > 1 ? `${item?.name ?? id} ×${formatNumber(n)}` : (item?.name ?? id);
-        }),
+        ...Object.entries(stored.items).map(([id, n]) =>
+          n > 1 ? `${nameOf(id)} ×${formatNumber(n)}` : nameOf(id),
+        ),
       ];
     },
-    [subscription, t],
+    [mealBuilds, nameOf, t],
   );
 
   /**
@@ -649,10 +648,9 @@ export default function DishDetailScreen({ route, navigation }: RootStackScreenP
     ? [
         ...(mine.size !== sizes[0].id ? [t(`opt.${mine.size}`)] : []),
         ...mine.extras.map((id) => t(`opt.${id}`)),
-        ...Object.entries(mine.items).map(([id, n]) => {
-          const item = getDish(id);
-          return n > 1 ? `${item?.name ?? id} ×${formatNumber(n)}` : (item?.name ?? id);
-        }),
+        ...Object.entries(mine.items).map(([id, n]) =>
+          n > 1 ? `${nameOf(id)} ×${formatNumber(n)}` : nameOf(id),
+        ),
       ]
         .filter(Boolean)
         .join(' · ')
@@ -801,23 +799,6 @@ export default function DishDetailScreen({ route, navigation }: RootStackScreenP
             strokeWidth={2.4}
           />
         </TouchableOpacity>
-        <TouchableOpacity
-          activeOpacity={0.85}
-          onPress={() => setFav((f) => !f)}
-          accessibilityRole="button"
-          accessibilityLabel={t('detail.favorite')}
-          accessibilityState={{ selected: fav }}
-          style={[styles.circleBtn, styles.trail, { top: insets.top + 12 }]}
-        >
-          <Icon
-            path={icons.heart}
-            size={16}
-            color={colors.coral}
-            strokeWidth={2}
-            fill={fav ? colors.coral : 'none'}
-          />
-        </TouchableOpacity>
-
       </View>
 
     </Screen>
@@ -840,9 +821,6 @@ const styles = StyleSheet.create({
   // ternary this replaced put the control on the wrong edge.
   lead: {
     start: 16,
-  },
-  trail: {
-    end: 16,
   },
   // Hung off the photo's own lower edge rather than measured from the top of
   // the screen: the photo scrolls now, and the bar goes where it goes.

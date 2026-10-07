@@ -95,6 +95,12 @@ export default function PlanBuilderScreen({
   const [filter, setFilter] = useState<PickFilter>('all');
   // null = the sheet is closed; 'new' = adding; otherwise the slot id edited.
   const [editing, setEditing] = useState<string | null>(null);
+  // The meal time whose delete is waiting on a yes.
+  const [dropping, setDropping] = useState<string | null>(null);
+  // Adding or re-timing a meal time re-sorts the row by clock, so the index a
+  // slot had a moment ago is not where it is now. The step follows the slot by
+  // id instead: a known one after an edit, or whichever id is new after an add.
+  const [follow, setFollow] = useState<{ id: string } | { before: string[] } | null>(null);
 
   useEffect(() => {
     if (boxId && plan.boxId !== boxId) startFromBox(boxId as BoxGoal);
@@ -216,16 +222,33 @@ export default function PlanBuilderScreen({
     scroller.current?.scrollTo({ y: 0, animated: true });
   };
 
+  useEffect(() => {
+    if (!follow) return;
+    setFollow(null);
+    if ('id' in follow) {
+      const i = steps.findIndex((s) => s.id === follow.id);
+      if (i >= 0) setStep(i);
+      return;
+    }
+    // Nothing new means the add was refused — the row was already full.
+    const i = steps.findIndex((s) => !follow.before.includes(s.id));
+    if (i >= 0) goto(i);
+    // `goto` is rebuilt every render and only ever closes over setters and a
+    // ref, so the slot list is the one thing this has to wait on.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [follow, steps]);
+
   const editingSlot = editing && editing !== 'new' ? steps.find((s) => s.id === editing) : null;
 
   const commitSlot = (name: string, time: number) => {
     if (editing === 'new') {
       addSlot(name, time);
-      // The new slot is appended, so land on it — naming a time and then having
-      // to hunt for it would be the wrong reward for the effort.
-      goto(steps.length);
+      // Land on the new slot — naming a time and then having to hunt for it
+      // would be the wrong reward for the effort.
+      setFollow({ before: steps.map((s) => s.id) });
     } else if (editing) {
       updateSlot(editing, { name, time });
+      setFollow({ id: editing });
     }
     setEditing(null);
   };
@@ -351,10 +374,7 @@ export default function PlanBuilderScreen({
                 out the meal it removes is the whole difference. */}
             {steps.length > 1 ? (
               <PressScale
-                onPress={() => {
-                  removeSlot(slot);
-                  goto(Math.max(0, step - 1));
-                }}
+                onPress={() => setDropping(slot)}
                 scaleTo={0.94}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 accessibilityLabel={t('builder.removeSlot').replace('{slot}', slotName)}
@@ -380,7 +400,9 @@ export default function PlanBuilderScreen({
                   key={meal.dishId}
                   meal={meal}
                   style={styles.mealCard}
-                  onPress={() => navigation.navigate('DishDetail', { id: meal.dishId, fromPlan: true })}
+                  onPress={() =>
+                    navigation.navigate('DishDetail', { id: meal.dishId, fromPlan: true, building: true })
+                  }
                   onRemove={() => setDayDish(activeDay, step, meal.dishId)}
                 />
               ))}
@@ -517,7 +539,8 @@ export default function PlanBuilderScreen({
                     activeOpacity={0.7}
                     disabled={!dishId}
                     onPress={() =>
-                      dishId && navigation.navigate('DishDetail', { id: dishId, fromPlan: true })
+                      dishId &&
+                      navigation.navigate('DishDetail', { id: dishId, fromPlan: true, building: true })
                     }
                     accessibilityRole="button"
                     accessibilityLabel={dishName}
@@ -618,6 +641,24 @@ export default function PlanBuilderScreen({
               }
             : undefined
         }
+      />
+
+      {/* The meal time, its delivery hour and its place in every day go on one
+          tap, so the chip asks first. The sheet's own delete asks inside the
+          sheet. */}
+      <Dialog
+        visible={dropping !== null}
+        title={t('slot.delete.title').replace('{slot}', slotName)}
+        message={t('slot.delete.message')}
+        primaryLabel={t('common.cancel')}
+        onPrimary={() => setDropping(null)}
+        secondaryLabel={t('builder.removeSlot').replace('{slot}', slotName)}
+        onSecondary={() => {
+          if (dropping) removeSlot(dropping);
+          goto(Math.max(0, step - 1));
+          setDropping(null);
+        }}
+        onClose={() => setDropping(null)}
       />
     </Screen>
   );
