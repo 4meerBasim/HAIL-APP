@@ -22,7 +22,7 @@ export interface Dish {
   image: ImageSourcePropType;
 }
 
-// Catering photos came off the restaurant's live menu (SUPPORT_SITE) and
+// Catering photos came off the restaurant's live menu and
 // are now bundled: every image in the app ships with it, so nothing on screen
 // waits on a network that a customer in a lift does not have.
 
@@ -323,7 +323,6 @@ export const suggestTrays = (guests: number): Record<string, number> => {
 // `tel:` and `wa.me` can both take them as-is.
 export const SUPPORT_PHONE = '+9647700000000';
 export const SUPPORT_WHATSAPP = '9647700000000';
-export const SUPPORT_SITE = 'https://menu.jareesh.com';
 
 export const formatPrice = (price: string, lang: 'ar' | 'en'): string =>
   lang === 'ar' ? `${price} د.ع` : `IQD ${price}`;

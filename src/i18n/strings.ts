@@ -607,8 +607,6 @@ export const ar: Dict = {
   'support.call.sub': 'تحدث مع الفريق مباشرة',
   'support.whatsapp': 'واتساب',
   'support.whatsapp.sub': 'أرسل رسالة وسنرد بأسرع وقت',
-  'support.site': 'الموقع الإلكتروني',
-  'support.site.sub': 'قائمتنا على الإنترنت',
   'support.hours': 'نستقبلكم يومياً من 10 صباحاً حتى 11 مساءً',
 
   'dish.pasta.name': 'باستا بني فورنو',
@@ -1275,8 +1273,6 @@ export const en: Dict = {
   'support.call.sub': 'Talk to the team directly',
   'support.whatsapp': 'WhatsApp',
   'support.whatsapp.sub': 'Send a message and we will reply shortly',
-  'support.site': 'Website',
-  'support.site.sub': 'Our online menu',
   'support.hours': 'Open daily, 10am to 11pm',
 
   'dish.pasta.name': 'Penne al forno',
