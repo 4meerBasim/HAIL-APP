@@ -59,7 +59,7 @@ Customers subscribe to a diet box or build their own meal plan day by day, order
 | Language | TypeScript |
 | Navigation | React Navigation 7: native stack plus a custom bottom tab bar |
 | State | React Context, one provider per domain, persisted with AsyncStorage |
-| Maps | Leaflet bundled with the app and rendered in `react-native-webview`, with CARTO / OpenStreetMap tiles |
+| Maps | Leaflet bundled with the app and rendered in `react-native-webview`, with OpenStreetMap tiles |
 | Graphics | `react-native-svg` for icons and drawn UI, `expo-linear-gradient` |
 | Animation | Core `Animated` and `PanResponder` |
 | Gestures | `react-native-gesture-handler` |
