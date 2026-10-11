@@ -142,7 +142,9 @@ export default function PhoneNumbersScreen({ navigation }: RootStackScreenProps<
               <Text style={[styles.fieldLabel, readingSide]}>{t('phones.newLabel')}</Text>
               <View style={[styles.phoneRow, phoneRowSide]}>
                 <View style={styles.prefix}>
-                  <Text style={styles.prefixText}>{DIAL_CODE}</Text>
+                  {/* A leading LRM pins the "+" to the front: a bare writingDirection
+                      does not hold on Android and the bidi algorithm renders "964+". */}
+                  <Text style={styles.prefixText}>{`‎${DIAL_CODE}`}</Text>
                 </View>
                 <AppTextInput
                   value={phone}
