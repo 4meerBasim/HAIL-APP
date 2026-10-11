@@ -4,6 +4,29 @@ A bilingual (English / Arabic) meal-subscription and food-ordering app for iOS a
 
 Customers subscribe to a diet box or build their own meal plan day by day, order single meals, assemble a meal from weighed ingredients with live nutrition, and track deliveries on a map. The whole app runs in both English (left-to-right) and Arabic (right-to-left).
 
+## Screenshots
+
+<table>
+  <tr>
+    <td align="center"><img src="docs/screenshots/01-login.jpg" width="200" alt="Sign in"><br><sub>Sign in</sub></td>
+    <td align="center"><img src="docs/screenshots/02-plans.jpg" width="200" alt="Plans home"><br><sub>Plans home</sub></td>
+    <td align="center"><img src="docs/screenshots/03-box-detail.jpg" width="200" alt="Diet box detail"><br><sub>Diet box</sub></td>
+    <td align="center"><img src="docs/screenshots/04-plan-builder.jpg" width="200" alt="Plan builder"><br><sub>Plan builder</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/screenshots/05-menu.jpg" width="200" alt="Build a meal"><br><sub>Build a meal</sub></td>
+    <td align="center"><img src="docs/screenshots/06-dish-detail.jpg" width="200" alt="Dish detail"><br><sub>Dish detail</sub></td>
+    <td align="center"><img src="docs/screenshots/07-cart.jpg" width="200" alt="Cart"><br><sub>Cart</sub></td>
+    <td align="center"><img src="docs/screenshots/08-orders.jpg" width="200" alt="Orders"><br><sub>Orders</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/screenshots/09-profile.jpg" width="200" alt="Profile"><br><sub>Profile</sub></td>
+    <td align="center"><img src="docs/screenshots/10-plans-ar.jpg" width="200" alt="Plans home in Arabic"><br><sub>Plans · Arabic (RTL)</sub></td>
+    <td align="center"><img src="docs/screenshots/11-menu-ar.jpg" width="200" alt="Build a meal in Arabic"><br><sub>Build a meal · Arabic</sub></td>
+    <td align="center"><img src="docs/screenshots/12-profile-ar.jpg" width="200" alt="Profile in Arabic"><br><sub>Profile · Arabic</sub></td>
+  </tr>
+</table>
+
 ## Features
 
 **Meal plans and subscriptions**
@@ -63,7 +86,7 @@ The app is built to run in **Expo Go**, so it ships no custom native modules. Th
 │   ├── vendor/             # bundled Leaflet
 │   ├── theme.ts            # design tokens: colours, type scale, spacing, radii, fonts
 │   └── animation.ts        # shared motion values
-├── docs/                   # engineering rules: workflow, code review, git, never-do
+├── docs/                   # engineering rules and README screenshots
 ├── design-reference/       # build spec and HTML design source
 └── vault/                  # Obsidian knowledge base: features, bugs, enhancements, pages
 ```

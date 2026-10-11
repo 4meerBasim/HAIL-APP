@@ -17,3 +17,4 @@ Trade accepted: the box page footer no longer equals the sum of the meals listed
 ## Related
 - Page: [[box-detail]], [[boxes]], [[plans]], [[subscribe]]
 - Feature: [[multi-select-dishes]], [[full-day-macros]]
+- Bugs: [[box-macros-differ-card-vs-detail]]

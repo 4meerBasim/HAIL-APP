@@ -44,3 +44,4 @@ sites cannot drift apart again.
 - Page: [[cart]], [[plans]], [[addresses]], [[map]]
 - Feature: [[real-customer-data-only]]
 - Bugs: [[seeded-addresses-survive-upgrade]], [[location-hydration-has-no-loaded-flag]], [[cart-map-preview-without-an-address]]
+- Bugs: [[pinned-location-label-untranslated]]
