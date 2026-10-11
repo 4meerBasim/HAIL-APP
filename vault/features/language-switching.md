@@ -1,21 +1,42 @@
 # Language switching
 
 Status: shipped
-Summary: The app supports Arabic and English again, and the customer can switch between them live — from the Profile settings or before signing in.
+Summary: The app supports Arabic and English, defaults to English, and the customer can switch between them from the Profile settings or before signing in — a direction change restarts the app so the whole tree lays out natively in the new direction.
 
 ## Details
-`src/i18n/LanguageContext.tsx` reads the stored language (`@hail/lang`, default
-`ar`), applies it, and `setLang` now persists the choice, calls `applyRTL`, and
-updates state — the earlier Arabic-only lock is gone.
+`src/i18n/LanguageContext.tsx` reads the stored language (`@hail/lang`, now default
+**`en`** — Arabic is the alternative), applies it with `applyRTL`
+(`I18nManager.allowRTL(lang === 'ar')` + `forceRTL(lang === 'ar')` — English must disallow RTL, not just stop forcing it, or an RTL-locale phone keeps RTL; see [[english-stays-rtl-on-rtl-locale]]), and `setLang` persists
+the choice before switching.
 
-The switch is **live, no reload**: direction is driven entirely by context, not by
-native RTL. `Screen` sets `direction: rtl|ltr` on its root from `isRTL`, `AppText`
-sets `writingDirection`/`textAlign: auto` from `isRTL`, and the few `row-reverse`
-and `direction` sites derive from `isRTL` too. `I18nManager.forceRTL` is still
-called for native consistency, but its effect is deferred to the next reload and
-does not drive layout, so flipping context re-renders the whole tree correctly on
-the spot. `expo-updates` is not installed and `DevSettings.reload` is dev-only, so
-no reload path was added — none is needed, and no native module was introduced.
+The switch **restarts the app on a direction change**, it is no longer live. When
+the chosen language's direction differs from the running native direction, `setLang`
+calls `reloadAppAsync('Language direction changed')` from `expo` — no new dependency,
+`reloadAppAsync` ships with the Expo runtime. On the next launch the provider also
+compares the saved language against native `I18nManager.isRTL` and restarts once if
+they disagree (a fresh install whose system direction differs from the saved
+language). A `@hail/rtl-reload` flag written before the reload and cleared on the
+next launch is the loop guard: if native direction still did not follow after one
+restart, it does not restart again.
+
+The upshot is that at runtime native `I18nManager.isRTL` **always** equals the
+context's `isRTL` (Arabic = RTL, English = LTR); the old "live switch without a
+reload" state no longer exists. So native RTL handles the geometry — `row`,
+`start`/`end`, and (with `doLeftAndRightSwapInRTL` on) `left`/`right`/`marginLeft`
+etc. are all flipped by the platform. `Screen`, the modals and the sheets still set
+`direction: rtl|ltr` on their own roots from `isRTL`; that now simply agrees with
+native and stays harmless, and it still matters for the modals/sheets that are
+separate native roots (see [[modals-ignore-language-switch]]). `AppText` keeps
+`textAlign: 'auto'` + `writingDirection` from `isRTL`, directional SVG icons
+(chevrons, arrows, skip) are still selected by `isRTL` because react-native-svg does
+not mirror with RTL, and the phone rows stay `row-reverse` under RTL on purpose to
+keep the `+964` dial code and its number as one left-to-right run.
+
+Fallbacks: on web there is no native direction to fix, and where no native reload is
+available the switch falls back to the context-driven live behaviour (`canRestart`
+gates this on `Platform.OS !== 'web'` and `reloadAppAsync` being present). The switch
+still happens even when it cannot be persisted — only the next launch falls back to
+the default.
 
 Toggles:
 - Profile settings card — a globe `SettingRow` with an عربي / EN chip segment
@@ -29,5 +50,5 @@ Copy lives in `src/i18n/strings.ts` in both `ar` and `en`: `lang.ar`/`lang.en`,
 
 ## Related
 - Page: [[profile]], [[login]]
-- Features: [[hail-rebrand]]
-- Bugs: [[modals-ignore-language-switch]], [[language-load-blanks-app]]
+- Features: [[bilingual-fonts]], [[hail-rebrand]]
+- Bugs: [[english-stays-rtl-on-rtl-locale]], [[modals-ignore-language-switch]], [[language-load-blanks-app]], [[ltr-fields-physical-alignment]]

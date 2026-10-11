@@ -41,4 +41,4 @@ docket and must not collapse into one. The line label names each weight too.
 ## Related
 - Page: [[menu]], [[cart]]
 - Features: [[ingredient-photo-placeholders]], [[full-day-macros]], [[built-meal-detail-from-cart]]
-- Bugs: [[grams-stepper-collapsed-in-card]]
+- Bugs: [[grams-stepper-collapsed-in-card]], [[layout-animation-no-op-warning]]

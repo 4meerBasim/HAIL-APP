@@ -1,8 +1,9 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { WebView, type WebViewMessageEvent } from 'react-native-webview';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Text from '../components/AppText';
+import AppTextInput from '../components/AppTextInput';
 import Icon from '../components/Icon';
 import { icons } from '../components/icons';
 import Button from '../components/Button';
@@ -307,7 +308,7 @@ export default function MapScreen({ navigation }: RootStackScreenProps<'Map'>) {
 
           <View style={styles.searchCard}>
             <Icon path={icons.search} size={17} color={colors.muted} strokeWidth={2} />
-            <TextInput
+            <AppTextInput
               value={query}
               onChangeText={setQuery}
               onSubmitEditing={onSearch}
@@ -383,7 +384,7 @@ export default function MapScreen({ navigation }: RootStackScreenProps<'Map'>) {
               </Text>
             </View>
 
-            <TextInput
+            <AppTextInput
               value={label}
               onChangeText={setLabel}
               placeholder={t('location.namePlaceholder')}

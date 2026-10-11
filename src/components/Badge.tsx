@@ -1,8 +1,9 @@
 import React from 'react';
 import { StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 import Svg, { Rect, Text as SvgText } from 'react-native-svg';
-import { colors, fonts } from '../theme';
+import { colors, fonts, localFont } from '../theme';
 import { formatNumber } from '../i18n/digits';
+import { useLanguage } from '../i18n/LanguageContext';
 
 export interface BadgeProps {
   count: number;
@@ -15,8 +16,10 @@ export interface BadgeProps {
 
 const H = 20;
 const FONT = 11.5;
-// Cairo's own cap height, read off the font: OS/2 sCapHeight 700 / 1000 upem.
-const CAP = 0.7;
+// Each face's own cap height, read off the font: OS/2 sCapHeight / 1000 upem.
+const CAP = { en: 0.745, ar: 0.698 } as const;
+// Widest digit advance per face, from the same files.
+const DIGIT = { en: 0.71, ar: 0.6 } as const;
 const SIDE = 5.5; // padding either side of the digits before the pill grows
 const MAX = 99;
 
@@ -26,7 +29,7 @@ const MAX = 99;
 // takes white type at better contrast than gold ever did.
 //
 // Drawn rather than laid out. A React Native <Text> is positioned by its line
-// box, and this font's box is 1.874em tall against a 0.7em digit — so the digit
+// box, and the font's box is far taller than its digits — so the digit
 // sits wherever the ascent leaves it, and every lineHeight that fixes one size
 // breaks another. Here the baseline is placed at the circle's centre plus half
 // a cap height, which is the definition of a vertically centred digit and holds
@@ -38,12 +41,13 @@ export default function Badge({
   ink = colors.white,
   style,
 }: BadgeProps) {
+  const { lang } = useLanguage();
   if (count <= 0) return null;
 
   const label = count > MAX ? `${formatNumber(MAX)}+` : formatNumber(count);
-  // Cairo's digits are near tabular at ~0.56em; the pill only grows once the
+  // The pill only grows once the
   // count outgrows the circle.
-  const width = Math.max(H, Math.ceil(label.length * FONT * 0.56 + SIDE * 2));
+  const width = Math.max(H, Math.ceil(label.length * FONT * DIGIT[lang] + SIDE * 2));
 
   return (
     <View style={[styles.wrap, { width, height: H }, style]}>
@@ -60,8 +64,8 @@ export default function Badge({
         />
         <SvgText
           x={width / 2}
-          y={H / 2 + (CAP * FONT) / 2}
-          fontFamily={fonts.bold}
+          y={H / 2 + (CAP[lang] * FONT) / 2}
+          fontFamily={localFont(fonts.bold, lang)}
           fontSize={FONT}
           fill={ink}
           textAnchor="middle"

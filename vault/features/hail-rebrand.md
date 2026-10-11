@@ -17,3 +17,4 @@ The GitHub repo is renamed from `jareesh-app` to `HAIL-APP`, and its default bra
 ## Related
 - Page: [[login]], [[plans]]
 - Bugs: [[unknown-card-brand-hardcoded]]
+- Features: [[bilingual-fonts]]
