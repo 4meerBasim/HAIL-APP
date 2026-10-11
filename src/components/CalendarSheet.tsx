@@ -80,7 +80,13 @@ export default function CalendarSheet({
 
   return (
     // A Modal is its own native root and does not inherit the Screen's direction.
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      statusBarTranslucent
+      onRequestClose={onClose}
+    >
       <Pressable style={[styles.backdrop, { direction: isRTL ? 'rtl' : 'ltr' }]} onPress={onClose}>
         {/* Swallows taps so a press inside the card never dismisses it. */}
         <Pressable style={styles.card} onPress={() => {}}>

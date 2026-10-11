@@ -59,7 +59,13 @@ export default function SlotSheet({ visible, initial, onClose, onSave, onDelete 
 
   return (
     // A Modal is its own native root and does not inherit the Screen's direction.
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      statusBarTranslucent
+      onRequestClose={onClose}
+    >
       <View style={[styles.backdrop, { direction: isRTL ? 'rtl' : 'ltr' }]}>
         {/* The dismiss target is a sibling behind the card, not its parent. A
             Pressable wrapping the card claims the touch on press-in and never

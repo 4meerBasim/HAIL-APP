@@ -444,7 +444,26 @@ export default function PlanBuilderScreen({
           ) : null}
         </View>
 
-        {forSlot.length > 0 ? (
+        {forSlot.length === 0 ? (
+          <Text style={styles.slotEmpty}>
+            {t('builder.slotEmpty').replace('{slot}', slotName)}
+          </Text>
+        ) : forSlot.length === 1 ? (
+          // A single pick fills the content width so it lines up with the
+          // meal-time total card below it, rather than a lone fixed-width card
+          // leaving a gap at the end edge. Several still scroll horizontally.
+          <MealRow
+            meal={forSlot[0]}
+            onPress={() =>
+              navigation.navigate('DishDetail', {
+                id: forSlot[0].dishId,
+                fromPlan: true,
+                building: true,
+              })
+            }
+            onRemove={() => setDayDish(activeDay, step, forSlot[0].dishId)}
+          />
+        ) : (
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -463,10 +482,6 @@ export default function PlanBuilderScreen({
               />
             ))}
           </ScrollView>
-        ) : (
-          <Text style={styles.slotEmpty}>
-            {t('builder.slotEmpty').replace('{slot}', slotName)}
-          </Text>
         )}
 
         {forSlot.length > 0 ? (

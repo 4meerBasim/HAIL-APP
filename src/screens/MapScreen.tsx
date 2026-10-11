@@ -31,9 +31,10 @@ type Incoming =
 
 const BAGHDAD = { lat: 33.3152, lng: 44.3661 };
 
-// CARTO Positron, tinted toward the brand in CSS rather than swapped for a
-// themed basemap — the filter rides on the tile pane only, so markers and
-// controls keep their real colours.
+// OpenStreetMap standard tiles, tinted toward the brand in CSS rather than
+// swapped for a themed basemap — the filter rides on the tile pane only, so
+// markers and controls keep their real colours. Keyless and attribution-only,
+// so there is nothing to provision and no third-party key to leak.
 //
 // Leaflet's own zoom control is off: its default chrome is a grey stacked box
 // that lands exactly where the back button sits, and there is no way to restyle
@@ -110,9 +111,9 @@ const buildHtml = (markers: SavedLocation[], center: { lat: number; lng: number 
     .setView([${center.lat}, ${center.lng}], 13);
   var HOME = [${center.lat}, ${center.lng}];
 
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19,
-    attribution: '&copy; OpenStreetMap &copy; CARTO'
+    attribution: '&copy; OpenStreetMap contributors'
   }).addTo(map);
 
   var icon = function (cls) {
@@ -259,7 +260,9 @@ export default function MapScreen({ navigation }: RootStackScreenProps<'Map'>) {
   const onSave = () => {
     if (!picked) return;
     const created = saveLocation({
-      label: label.trim() || t('location.pinned'),
+      // Stored empty when unnamed rather than frozen to the current language's
+      // "Pinned location"; `locationLabel` resolves it through t() at render.
+      label: label.trim(),
       address: picked.address || `${picked.lat.toFixed(5)}, ${picked.lng.toFixed(5)}`,
       lat: picked.lat,
       lng: picked.lng,

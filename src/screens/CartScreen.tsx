@@ -30,7 +30,7 @@ import { BUILT_MEAL_ID } from '../data/ingredients';
 import { type StoredCard, brandLabel } from '../data/card';
 import { useCart } from '../state/CartContext';
 import { useOrders } from '../state/OrdersContext';
-import { useLocations } from '../state/LocationContext';
+import { locationLabel, useLocations } from '../state/LocationContext';
 import { usePlan } from '../state/PlanContext';
 import { useAuth } from '../state/AuthContext';
 import { useStoredState } from '../state/useStoredState';
@@ -243,7 +243,7 @@ export default function CartScreen({ navigation }: RootStackScreenProps<'Cart'>)
               <View style={styles.addressRow}>
                 <View style={styles.addressText}>
                   <Text style={[styles.addressTitle, readingSide]} numberOfLines={1}>
-                    {selected ? selected.label || t('location.pinned') : t('location.add')}
+                    {selected ? locationLabel(selected, t) : t('location.add')}
                   </Text>
                   <Text style={[styles.addressSub, readingSide]} numberOfLines={2}>
                     {selected?.address ?? t('location.openMap.sub')}

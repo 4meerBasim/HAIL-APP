@@ -6,7 +6,7 @@ import Icon from './Icon';
 import { icons } from './icons';
 import { colors, radius, shadow, spacing, type } from '../theme';
 import { useLanguage } from '../i18n/LanguageContext';
-import { useLocations } from '../state/LocationContext';
+import { locationLabel, useLocations } from '../state/LocationContext';
 
 export interface LocationPickerProps {
   visible: boolean;
@@ -25,7 +25,13 @@ export default function LocationPicker({ visible, onClose, onOpenMap }: Location
   };
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      statusBarTranslucent
+      onRequestClose={onClose}
+    >
       {/* Scrim closes on tap; the sheet swallows its own presses so a tap on a
           row never reaches it. */}
       {/* A Modal is its own native root and inherits no direction from the
@@ -68,7 +74,7 @@ export default function LocationPicker({ visible, onClose, onOpenMap }: Location
 
                     <View style={styles.rowText}>
                       <Text style={styles.rowLabel} numberOfLines={1}>
-                        {l.label || t('location.pinned')}
+                        {locationLabel(l, t)}
                       </Text>
                       <Text style={styles.rowAddress} numberOfLines={1}>
                         {l.address}

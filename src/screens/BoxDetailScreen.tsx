@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Animated, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Text from '../components/AppText';
 import Screen from '../components/Screen';
@@ -34,9 +34,16 @@ export default function BoxDetailScreen({ route, navigation }: RootStackScreenPr
   const { id } = route.params;
   const { t, lang, isRTL } = useLanguage();
   const insets = useSafeAreaInsets();
-  const { plan, meals, pricing, dailyMacros, startFromBox } = usePlan();
+  const { plan, meals, pricing, startFromBox } = usePlan();
   const { status } = useAuth();
   const [day, setDay] = useState(0);
+
+  // The hero scrolls away under a translucent status bar, leaving the sheet's
+  // text passing under the clock and icons with nothing behind them. A cream
+  // cap over the status-bar area fades in as the hero leaves, so the content
+  // slides under a clean backdrop instead of colliding with the system icons.
+  const scrollY = useRef(new Animated.Value(0)).current;
+  const [heroH, setHeroH] = useState(0);
 
   const box = getBox(id);
 
@@ -73,7 +80,12 @@ export default function BoxDetailScreen({ route, navigation }: RootStackScreenPr
   const accent = colors[box.accent];
   const name = t(`box.${box.id}.name`);
   const seeded = plan.boxId === box.id && plan.dishIds.length > 0;
-  const daily = seeded ? dailyMacros : boxDaily(box);
+  // The box's advertised daily macros are the one source of truth for the
+  // "full day" card, so the detail agrees with the Plans card (BoxCard also
+  // reads `boxDaily`). The seeded plan's `dailyMacros` is not it: a box opens
+  // with a single default meal time, so that figure is an average day of a
+  // one-meal plan and read far below the box's headline (998 vs 1800 kcal).
+  const daily = boxDaily(box);
   const money = seeded ? pricing : fallback;
   // The rotation broken into days, shown one day at a time: six cards in a row
   // is a pile of dishes, three under a day tab is a schedule.
@@ -98,18 +110,39 @@ export default function BoxDetailScreen({ route, navigation }: RootStackScreenPr
     navigation.navigate('PlanBuilder', { boxId: box.id });
   };
 
+  // Opaque by the time the hero's foot reaches the status bar (the sheet rides
+  // 24px up over it), so no sheet text is ever caught under the system icons.
+  const capOpacity =
+    heroH > 0
+      ? scrollY.interpolate({
+          inputRange: [heroH - insets.top - 56, heroH - insets.top - 24],
+          outputRange: [0, 1],
+          extrapolate: 'clamp',
+        })
+      : 0;
+
   return (
     <Screen scroll={false} edges={['bottom', 'left', 'right']} texture>
       <View style={styles.page}>
-        <ScrollView
+        <Animated.ScrollView
           style={styles.scroller}
           contentContainerStyle={styles.scrollBody}
           showsVerticalScrollIndicator={false}
+          scrollEventThrottle={16}
+          onScroll={Animated.event(
+            [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+            { useNativeDriver: true },
+          )}
         >
           {/* Inside the scroller, like the meal page: reading about the box puts
               the photo away instead of holding it on screen the whole time. The
               name sits on the photo, so it travels with it. */}
-          <Hero source={box.image} scrim style={styles.hero}>
+          <Hero
+            source={box.image}
+            scrim
+            style={styles.hero}
+            onLayout={(e) => setHeroH(e.nativeEvent.layout.height)}
+          >
             <View style={styles.heroFoot}>
               <View style={[styles.heroTile, { backgroundColor: colors[box.tint] }]}>
                 <Icon path={icons[box.icon]} size={22} color={accent} strokeWidth={1.9} />
@@ -225,7 +258,15 @@ export default function BoxDetailScreen({ route, navigation }: RootStackScreenPr
             />
           </TouchableOpacity>
           </View>
-        </ScrollView>
+        </Animated.ScrollView>
+
+        {/* Backdrop behind the status bar: transparent over the hero, cream once
+            it has scrolled away, so the sheet's text never collides with the
+            clock and icons. Below the back button, above the scrolled content. */}
+        <Animated.View
+          pointerEvents="none"
+          style={[styles.statusCap, { height: insets.top, opacity: capOpacity }]}
+        />
 
         {/* The two things that do not travel: the way back, and the price the
             customer is deciding on. */}
@@ -298,6 +339,13 @@ const styles = StyleSheet.create({
     // Height is the photo's own, set by Hero — only the fallback colour is
     // ours, for the moment before the image decodes.
     backgroundColor: colors.tealDark,
+  },
+  statusCap: {
+    position: 'absolute',
+    top: 0,
+    start: 0,
+    end: 0,
+    backgroundColor: colors.cream,
   },
   backBtn: {
     position: 'absolute',

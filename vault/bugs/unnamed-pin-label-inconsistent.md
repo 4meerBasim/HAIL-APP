@@ -5,7 +5,10 @@ Found: `src/screens/CartScreen.tsx:202`, `src/screens/PlansScreen.tsx:126`, `src
 Summary: A `SavedLocation` with no `label` renders as a blank line in the cart, the addresses list and the picker, but as the add-address prompt on the home header — four sites, three different answers to the same missing field.
 
 ## Details
-Fixed: All four sites now render `label || t('location.pinned')`.
+Fixed: All four sites now resolve the name through the shared
+`locationLabel(location, t)` helper in `LocationContext` (which falls back to
+`t('location.pinned')`). See [[pinned-location-label-untranslated]] for the
+render-time translation that superseded the original inline `label || t(...)`.
 
 The original report follows.
 

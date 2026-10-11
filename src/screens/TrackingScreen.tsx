@@ -36,10 +36,10 @@ import { useNow, useOrders } from '../state/OrdersContext';
 import type { RootStackScreenProps } from '../navigation/RootNavigator';
 import { LEAFLET_CSS, LEAFLET_JS } from '../vendor/leaflet';
 
-// The tracking basemap is the same CARTO Positron + tone chain the address
-// picker uses, so the two map surfaces read as one product. Tone before hue for
-// the reason documented there: Positron sits at the top of the value range, so
-// contrast has to be given room by brightness first or the streets flatten out.
+// The tracking basemap is the same OpenStreetMap standard tiles + tone chain the
+// address picker uses, so the two map surfaces read as one product. Tone before
+// hue for the reason documented there: brightness is pulled first so contrast
+// has room to expand the streets rather than flattening them into the ceiling.
 const buildHtml = (fromLabel: string, toLabel: string): string => `
 <!doctype html>
 <html>
@@ -56,9 +56,14 @@ const buildHtml = (fromLabel: string, toLabel: string): string => `
     background: rgba(255,255,255,0.82); color: ${colors.muted};
   }
   .leaflet-control-attribution a { color: ${colors.tealDark}; text-decoration: none; }
+  /* Centred over its point via translateX(-50%) rather than left-anchored: the
+     destination pill sits at the end of the route hard against the map edge, and
+     a right-growing label was clipped to its first glyph or two ("Yo"). Centring
+     lets the fitBounds padding keep the whole caption on screen both sides. */
   .cap {
     background: ${colors.tealDark}; color: #fff; border-radius: 12px;
     padding: 4px 9px; font: 700 10.5px -apple-system, sans-serif; white-space: nowrap;
+    transform: translateX(-50%);
   }
   .cap.dest { background: ${colors.gold}; }
   .van {
@@ -95,8 +100,8 @@ const buildHtml = (fromLabel: string, toLabel: string): string => `
     scrollWheelZoom: false, boxZoom: false, keyboard: false, tap: false
   });
 
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-    maxZoom: 19, attribution: '&copy; OpenStreetMap &copy; CARTO'
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19, attribution: '&copy; OpenStreetMap contributors'
   }).addTo(map);
 
   // The travelled leg sits on top of the full route, so progress reads as the
