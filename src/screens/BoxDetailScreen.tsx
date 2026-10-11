@@ -34,7 +34,7 @@ export default function BoxDetailScreen({ route, navigation }: RootStackScreenPr
   const { id } = route.params;
   const { t, lang, isRTL } = useLanguage();
   const insets = useSafeAreaInsets();
-  const { plan, meals, pricing, dailyMacros, startFromBox } = usePlan();
+  const { plan, meals, pricing, startFromBox } = usePlan();
   const { status } = useAuth();
   const [day, setDay] = useState(0);
 
@@ -73,7 +73,12 @@ export default function BoxDetailScreen({ route, navigation }: RootStackScreenPr
   const accent = colors[box.accent];
   const name = t(`box.${box.id}.name`);
   const seeded = plan.boxId === box.id && plan.dishIds.length > 0;
-  const daily = seeded ? dailyMacros : boxDaily(box);
+  // The box's advertised daily macros are the one source of truth for the
+  // "full day" card, so the detail agrees with the Plans card (BoxCard also
+  // reads `boxDaily`). The seeded plan's `dailyMacros` is not it: a box opens
+  // with a single default meal time, so that figure is an average day of a
+  // one-meal plan and read far below the box's headline (998 vs 1800 kcal).
+  const daily = boxDaily(box);
   const money = seeded ? pricing : fallback;
   // The rotation broken into days, shown one day at a time: six cards in a row
   // is a pile of dishes, three under a day tab is a schedule.
