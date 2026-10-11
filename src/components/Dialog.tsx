@@ -33,7 +33,13 @@ export default function Dialog({
   // sets; and forceRTL only takes effect after a restart. Set here, the dialog
   // follows a language switched moments ago.
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      statusBarTranslucent
+      onRequestClose={onClose}
+    >
       <Pressable style={[styles.backdrop, { direction: isRTL ? 'rtl' : 'ltr' }]} onPress={onClose}>
         {/* Swallows taps so a press inside the card never dismisses it. */}
         <Pressable style={styles.card} onPress={() => {}}>

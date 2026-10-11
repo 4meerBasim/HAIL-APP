@@ -25,7 +25,13 @@ export default function LocationPicker({ visible, onClose, onOpenMap }: Location
   };
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      statusBarTranslucent
+      onRequestClose={onClose}
+    >
       {/* Scrim closes on tap; the sheet swallows its own presses so a tap on a
           row never reaches it. */}
       {/* A Modal is its own native root and inherits no direction from the
