@@ -14,6 +14,8 @@ Kept on purpose: the support screen has no website row until a Hail domain exist
 
 The GitHub repo is renamed from `jareesh-app` to `HAIL-APP`, and its default branch from `main-jaresh` to `main`; `docs/` follows.
 
+Photos from the old restaurant had Jareesh packaging in frame (bread bags, bottle stickers, wrapping paper, a store bag with address/QR/phone). Offers 02, 03, 05, 06, 08–11, 13–17, 19–21 and catering `hero.jpg` / `shoulder.jpg` were cropped to remove it. `offers/offer-04.jpg` still shows جريش wrapping paper under the burger and needs a new photo.
+
 ## Related
 - Page: [[login]], [[plans]]
 - Bugs: [[unknown-card-brand-hardcoded]]
