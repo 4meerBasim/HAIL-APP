@@ -1,6 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from './AuthContext';
+import { strings } from '../i18n/strings';
 
 // v2 namespace: the v1 keys still hold the fabricated Karrada/Al-Mansour seed on
 // any install that ran the old build and saved or starred an address. Reading a
@@ -30,6 +31,21 @@ export interface LocationContextValue {
   toggleFavourite: (id: string) => void;
   removeLocation: (id: string) => void;
 }
+
+// A pin saved without a typed name used to store the translated "Pinned
+// location" literal of whatever language was active at save time, so the label
+// stayed frozen in that language even after a switch. An empty label — and any
+// stored copy of that literal in either language — is treated as unnamed and
+// resolved through t() at render, so it always follows the current language.
+const PINNED_LITERALS = new Set((['ar', 'en'] as const).map((l) => strings[l]['location.pinned']));
+
+export const locationLabel = (
+  location: Pick<SavedLocation, 'label'>,
+  t: (key: string) => string,
+): string => {
+  const label = location.label?.trim();
+  return label && !PINNED_LITERALS.has(label) ? label : t('location.pinned');
+};
 
 const LocationContext = createContext<LocationContextValue | undefined>(undefined);
 

@@ -25,7 +25,7 @@ import { useCart } from '../state/CartContext';
 import { useNotifications } from '../state/NotificationsContext';
 import { usePlan } from '../state/PlanContext';
 import { useAuth } from '../state/AuthContext';
-import { useLocations } from '../state/LocationContext';
+import { locationLabel, useLocations } from '../state/LocationContext';
 import { type BoxGoal, dietBoxes, searchHints } from '../data/menu';
 import type { TabScreenProps } from '../navigation/RootNavigator';
 
@@ -131,7 +131,7 @@ export default function PlansScreen({ navigation }: TabScreenProps<'Plans'>) {
             >
               <Icon path={icons.pin} size={13} color={colors.gold} strokeWidth={2} />
               <Text style={styles.location} numberOfLines={1}>
-                {selected ? selected.label || t('location.pinned') : locHydrated ? t('location.add') : ''}
+                {selected ? locationLabel(selected, t) : locHydrated ? t('location.add') : ''}
               </Text>
               <Icon path={icons.chevronDown} size={13} color={overlay.white70} strokeWidth={2.2} />
             </TouchableOpacity>

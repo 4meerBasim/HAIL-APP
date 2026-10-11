@@ -260,7 +260,9 @@ export default function MapScreen({ navigation }: RootStackScreenProps<'Map'>) {
   const onSave = () => {
     if (!picked) return;
     const created = saveLocation({
-      label: label.trim() || t('location.pinned'),
+      // Stored empty when unnamed rather than frozen to the current language's
+      // "Pinned location"; `locationLabel` resolves it through t() at render.
+      label: label.trim(),
       address: picked.address || `${picked.lat.toFixed(5)}, ${picked.lng.toFixed(5)}`,
       lat: picked.lat,
       lng: picked.lng,

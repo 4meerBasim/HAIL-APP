@@ -12,7 +12,7 @@ import Reveal from '../components/Reveal';
 import SettingRow from '../components/SettingRow';
 import { colors, radius, spacing, type } from '../theme';
 import { useLanguage } from '../i18n/LanguageContext';
-import { useLocations } from '../state/LocationContext';
+import { locationLabel, useLocations } from '../state/LocationContext';
 import type { RootStackScreenProps } from '../navigation/RootNavigator';
 
 export default function AddressesScreen({ navigation }: RootStackScreenProps<'Addresses'>) {
@@ -63,7 +63,7 @@ export default function AddressesScreen({ navigation }: RootStackScreenProps<'Ad
             <Card padding={0} style={styles.rows}>
               {locations.map((l, i) => {
                 const on = l.id === selected?.id;
-                const name = l.label || t('location.pinned');
+                const name = locationLabel(l, t);
                 return (
                   <SettingRow
                     key={l.id}
