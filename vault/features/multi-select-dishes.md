@@ -15,4 +15,4 @@ Worked example: adding one dish to day 1's breakfast on the balanced box takes t
 ## Related
 - Page: [[plan-builder]], [[box-detail]]
 - Feature: [[meal-times]], [[subscription-pricing]]
-- Bugs: [[empty-cell-truthiness]], [[slot-labels-wrong-under-multi-select]]
+- Bugs: [[empty-cell-truthiness]], [[slot-labels-wrong-under-multi-select]], [[plan-builder-selected-card-narrow]]

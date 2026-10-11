@@ -13,3 +13,4 @@ Removed `planMacros.perDay` ("باليوم" / "Per day"), which was the vague st
 ## Related
 - Page: [[box-detail]], [[boxes]], [[plans]], [[subscribe]]
 - Feature: [[subscription-pricing]]
+- Bugs: [[box-macros-differ-card-vs-detail]]

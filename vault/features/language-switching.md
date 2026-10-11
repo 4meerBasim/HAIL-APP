@@ -51,4 +51,4 @@ Copy lives in `src/i18n/strings.ts` in both `ar` and `en`: `lang.ar`/`lang.en`,
 ## Related
 - Page: [[profile]], [[login]]
 - Features: [[bilingual-fonts]], [[hail-rebrand]]
-- Bugs: [[english-stays-rtl-on-rtl-locale]], [[modals-ignore-language-switch]], [[language-load-blanks-app]], [[ltr-fields-physical-alignment]]
+- Bugs: [[english-stays-rtl-on-rtl-locale]], [[modals-ignore-language-switch]], [[language-load-blanks-app]], [[ltr-fields-physical-alignment]], [[pinned-location-label-untranslated]]

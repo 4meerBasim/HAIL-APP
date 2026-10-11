@@ -32,4 +32,4 @@ same job properly.
 
 ## Related
 - Page: [[plan-builder]]
-- Bug: [[plan-builder-slow-to-open]]
+- Bug: [[plan-builder-slow-to-open]], [[plan-builder-selected-card-narrow]]

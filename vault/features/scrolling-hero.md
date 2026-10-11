@@ -10,4 +10,4 @@ Summary: The box page's photo scrolls away as you read, matching the meal page.
 
 ## Related
 - Page: [[box-detail]], [[dish-detail]]
-- Bugs: [[box-hero-pinned-while-scrolling]]
+- Bugs: [[box-hero-pinned-while-scrolling]], [[box-detail-status-bar-overlap]]
