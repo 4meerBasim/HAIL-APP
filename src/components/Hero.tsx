@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import {
   Image,
   type ImageSourcePropType,
+  type LayoutChangeEvent,
   type StyleProp,
   StyleSheet,
   TouchableOpacity,
@@ -40,6 +41,9 @@ export interface HeroProps {
   // Back buttons, titles, badges — anything drawn over the photo. Position
   // these absolutely; the hero itself only lays out the image.
   children?: React.ReactNode;
+  // Forwarded to the hero's own box, so a caller can measure its laid-out height
+  // (e.g. to drive a scroll effect off where the photo ends).
+  onLayout?: (event: LayoutChangeEvent) => void;
 }
 
 export default function Hero({
@@ -48,12 +52,13 @@ export default function Hero({
   zoomable = true,
   style,
   children,
+  onLayout,
 }: HeroProps) {
   const { t } = useLanguage();
   const [open, setOpen] = useState(false);
 
   return (
-    <View style={[styles.hero, { aspectRatio: heroAspect(source) }, style]}>
+    <View style={[styles.hero, { aspectRatio: heroAspect(source) }, style]} onLayout={onLayout}>
       <TouchableOpacity
         activeOpacity={zoomable ? 0.92 : 1}
         disabled={!zoomable}
