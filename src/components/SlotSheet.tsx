@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Modal, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { Modal, Pressable, StyleSheet, View } from 'react-native';
 import Text from './AppText';
+import AppTextInput from './AppTextInput';
 import Button from './Button';
 import Dialog from './Dialog';
 import TimePicker from './TimePicker';
@@ -73,7 +74,7 @@ export default function SlotSheet({ visible, initial, onClose, onSave, onDelete 
 
           <View style={styles.field}>
             <Text style={styles.label}>{t('slot.name')}</Text>
-            <TextInput
+            <AppTextInput
               value={name}
               onChangeText={setName}
               placeholder={t('builder.slotName')}

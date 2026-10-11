@@ -7,20 +7,20 @@ import {
   type KeyboardEvent,
   Platform,
   StyleSheet,
-  TextInput,
   TouchableOpacity,
   TouchableWithoutFeedback,
   useWindowDimensions,
   View,
 } from 'react-native';
 import Text from '../components/AppText';
+import AppTextInput from '../components/AppTextInput';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Button from '../components/Button';
 import Icon from '../components/Icon';
 import { icons } from '../components/icons';
-import { colors, fonts, overlay, radius, shadow, spacing, type } from '../theme';
+import { colors, fonts, ltrField, overlay, radius, shadow, spacing, type } from '../theme';
 import { type Lang, useLanguage } from '../i18n/LanguageContext';
 import { useAuth, type IdentityChannel, type SignInFailure } from '../state/AuthContext';
 import { DIAL_CODE, normalizePhone, phoneValid } from '../data/phone';
@@ -275,7 +275,7 @@ export default function LoginScreen({ navigation }: RootStackScreenProps<'Login'
               </Text>
 
               {isEmail ? (
-                <TextInput
+                <AppTextInput
                   value={email}
                   onChangeText={(v) => {
                     setEmail(v);
@@ -295,7 +295,7 @@ export default function LoginScreen({ navigation }: RootStackScreenProps<'Login'
                   <View style={styles.prefix}>
                     <Text style={styles.prefixText}>{DIAL_CODE}</Text>
                   </View>
-                  <TextInput
+                  <AppTextInput
                     value={phone}
                     onChangeText={(v) => {
                       setPhone(v);
@@ -526,14 +526,12 @@ const styles = StyleSheet.create({
   },
   phoneInput: {
     flex: 1,
-    textAlign: 'left',
-    writingDirection: 'ltr',
+    ...ltrField,
   },
   // An address is a Latin run, so it reads left-to-right even in Arabic —
   // the same exception the number above relies on.
   emailInput: {
-    textAlign: 'left',
-    writingDirection: 'ltr',
+    ...ltrField,
   },
   inputError: {
     borderColor: colors.coral,

@@ -9,3 +9,4 @@ It uses the screen's `readingSide` (`textAlign: 'auto'` plus writing direction).
 
 ## Related
 - Page: [[cart]]
+- Bugs: [[ltr-fields-physical-alignment]]

@@ -1,4 +1,4 @@
-import { ViewStyle } from 'react-native';
+import { Platform, TextStyle, ViewStyle } from 'react-native';
 
 // Brand hues (teal, gold) come from the live Hail menu site's CSS custom
 // properties. The neutrals do not: the site's cream page was built for a beige
@@ -161,16 +161,37 @@ export const shadow: Record<'card' | 'lifted' | 'cta' | 'raised' | 'bar' | 'shee
   },
 };
 
-// Cairo is the brand's UI/Arabic face; headings on the site run at 800.
-// Playfair Display 800 is reserved for the "Hail" wordmark only.
+// Plus Jakarta Sans is the English UI face, IBM Plex Sans Arabic the Arabic one.
+// Styles name the English families; text components swap in the Arabic
+// equivalent through `localFont`. Plex Arabic stops at 700, so heavy maps to
+// bold there. Playfair Display 800 is reserved for the "Hail" wordmark only.
 export const fonts = {
-  regular: 'Cairo_400Regular',
-  medium: 'Cairo_500Medium',
-  semibold: 'Cairo_600SemiBold',
-  bold: 'Cairo_700Bold',
-  heavy: 'Cairo_800ExtraBold',
+  regular: 'PlusJakartaSans_400Regular',
+  medium: 'PlusJakartaSans_500Medium',
+  semibold: 'PlusJakartaSans_600SemiBold',
+  bold: 'PlusJakartaSans_700Bold',
+  heavy: 'PlusJakartaSans_800ExtraBold',
   wordmark: 'PlayfairDisplay_800ExtraBold',
 } as const;
+
+const arabicFonts: Record<string, string> = {
+  [fonts.regular]: 'IBMPlexSansArabic_400Regular',
+  [fonts.medium]: 'IBMPlexSansArabic_500Medium',
+  [fonts.semibold]: 'IBMPlexSansArabic_600SemiBold',
+  [fonts.bold]: 'IBMPlexSansArabic_700Bold',
+  [fonts.heavy]: 'IBMPlexSansArabic_700Bold',
+};
+
+export const localFont = (family: string | undefined, lang: 'ar' | 'en'): string | undefined =>
+  family && lang === 'ar' ? (arabicFonts[family] ?? family) : family;
+
+// The type scale was sized against Cairo. Plus Jakarta Sans sets the same
+// English line about 11% wider, which crowded cards, so English text runs at
+// 90% — back to Cairo's measure. Line heights are kept, so layout heights hold.
+const ENGLISH_SCALE = 0.9;
+
+export const localSize = (size: number, lang: 'ar' | 'en'): number =>
+  lang === 'en' ? size * ENGLISH_SCALE : size;
 
 // Shared type scale. Screens compose these instead of hand-picking font sizes so
 // headings, body and captions stay consistent app-wide (color is applied per use).
@@ -178,8 +199,18 @@ export const fonts = {
 // Every step runs ~10% larger than the first pass, and the smallest step is
 // 12.5pt rather than 11.5 — Arabic letterforms carry more detail per glyph than
 // Latin ones and go muddy first, so the floor of the scale is where legibility
-// is won or lost. Line heights are generous for the same reason: Cairo's
+// is won or lost. Line heights are generous for the same reason: Arabic
 // ascenders and the dots below ب/ج need the room.
+// A field holding a number, a card or an email reads left-to-right and sits on
+// the left in both languages. iOS gets there from 'auto' plus the LTR writing
+// direction. Android ignores writingDirection on inputs, so 'auto' would follow
+// the RTL layout for a digits-only value; its 'left' is a physical gravity that
+// RTL never mirrors, which is the one place a physical side is correct.
+export const ltrField: TextStyle = {
+  textAlign: Platform.OS === 'ios' ? 'auto' : 'left',
+  writingDirection: 'ltr',
+};
+
 export const type = {
   // The one live total on a screen — plan summary hero.
   money: { fontFamily: fonts.bold, fontSize: 34, lineHeight: 48 },

@@ -1,5 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import { I18nManager } from 'react-native';
+import { I18nManager, Platform } from 'react-native';
+import { reloadAppAsync } from 'expo';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { strings } from './strings';
 
@@ -7,6 +8,8 @@ export type Lang = 'ar' | 'en';
 export type Dir = 'rtl' | 'ltr';
 
 const STORAGE_KEY = '@hail/lang';
+const RELOAD_KEY = '@hail/rtl-reload';
+const DEFAULT_LANG: Lang = 'en';
 
 export interface LanguageContextValue {
   lang: Lang;
@@ -18,30 +21,58 @@ export interface LanguageContextValue {
 
 const LanguageContext = createContext<LanguageContextValue | undefined>(undefined);
 
+// Android resolves RTL as forced OR (allowed AND device locale is RTL), and iOS
+// also follows the app's preferred language when allowed — so English has to
+// disallow RTL, not just stop forcing it, or an Arabic-locale phone keeps it.
 const applyRTL = (lang: Lang): void => {
-  I18nManager.allowRTL(true);
+  I18nManager.allowRTL(lang === 'ar');
   I18nManager.forceRTL(lang === 'ar');
 };
 
+// Native layout direction is only read at launch, so a language whose
+// direction differs from the running one needs a restart to lay out correctly.
+// Web has no native direction to fix, and a missing native reload falls back
+// to the context-driven live switch.
+const canRestart = (): boolean =>
+  Platform.OS !== 'web' && typeof globalThis.expo?.reloadAppAsync === 'function';
+
+const needsRestart = (lang: Lang): boolean =>
+  canRestart() && I18nManager.isRTL !== (lang === 'ar');
+
+const restart = async (): Promise<boolean> => {
+  try {
+    await AsyncStorage.setItem(RELOAD_KEY, '1');
+    await reloadAppAsync('Language direction changed');
+    return true;
+  } catch {
+    return false;
+  }
+};
+
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
-  const [lang, setLangState] = useState<Lang>('ar');
+  const [lang, setLangState] = useState<Lang>(DEFAULT_LANG);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
     let active = true;
     (async () => {
       // Nothing renders until `ready`, so a storage error here must still end
-      // in a language: without the catch the app stayed blank for good. Arabic
-      // is the default either way.
-      let initial: Lang = 'ar';
+      // in a language: without the catch the app stayed blank for good.
+      let initial: Lang = DEFAULT_LANG;
+      let reloaded = false;
       try {
         const stored = await AsyncStorage.getItem(STORAGE_KEY);
         if (stored === 'ar' || stored === 'en') initial = stored;
-        else await AsyncStorage.setItem(STORAGE_KEY, 'ar');
+        reloaded = (await AsyncStorage.getItem(RELOAD_KEY)) === '1';
+        if (reloaded) await AsyncStorage.removeItem(RELOAD_KEY);
       } catch {
         // Fall back to the default.
       }
       applyRTL(initial);
+      // A fresh install on a device whose system direction differs from the
+      // saved language restarts once. `reloaded` stops a loop if the native
+      // direction still did not follow after that restart.
+      if (!reloaded && needsRestart(initial) && (await restart())) return;
       if (active) {
         setLangState(initial);
         setReady(true);
@@ -52,17 +83,22 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  // The switch happens on screen even when it cannot be saved — the customer
-  // asked for it now; only the next launch falls back to the default.
-  const setLang = useCallback(async (l: Lang) => {
-    try {
-      await AsyncStorage.setItem(STORAGE_KEY, l);
-    } catch {
-      // Not persisted; the in-memory language still changes.
-    }
-    applyRTL(l);
-    setLangState(l);
-  }, []);
+  // The switch happens even when it cannot be saved — the customer asked for
+  // it now; only the next launch falls back to the default.
+  const setLang = useCallback(
+    async (l: Lang) => {
+      if (l === lang) return;
+      try {
+        await AsyncStorage.setItem(STORAGE_KEY, l);
+      } catch {
+        // Not persisted; the in-memory language still changes.
+      }
+      applyRTL(l);
+      if (needsRestart(l) && (await restart())) return;
+      setLangState(l);
+    },
+    [lang],
+  );
 
   const t = useCallback(
     (key: string, fallback?: string): string => {

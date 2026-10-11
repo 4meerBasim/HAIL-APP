@@ -4,10 +4,8 @@ import {
   Easing,
   Image,
   LayoutAnimation,
-  Platform,
   ScrollView,
   StyleSheet,
-  UIManager,
   useWindowDimensions,
   View,
 } from 'react-native';
@@ -39,12 +37,6 @@ import { useCart } from '../state/CartContext';
 import type { TabScreenProps } from '../navigation/RootNavigator';
 
 const STEP_MS = 260;
-
-// Android needs telling before it will animate a layout change at all; iOS has
-// always done it. Called once at module load rather than per render.
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
 
 // Ticking a part on grows a grams control under it, which is a height change —
 // the cards below slide down rather than jumping.

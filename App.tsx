@@ -7,12 +7,18 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
 import {
   useFonts,
-  Cairo_400Regular,
-  Cairo_500Medium,
-  Cairo_600SemiBold,
-  Cairo_700Bold,
-  Cairo_800ExtraBold,
-} from '@expo-google-fonts/cairo';
+  PlusJakartaSans_400Regular,
+  PlusJakartaSans_500Medium,
+  PlusJakartaSans_600SemiBold,
+  PlusJakartaSans_700Bold,
+  PlusJakartaSans_800ExtraBold,
+} from '@expo-google-fonts/plus-jakarta-sans';
+import {
+  IBMPlexSansArabic_400Regular,
+  IBMPlexSansArabic_500Medium,
+  IBMPlexSansArabic_600SemiBold,
+  IBMPlexSansArabic_700Bold,
+} from '@expo-google-fonts/ibm-plex-sans-arabic';
 import { PlayfairDisplay_800ExtraBold } from '@expo-google-fonts/playfair-display';
 import { LanguageProvider } from './src/i18n/LanguageContext';
 import { AuthProvider } from './src/state/AuthContext';
@@ -28,11 +34,15 @@ SplashScreen.preventAutoHideAsync();
 
 export default function App() {
   const [fontsLoaded] = useFonts({
-    Cairo_400Regular,
-    Cairo_500Medium,
-    Cairo_600SemiBold,
-    Cairo_700Bold,
-    Cairo_800ExtraBold,
+    PlusJakartaSans_400Regular,
+    PlusJakartaSans_500Medium,
+    PlusJakartaSans_600SemiBold,
+    PlusJakartaSans_700Bold,
+    PlusJakartaSans_800ExtraBold,
+    IBMPlexSansArabic_400Regular,
+    IBMPlexSansArabic_500Medium,
+    IBMPlexSansArabic_600SemiBold,
+    IBMPlexSansArabic_700Bold,
     PlayfairDisplay_800ExtraBold,
   });
 

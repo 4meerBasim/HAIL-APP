@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import Text from '../components/AppText';
+import AppTextInput from '../components/AppTextInput';
 import Screen from '../components/Screen';
 import Icon from '../components/Icon';
 import { icons } from '../components/icons';
@@ -10,7 +11,7 @@ import PressScale from '../components/PressScale';
 import DashedOutline from '../components/DashedOutline';
 import SectionHeader from '../components/SectionHeader';
 import SettingRow from '../components/SettingRow';
-import { colors, fonts, radius, shadow, spacing, type } from '../theme';
+import { colors, fonts, ltrField, radius, shadow, spacing, type } from '../theme';
 import { useLanguage } from '../i18n/LanguageContext';
 import { useAuth } from '../state/AuthContext';
 import { DIAL_CODE, formatPhone, normalizePhone, phoneValid } from '../data/phone';
@@ -143,7 +144,7 @@ export default function PhoneNumbersScreen({ navigation }: RootStackScreenProps<
                 <View style={styles.prefix}>
                   <Text style={styles.prefixText}>{DIAL_CODE}</Text>
                 </View>
-                <TextInput
+                <AppTextInput
                   value={phone}
                   onChangeText={(v) => {
                     setPhone(v);
@@ -450,8 +451,7 @@ const styles = StyleSheet.create({
   },
   phoneInput: {
     flex: 1,
-    textAlign: 'left',
-    writingDirection: 'ltr',
+    ...ltrField,
   },
   inputError: {
     borderColor: colors.coral,

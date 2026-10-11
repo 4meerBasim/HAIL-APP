@@ -1,11 +1,9 @@
 import React, { useState } from 'react';
 import {
   LayoutAnimation,
-  Platform,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
-  UIManager,
   View,
 } from 'react-native';
 import Text from '../components/AppText';
@@ -25,12 +23,6 @@ import { formatNumber } from '../i18n/digits';
 import { useOrderText } from '../i18n/orderText';
 import { useMealBuild } from '../state/MealBuildContext';
 import type { RootStackScreenProps } from '../navigation/RootNavigator';
-
-// Android needs telling before it will animate a layout change at all; iOS has
-// always done it. Called once at module load rather than per render.
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
 
 // Opening and closing a panel is a height change, and a height change is what
 // LayoutAnimation is for — the rows below slide down with it rather than

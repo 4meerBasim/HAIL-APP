@@ -10,6 +10,7 @@ import {
   View,
 } from 'react-native';
 import Text from '../components/AppText';
+import AppTextInput from '../components/AppTextInput';
 import CartBar from '../components/CartBar';
 import RotatingHint from '../components/RotatingHint';
 import Screen from '../components/Screen';
@@ -186,7 +187,7 @@ export default function SingleMealsScreen({
         <View style={styles.searchField}>
           <Icon path={icons.search} size={15} color={colors.muted2} />
           <View style={styles.searchWrap}>
-            <TextInput
+            <AppTextInput
               ref={searchRef}
               style={[
                 styles.searchInput,

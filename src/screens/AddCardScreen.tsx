@@ -4,17 +4,17 @@ import {
   Platform,
   ScrollView,
   StyleSheet,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
 import Text from '../components/AppText';
+import AppTextInput from '../components/AppTextInput';
 import Screen from '../components/Screen';
 import Icon from '../components/Icon';
 import { icons } from '../components/icons';
 import Button from '../components/Button';
 import PaymentCard, { type CardField } from '../components/PaymentCard';
-import { colors, radius, spacing, type } from '../theme';
+import { colors, ltrField, radius, spacing, type } from '../theme';
 import { useLanguage } from '../i18n/LanguageContext';
 import { useStoredState } from '../state/useStoredState';
 import {
@@ -98,7 +98,7 @@ export default function AddCardScreen({ navigation }: RootStackScreenProps<'AddC
   ) => (
     <View style={styles.field}>
       <Text style={styles.label}>{label}</Text>
-      <TextInput
+      <AppTextInput
         value={value}
         onChangeText={onChangeText}
         onFocus={() => setFocused(key)}
@@ -263,8 +263,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.control,
     paddingHorizontal: spacing.xxl,
     paddingVertical: spacing.xxl,
-    textAlign: 'left',
-    writingDirection: 'ltr',
+    ...ltrField,
   },
   inputOn: {
     borderColor: colors.teal,

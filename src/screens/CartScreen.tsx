@@ -2,12 +2,12 @@ import React, { useEffect, useState } from 'react';
 import {
   ScrollView,
   StyleSheet,
-  TextInput,
   TouchableOpacity,
   useWindowDimensions,
   View,
 } from 'react-native';
 import Text from '../components/AppText';
+import AppTextInput from '../components/AppTextInput';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, fonts, radius, shadow, spacing, type } from '../theme';
 import { useLanguage } from '../i18n/LanguageContext';
@@ -422,7 +422,7 @@ export default function CartScreen({ navigation }: RootStackScreenProps<'Cart'>)
             </View>
 
             <View style={[styles.noteField, noteOn && styles.noteFieldOn]}>
-              <TextInput
+              <AppTextInput
                 value={note}
                 onChangeText={setNote}
                 onFocus={() => setNoteOn(true)}
