@@ -56,10 +56,18 @@ export default function PlansScreen({ navigation }: TabScreenProps<'Plans'>) {
   const chevron = isRTL ? icons.chevronLeft : icons.chevronRight;
   const arrow = isRTL ? icons.arrowLeft : icons.arrowRight;
 
+  // Arabic greets with صباح الخير until noon and مساء الخير after, so afternoon
+  // and evening share a phrase there; English splits them at 5pm.
+  const hour = new Date().getHours();
+  const partOfDay = hour >= 4 && hour < 12 ? 'morning' : hour >= 12 && hour < 17 ? 'afternoon' : 'evening';
+  const timeGreeting = t(`home.greeting.${partOfDay}`);
+
   // The API supplies the name; a phone-only sign-in may not, so a nameless
   // greeting is the fallback rather than a made-up name.
   const name = user?.name.trim();
-  const greeting = name ? t('home.greeting').replace('{name}', name) : t('home.greeting.plain');
+  const greeting = name
+    ? t('home.greeting.named').replace('{greeting}', timeGreeting).replace('{name}', name)
+    : timeGreeting;
 
   const hints = useMemo(
     () => searchHints().map((d) => `${t('home.searchPrefix')} ${lang === 'ar' ? d.name : t(`dish.${d.id}.name`, d.name)}`),
