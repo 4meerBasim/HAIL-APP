@@ -14,3 +14,4 @@ The launch check then saw a mismatch on every cold start and restarted once (the
 ## Related
 - Feature: [[language-switching]]
 - Page: [[login]], [[profile]]
+- Bugs: [[language-switch-no-reload-in-expo-go]]

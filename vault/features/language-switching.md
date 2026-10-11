@@ -11,8 +11,9 @@ the choice before switching.
 
 The switch **restarts the app on a direction change**, it is no longer live. When
 the chosen language's direction differs from the running native direction, `setLang`
-calls `reloadAppAsync('Language direction changed')` from `expo` — no new dependency,
-`reloadAppAsync` ships with the Expo runtime. On the next launch the provider also
+reloads the app — `DevSettings.reload` in development builds (Expo Go included, where
+`reloadAppAsync` resolves without reloading; see [[language-switch-no-reload-in-expo-go]])
+and `reloadAppAsync` from `expo` in release builds. No new dependency. On the next launch the provider also
 compares the saved language against native `I18nManager.isRTL` and restarts once if
 they disagree (a fresh install whose system direction differs from the saved
 language). A `@hail/rtl-reload` flag written before the reload and cleared on the
@@ -32,9 +33,9 @@ separate native roots (see [[modals-ignore-language-switch]]). `AppText` keeps
 not mirror with RTL, and the phone rows stay `row-reverse` under RTL on purpose to
 keep the `+964` dial code and its number as one left-to-right run.
 
-Fallbacks: on web there is no native direction to fix, and where no native reload is
-available the switch falls back to the context-driven live behaviour (`canRestart`
-gates this on `Platform.OS !== 'web'` and `reloadAppAsync` being present). The switch
+Fallbacks: on web there is no native direction to fix, so it never restarts. After a
+restart attempt the language is still switched in place, so a reload that does not
+happen degrades to the context-driven live behaviour instead of a stuck or blank screen. The switch
 still happens even when it cannot be persisted — only the next launch falls back to
 the default.
 
@@ -51,4 +52,4 @@ Copy lives in `src/i18n/strings.ts` in both `ar` and `en`: `lang.ar`/`lang.en`,
 ## Related
 - Page: [[profile]], [[login]]
 - Features: [[bilingual-fonts]], [[hail-rebrand]]
-- Bugs: [[english-stays-rtl-on-rtl-locale]], [[modals-ignore-language-switch]], [[language-load-blanks-app]], [[ltr-fields-physical-alignment]], [[pinned-location-label-untranslated]]
+- Bugs: [[dial-code-reversed-in-arabic]], [[language-switch-no-reload-in-expo-go]], [[english-stays-rtl-on-rtl-locale]], [[modals-ignore-language-switch]], [[language-load-blanks-app]], [[ltr-fields-physical-alignment]], [[pinned-location-label-untranslated]]

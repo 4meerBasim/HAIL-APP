@@ -1,5 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import { I18nManager, Platform } from 'react-native';
+import { DevSettings, I18nManager, Platform } from 'react-native';
 import { reloadAppAsync } from 'expo';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { strings } from './strings';
@@ -31,21 +31,21 @@ const applyRTL = (lang: Lang): void => {
 
 // Native layout direction is only read at launch, so a language whose
 // direction differs from the running one needs a restart to lay out correctly.
-// Web has no native direction to fix, and a missing native reload falls back
-// to the context-driven live switch.
-const canRestart = (): boolean =>
-  Platform.OS !== 'web' && typeof globalThis.expo?.reloadAppAsync === 'function';
-
+// Web has no native direction to fix.
 const needsRestart = (lang: Lang): boolean =>
-  canRestart() && I18nManager.isRTL !== (lang === 'ar');
+  Platform.OS !== 'web' && I18nManager.isRTL !== (lang === 'ar');
 
-const restart = async (): Promise<boolean> => {
+// `reloadAppAsync` resolves without reloading inside Expo Go, so development
+// builds reload through DevSettings instead. Callers still switch the language
+// in place afterwards: if no reload happened, the context-driven layout is the
+// fallback rather than a screen that never changes (or never renders).
+const restart = async (): Promise<void> => {
   try {
     await AsyncStorage.setItem(RELOAD_KEY, '1');
-    await reloadAppAsync('Language direction changed');
-    return true;
+    if (__DEV__) DevSettings.reload('Language direction changed');
+    else await reloadAppAsync('Language direction changed');
   } catch {
-    return false;
+    // Fall through to the live switch.
   }
 };
 
@@ -72,7 +72,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
       // A fresh install on a device whose system direction differs from the
       // saved language restarts once. `reloaded` stops a loop if the native
       // direction still did not follow after that restart.
-      if (!reloaded && needsRestart(initial) && (await restart())) return;
+      if (!reloaded && needsRestart(initial)) await restart();
       if (active) {
         setLangState(initial);
         setReady(true);
@@ -94,7 +94,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
         // Not persisted; the in-memory language still changes.
       }
       applyRTL(l);
-      if (needsRestart(l) && (await restart())) return;
+      if (needsRestart(l)) await restart();
       setLangState(l);
     },
     [lang],

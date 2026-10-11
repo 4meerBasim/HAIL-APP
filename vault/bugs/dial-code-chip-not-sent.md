@@ -41,3 +41,4 @@ number, and nothing downstream can tell that it is the wrong one.
 - Page: [[login]]
 - Feature: [[phone-otp-sign-in]]
 - Bugs: [[phone-validation-too-loose]]
+- Bugs: [[dial-code-reversed-in-arabic]]
